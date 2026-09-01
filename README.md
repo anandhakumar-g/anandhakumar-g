@@ -18,7 +18,7 @@ implements **MVP-1 (Foundation)**.
 | `backend/` | Spring Boot 2.7 / Java 17 / PostgreSQL API |
 | `mobile/` | Expo / React Native (TypeScript) app — resident, admin, provider roles |
 | `admin-web/` | Placeholder — dedicated React admin console arrives in MVP-2 |
-| `docs/` | `openapi.yaml`, `data-model.md`, `decisions.md`, `roadmap.md`, Postman collection |
+| `docs/` | `openapi.yaml` (generated), `decisions.md` (ADRs), `roadmap.md`, `Single-Point-MVP1.postman_collection.json` |
 
 ---
 

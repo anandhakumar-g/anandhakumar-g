@@ -1,0 +1,507 @@
+{
+  "info": {
+    "name": "Single Point — MVP-1",
+    "_postman_id": "sp-mvp1-0001-0001-0001-000000000001",
+    "description": "End-to-end walkthrough of the MVP-1 API: resident onboarding, ticket lifecycle, admin triage, provider workflow, super-admin onboarding.\n\nRun the requests top to bottom the first time — each folder's scripts capture the tokens / ids the next requests need into collection variables.\n\nLocal defaults: backend on http://localhost:18080, dev OTP mode ON (the code is returned in `devCode`).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:18080/api/v1" },
+    { "key": "residentPhone", "value": "+919888100001" },
+    { "key": "adminPhone", "value": "+919000000101" },
+    { "key": "providerPhone", "value": "+919000000301" },
+    { "key": "superAdminPhone", "value": "+919000000000" },
+    { "key": "devCode", "value": "" },
+    { "key": "token", "value": "" },
+    { "key": "adminToken", "value": "" },
+    { "key": "providerToken", "value": "" },
+    { "key": "superToken", "value": "" },
+    { "key": "tenantId", "value": "" },
+    { "key": "inviteCode", "value": "" },
+    { "key": "categoryId", "value": "" },
+    { "key": "ticketId", "value": "" },
+    { "key": "providerId", "value": "" },
+    { "key": "membershipId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1 · Resident onboarding",
+      "item": [
+        {
+          "name": "Request OTP",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "pm.collectionVariables.set('devCode', pm.response.json().devCode || '');"
+          ] } }],
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/auth/otp/request",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"{{residentPhone}}\"\n}" }
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "const j = pm.response.json();",
+            "pm.collectionVariables.set('token', j.token);",
+            "pm.test('needs profile', () => pm.expect(j.onboardingState).to.eql('NEEDS_PROFILE'));"
+          ] } }],
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/auth/otp/verify",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"{{residentPhone}}\",\n  \"code\": \"{{devCode}}\"\n}" }
+          }
+        },
+        {
+          "name": "Complete profile",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "pm.collectionVariables.set('token', pm.response.json().token);"
+          ] } }],
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/auth/profile",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Ravi Kumar\",\n  \"email\": \"ravi@example.com\"\n}" }
+          }
+        },
+        {
+          "name": "Search communities",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "const list = pm.response.json().content;",
+            "if (list.length) pm.collectionVariables.set('tenantId', list[0].id);"
+          ] } }],
+          "request": {
+            "method": "GET", "url": "{{baseUrl}}/tenants?query=green",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Join community (invite code)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "const j = pm.response.json();",
+            "pm.collectionVariables.set('token', j.token);",
+            "pm.test('READY', () => pm.expect(j.onboardingState).to.eql('READY'));"
+          ] } }],
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/memberships/join",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"inviteCode\": \"{{inviteCode}}\"\n}" },
+            "description": "Set `inviteCode` from the backend startup banner (or the Admin > Create invite code request). Leave it blank to submit a join request for admin approval instead."
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET", "url": "{{baseUrl}}/me",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2 · Resident — raise & track",
+      "item": [
+        {
+          "name": "List categories",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "const c = pm.response.json().find(x => x.name === 'Electrical') || pm.response.json()[0];",
+            "pm.collectionVariables.set('categoryId', c.id);"
+          ] } }],
+          "request": {
+            "method": "GET", "url": "{{baseUrl}}/categories",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Raise ticket",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('201', () => pm.response.to.have.status(201));",
+            "const j = pm.response.json();",
+            "pm.collectionVariables.set('ticketId', j.id);",
+            "pm.test('NEW', () => pm.expect(j.status).to.eql('NEW'));"
+          ] } }],
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/tickets",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"description\": \"Kitchen plug sparking\",\n  \"priority\": \"HIGH\",\n  \"serviceAddressText\": \"A-101, Green Meadows\",\n  \"serviceGeoLat\": 12.9698,\n  \"serviceGeoLng\": 77.7499,\n  \"serviceLandmark\": \"Near the lift\"\n}" }
+          }
+        },
+        {
+          "name": "Upload attachment",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/tickets/{{ticketId}}/attachments",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "body": { "mode": "formdata", "formdata": [{ "key": "file", "type": "file", "src": [] }] }
+          }
+        },
+        {
+          "name": "My tickets",
+          "request": {
+            "method": "GET", "url": "{{baseUrl}}/tickets",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Ticket detail",
+          "request": {
+            "method": "GET", "url": "{{baseUrl}}/tickets/{{ticketId}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Ticket timeline",
+          "request": {
+            "method": "GET", "url": "{{baseUrl}}/tickets/{{ticketId}}/timeline",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Reopen (after RESOLVED)",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/tickets/{{ticketId}}/reopen",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"remarks\": \"Still sparking\"\n}" }
+          }
+        },
+        {
+          "name": "Close + rate (after RESOLVED)",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/tickets/{{ticketId}}/close",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"rating\": 5,\n  \"remarks\": \"Fixed quickly, thanks\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3 · Admin",
+      "item": [
+        {
+          "name": "Login — request OTP",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.collectionVariables.set('devCode', pm.response.json().devCode || '');"
+          ] } }],
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/auth/otp/request",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"{{adminPhone}}\"\n}" }
+          }
+        },
+        {
+          "name": "Login — verify OTP",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.collectionVariables.set('adminToken', pm.response.json().token);"
+          ] } }],
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/auth/otp/verify",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"{{adminPhone}}\",\n  \"code\": \"{{devCode}}\"\n}" }
+          }
+        },
+        {
+          "name": "Queue (all)",
+          "request": {
+            "method": "GET", "url": "{{baseUrl}}/tickets",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }]
+          }
+        },
+        {
+          "name": "Queue (NEW only)",
+          "request": {
+            "method": "GET", "url": "{{baseUrl}}/tickets?status=NEW",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }]
+          }
+        },
+        {
+          "name": "Create invite code",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.collectionVariables.set('inviteCode', pm.response.json().code);"
+          ] } }],
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/admin/invite-codes",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"maxUses\": 20,\n  \"validDays\": 30\n}" }
+          }
+        },
+        {
+          "name": "Flats",
+          "request": {
+            "method": "GET", "url": "{{baseUrl}}/admin/flats",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }]
+          }
+        },
+        {
+          "name": "Pending join requests",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const l = pm.response.json();",
+            "if (l.length) pm.collectionVariables.set('membershipId', l[0].id);"
+          ] } }],
+          "request": {
+            "method": "GET", "url": "{{baseUrl}}/admin/join-requests",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }]
+          }
+        },
+        {
+          "name": "Approve join request",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/admin/join-requests/{{membershipId}}/approve",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{}" }
+          }
+        },
+        {
+          "name": "Provider directory",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const l = pm.response.json();",
+            "if (l.length) pm.collectionVariables.set('providerId', l[0].id);"
+          ] } }],
+          "request": {
+            "method": "GET", "url": "{{baseUrl}}/admin/providers",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }]
+          }
+        },
+        {
+          "name": "Add provider",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.collectionVariables.set('providerId', pm.response.json().id);"
+          ] } }],
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/admin/providers",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Sparky Electricals\",\n  \"vendorCategoryId\": \"22222222-0000-0000-0000-000000000001\",\n  \"company\": true,\n  \"contactPhone\": \"{{providerPhone}}\"\n}" }
+          }
+        },
+        {
+          "name": "Verify provider",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/admin/providers/{{providerId}}/verify",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"VERIFIED\"\n}" }
+          }
+        },
+        {
+          "name": "Acknowledge ticket",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/tickets/{{ticketId}}/acknowledge",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{ \"remarks\": \"Looking into it\" }" }
+          }
+        },
+        {
+          "name": "Assign to provider",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('ASSIGNED', () => pm.expect(pm.response.json().status).to.eql('ASSIGNED'));"
+          ] } }],
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/tickets/{{ticketId}}/assign",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"providerId\": \"{{providerId}}\",\n  \"remarks\": \"Please attend today\"\n}" }
+          }
+        },
+        {
+          "name": "Reroute to another provider",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/tickets/{{ticketId}}/reroute",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"providerId\": \"{{providerId}}\"\n}" }
+          }
+        },
+        {
+          "name": "Resolve directly",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/tickets/{{ticketId}}/resolve",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"resolutionNotes\": \"Handled by the in-house team\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4 · Provider",
+      "item": [
+        {
+          "name": "Login — request OTP",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.collectionVariables.set('devCode', pm.response.json().devCode || '');"
+          ] } }],
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/auth/otp/request",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"{{providerPhone}}\"\n}" }
+          }
+        },
+        {
+          "name": "Login — verify OTP",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.collectionVariables.set('providerToken', pm.response.json().token);"
+          ] } }],
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/auth/otp/verify",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"{{providerPhone}}\",\n  \"code\": \"{{devCode}}\"\n}" }
+          }
+        },
+        {
+          "name": "My jobs",
+          "request": {
+            "method": "GET", "url": "{{baseUrl}}/tickets",
+            "header": [{ "key": "Authorization", "value": "Bearer {{providerToken}}" }]
+          }
+        },
+        {
+          "name": "Accept job",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/tickets/{{ticketId}}/accept",
+            "header": [{ "key": "Authorization", "value": "Bearer {{providerToken}}" }]
+          }
+        },
+        {
+          "name": "Reject job",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/tickets/{{ticketId}}/reject",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{providerToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{ \"reason\": \"Fully booked today\" }" }
+          }
+        },
+        {
+          "name": "Status → IN_PROGRESS",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/tickets/{{ticketId}}/status",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{providerToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{ \"toStatus\": \"IN_PROGRESS\" }" }
+          }
+        },
+        {
+          "name": "Status → ON_HOLD",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/tickets/{{ticketId}}/status",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{providerToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{ \"toStatus\": \"ON_HOLD\", \"reason\": \"Waiting for a spare part\" }" }
+          }
+        },
+        {
+          "name": "Status → RESOLVED",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/tickets/{{ticketId}}/status",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{providerToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{ \"toStatus\": \"RESOLVED\", \"resolutionNotes\": \"Replaced the socket\" }" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5 · Super Admin",
+      "item": [
+        {
+          "name": "Login — request OTP",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.collectionVariables.set('devCode', pm.response.json().devCode || '');"
+          ] } }],
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/auth/otp/request",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"{{superAdminPhone}}\"\n}" }
+          }
+        },
+        {
+          "name": "Login — verify OTP",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.collectionVariables.set('superToken', pm.response.json().token);"
+          ] } }],
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/auth/otp/verify",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"{{superAdminPhone}}\",\n  \"code\": \"{{devCode}}\"\n}" }
+          }
+        },
+        {
+          "name": "Onboard a community",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.collectionVariables.set('tenantId', pm.response.json().id);"
+          ] } }],
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/superadmin/tenants",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{superToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Palm Grove\",\n  \"city\": \"Bengaluru\",\n  \"locality\": \"Sarjapur\",\n  \"brandPrimaryColor\": \"#7C3AED\",\n  \"defaultTheme\": \"light\"\n}" }
+          }
+        },
+        {
+          "name": "Invite an admin",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/superadmin/tenants/{{tenantId}}/admins",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{superToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"+919000000401\",\n  \"name\": \"Palm Grove Admin\"\n}" }
+          }
+        },
+        {
+          "name": "Tenant health",
+          "request": {
+            "method": "GET", "url": "{{baseUrl}}/superadmin/tenants",
+            "header": [{ "key": "Authorization", "value": "Bearer {{superToken}}" }]
+          }
+        }
+      ]
+    }
+  ]
+}

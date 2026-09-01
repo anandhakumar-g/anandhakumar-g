@@ -30,7 +30,8 @@ public class SecurityConfig {
             // Attachments are addressed by an unguessable UUID key. MVP-1 local convenience so
             // <Image> tags render without an auth header; cloud uses presigned S3 URLs instead.
             "/api/v1/files/**",
-            "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
+            "/v3/api-docs", "/v3/api-docs/**", "/v3/api-docs.yaml",
+            "/swagger-ui/**", "/swagger-ui.html",
             "/actuator/health", "/actuator/health/**", "/actuator/info",
             "/error"
     };

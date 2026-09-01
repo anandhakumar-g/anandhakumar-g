@@ -23,14 +23,16 @@ for entities and DTOs. Hand-writing accessors at this scale is a false economy a
 noise. Lombok is excluded from the repackaged jar. Business/service/controller classes stay
 plain with constructor injection, as in DCC.
 
-## ADR-009 — Local dev uses a running PostgreSQL, not Docker
+## ADR-009 — Local dev + tests use a running PostgreSQL, not Docker
 **Context:** the build machine has PostgreSQL 18 on `localhost:5433` but no Docker daemon.
 **Decision:** local + test profiles target the local PostgreSQL instance (databases
-`singlepoint`, `singlepoint_test`). `docker-compose.yml` (Postgres + MinIO) is kept for
-Docker-capable environments and CI. Testcontainers-based tests are the documented CI path but
-are gated on Docker availability so they don't fail the local build.
-**Consequence:** integration tests run against a real PostgreSQL locally (RLS is testable);
-developers need the local instance or Docker.
+`singlepoint`, `singlepoint_test`). Integration tests (`*IT`) are full-stack HTTP tests
+(`@SpringBootTest(RANDOM_PORT)` + `TestRestTemplate`) against `singlepoint_test`; the base
+class runs Flyway once then `TRUNCATE … RESTART IDENTITY CASCADE` + reseeds a minimal taxonomy
+before each test (fast, no DDL-lock deadlocks). `docker-compose.yml` (Postgres + MinIO) is
+kept for Docker-capable environments / CI, where Testcontainers can wrap the same tests.
+**Consequence:** RLS, triggers and the tenant-GUC datasource are all exercised for real;
+developers need the local instance (`db/bootstrap.sql`) or Docker.
 
 ## ADR-008 — Object storage abstraction: local filesystem in dev, S3 in cloud
 **Context:** no Docker locally ⇒ no MinIO. Attachments still need somewhere to live.

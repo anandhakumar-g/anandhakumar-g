@@ -1,0 +1,1715 @@
+openapi: 3.0.1
+info:
+  title: Single Point API
+  description: Multi-tenant gated-community ticket management platform.
+  version: MVP-1
+servers:
+- url: http://localhost:18080
+  description: Generated server url
+security:
+- bearerAuth: []
+tags:
+- name: Tickets
+  description: "Raise, triage, resolve — role-aware"
+- name: Admin — Providers
+  description: Community provider directory + manual verification
+- name: Auth
+  description: Phone + OTP login and profile completion
+- name: Me
+  description: "Signed-in user profile, theme, memberships, devices"
+- name: Communities
+  description: Community directory for onboarding
+- name: Super Admin
+  description: Platform-level tenant onboarding (no ticket content access)
+- name: Admin — Flats & Invites
+  description: Community flat register and invite codes
+- name: Membership
+  description: Joining a community
+- name: Categories
+  description: Ticket + vendor category lists
+- name: Admin — Join Requests
+  description: Approve or reject residents joining the community
+paths:
+  /api/v1/me/theme:
+    put:
+      tags:
+      - Me
+      summary: Set the user's personal theme preference (overrides tenant default)
+      operationId: setTheme
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                principal:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/ThemeRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+  /api/v1/admin/flats/{flatId}:
+    put:
+      tags:
+      - Admin — Flats & Invites
+      operationId: updateFlat
+      parameters:
+      - name: flatId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/UpdateFlatRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/FlatView'
+  /api/v1/tickets:
+    get:
+      tags:
+      - Tickets
+      summary: List tickets in scope for the caller's role
+      operationId: list
+      parameters:
+      - name: principal
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PageResponseTicketView'
+    post:
+      tags:
+      - Tickets
+      summary: Raise a ticket
+      operationId: raise
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                principal:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/RaiseRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TicketView'
+  /api/v1/tickets/{id}/status:
+    post:
+      tags:
+      - Tickets
+      summary: Provider moves the ticket to IN_PROGRESS / ON_HOLD / RESOLVED
+      operationId: providerStatus
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/ProviderStatusRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TicketView'
+  /api/v1/tickets/{id}/resolve:
+    post:
+      tags:
+      - Tickets
+      operationId: resolveDirect
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/ResolveRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TicketView'
+  /api/v1/tickets/{id}/reroute:
+    post:
+      tags:
+      - Tickets
+      summary: Reassign to a different provider (same as assign; kept for clarity)
+      operationId: reroute
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/AssignRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TicketView'
+  /api/v1/tickets/{id}/reopen:
+    post:
+      tags:
+      - Tickets
+      operationId: reopen
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/RemarksRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TicketView'
+  /api/v1/tickets/{id}/reject:
+    post:
+      tags:
+      - Tickets
+      operationId: reject
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/RejectRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TicketView'
+  /api/v1/tickets/{id}/close:
+    post:
+      tags:
+      - Tickets
+      operationId: close
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/CloseRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TicketView'
+  /api/v1/tickets/{id}/attachments:
+    get:
+      tags:
+      - Tickets
+      operationId: attachments
+      parameters:
+      - name: principal
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AttachmentView'
+    post:
+      tags:
+      - Tickets
+      summary: Attach a photo / video to a ticket
+      operationId: upload
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              required:
+              - file
+              type: object
+              properties:
+                principal:
+                  $ref: '#/components/schemas/AppPrincipal'
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/AttachmentView'
+  /api/v1/tickets/{id}/assign:
+    post:
+      tags:
+      - Tickets
+      operationId: assign
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/AssignRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TicketView'
+  /api/v1/tickets/{id}/acknowledge:
+    post:
+      tags:
+      - Tickets
+      operationId: acknowledge
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/RemarksRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TicketView'
+  /api/v1/tickets/{id}/accept:
+    post:
+      tags:
+      - Tickets
+      operationId: accept
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TicketView'
+  /api/v1/superadmin/tenants:
+    get:
+      tags:
+      - Super Admin
+      summary: "Cross-tenant health counts (aggregates only, never ticket content)"
+      operationId: tenantHealth
+      parameters:
+      - name: principal
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TenantHealth'
+    post:
+      tags:
+      - Super Admin
+      summary: Onboard a new community
+      operationId: createTenant
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTenantRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TenantCard'
+  /api/v1/superadmin/tenants/{tenantId}/admins:
+    post:
+      tags:
+      - Super Admin
+      summary: Provision an admin account for a community
+      operationId: createAdmin
+      parameters:
+      - name: tenantId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAdminRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/AdminCreated'
+  /api/v1/memberships/join:
+    post:
+      tags:
+      - Membership
+      summary: "Join a community by invite code, or submit a join request for admin\
+        \ approval"
+      operationId: join
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                principal:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/JoinRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+  /api/v1/me/devices:
+    post:
+      tags:
+      - Me
+      summary: Register / refresh a push device token
+      operationId: registerDevice
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                principal:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/DeviceRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+  /api/v1/auth/profile:
+    post:
+      tags:
+      - Auth
+      summary: Complete or update the signed-in user's profile; returns a fresh session
+      operationId: completeProfile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                principal:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/ProfileRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+  /api/v1/auth/otp/verify:
+    post:
+      tags:
+      - Auth
+      summary: Verify an OTP and receive a session token
+      operationId: verifyOtp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtpVerifyRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+  /api/v1/auth/otp/request:
+    post:
+      tags:
+      - Auth
+      summary: Request a login OTP for a phone number
+      operationId: requestOtp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtpRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/OtpRequestResult'
+  /api/v1/admin/providers:
+    get:
+      tags:
+      - Admin — Providers
+      operationId: directory
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProviderView'
+    post:
+      tags:
+      - Admin — Providers
+      operationId: create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/CreateProviderRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ProviderView'
+  /api/v1/admin/providers/{providerId}/verify:
+    post:
+      tags:
+      - Admin — Providers
+      summary: Set verification status (VERIFIED / REJECTED / SUSPENDED / PENDING_VERIFICATION)
+      operationId: verify
+      parameters:
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/VerifyRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ProviderView'
+  /api/v1/admin/join-requests/{membershipId}/reject:
+    post:
+      tags:
+      - Admin — Join Requests
+      operationId: reject_1
+      parameters:
+      - name: membershipId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+  /api/v1/admin/join-requests/{membershipId}/approve:
+    post:
+      tags:
+      - Admin — Join Requests
+      operationId: approve
+      parameters:
+      - name: membershipId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/ApproveRequest'
+      responses:
+        "200":
+          description: OK
+  /api/v1/admin/invite-codes:
+    get:
+      tags:
+      - Admin — Flats & Invites
+      operationId: invites
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InviteView'
+    post:
+      tags:
+      - Admin — Flats & Invites
+      operationId: createInvite
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/CreateInviteRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/InviteView'
+  /api/v1/admin/flats:
+    get:
+      tags:
+      - Admin — Flats & Invites
+      operationId: flats
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FlatView'
+    post:
+      tags:
+      - Admin — Flats & Invites
+      operationId: createFlat
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/CreateFlatRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/FlatView'
+  /api/v1/vendor-categories:
+    get:
+      tags:
+      - Categories
+      summary: Vendor categories (used when adding a provider)
+      operationId: vendorCategories
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VendorCategoryView'
+  /api/v1/tickets/{id}:
+    get:
+      tags:
+      - Tickets
+      operationId: get
+      parameters:
+      - name: principal
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TicketView'
+  /api/v1/tickets/{id}/timeline:
+    get:
+      tags:
+      - Tickets
+      operationId: timeline
+      parameters:
+      - name: principal
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimelineEntry'
+  /api/v1/tenants:
+    get:
+      tags:
+      - Communities
+      summary: Search active communities by name / city / locality
+      operationId: search
+      parameters:
+      - name: query
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PageResponseTenantCard'
+  /api/v1/me:
+    get:
+      tags:
+      - Me
+      summary: "Profile, active tenant branding and all memberships"
+      operationId: me
+      parameters:
+      - name: principal
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+  /api/v1/files/{*key}:
+    get:
+      tags:
+      - file-controller
+      operationId: download
+      parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+  /api/v1/categories:
+    get:
+      tags:
+      - Categories
+      summary: Ticket categories for the raise-ticket picker
+      operationId: categories
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryView'
+  /api/v1/admin/join-requests:
+    get:
+      tags:
+      - Admin — Join Requests
+      operationId: pending
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/JoinRequestView'
+  /api/v1/admin/invite-codes/{codeId}:
+    delete:
+      tags:
+      - Admin — Flats & Invites
+      operationId: revokeInvite
+      parameters:
+      - name: codeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/InviteView'
+components:
+  schemas:
+    AppPrincipal:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum:
+          - RESIDENT
+          - ADMIN
+          - PROVIDER
+          - SUPER_ADMIN
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        resident:
+          type: boolean
+        admin:
+          type: boolean
+        provider:
+          type: boolean
+        superAdmin:
+          type: boolean
+    ThemeRequest:
+      required:
+      - theme
+      type: object
+      properties:
+        theme:
+          type: string
+    UpdateFlatRequest:
+      type: object
+      properties:
+        addressText:
+          type: string
+        geoLat:
+          type: number
+        geoLng:
+          type: number
+    FlatView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        block:
+          type: string
+        flatNumber:
+          type: string
+        label:
+          type: string
+        occupancyType:
+          type: string
+        addressText:
+          type: string
+        geoLat:
+          type: number
+        geoLng:
+          type: number
+        currentOccupantUserId:
+          type: string
+          format: uuid
+        ownerUserId:
+          type: string
+          format: uuid
+    RaiseRequest:
+      required:
+      - categoryId
+      - description
+      type: object
+      properties:
+        categoryId:
+          type: string
+        subcategoryId:
+          type: string
+        description:
+          maxLength: 4000
+          minLength: 0
+          type: string
+        priority:
+          type: string
+        serviceAddressText:
+          type: string
+        serviceGeoLat:
+          type: number
+        serviceGeoLng:
+          type: number
+        serviceLandmark:
+          type: string
+        preferredTimeWindow:
+          type: string
+        flatId:
+          type: string
+    PartyView:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        verificationStatus:
+          type: string
+        tier:
+          type: string
+    TicketView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        referenceCode:
+          type: string
+        status:
+          type: string
+        requestMode:
+          type: string
+        categoryId:
+          type: string
+        priority:
+          type: string
+        description:
+          type: string
+        flatLabel:
+          type: string
+        serviceAddressText:
+          type: string
+        serviceGeoLat:
+          type: number
+        serviceGeoLng:
+          type: number
+        serviceLandmark:
+          type: string
+        preferredTimeWindow:
+          type: string
+        raisedBy:
+          $ref: '#/components/schemas/PartyView'
+        assignedProvider:
+          $ref: '#/components/schemas/PartyView'
+        allocationApprovedByResident:
+          type: boolean
+        rating:
+          type: integer
+          format: int32
+        ratingComment:
+          type: string
+        reopenedCount:
+          type: integer
+          format: int32
+        resolutionNotes:
+          type: string
+        holdReason:
+          type: string
+        slaDueAt:
+          type: string
+          format: date-time
+        acknowledgedAt:
+          type: string
+          format: date-time
+        assignedAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: string
+          format: date-time
+        closedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ProviderStatusRequest:
+      required:
+      - toStatus
+      type: object
+      properties:
+        toStatus:
+          type: string
+        reason:
+          type: string
+        resolutionNotes:
+          type: string
+    ResolveRequest:
+      required:
+      - resolutionNotes
+      type: object
+      properties:
+        resolutionNotes:
+          maxLength: 4000
+          minLength: 0
+          type: string
+    AssignRequest:
+      required:
+      - providerId
+      type: object
+      properties:
+        providerId:
+          type: string
+        remarks:
+          type: string
+    RemarksRequest:
+      type: object
+      properties:
+        remarks:
+          type: string
+    RejectRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+    CloseRequest:
+      type: object
+      properties:
+        rating:
+          type: integer
+          format: int32
+        remarks:
+          type: string
+    AttachmentView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+        contentType:
+          type: string
+        sizeBytes:
+          type: integer
+          format: int64
+        originalFilename:
+          type: string
+        at:
+          type: string
+          format: date-time
+    CreateTenantRequest:
+      required:
+      - name
+      type: object
+      properties:
+        name:
+          maxLength: 160
+          minLength: 0
+          type: string
+        city:
+          type: string
+        locality:
+          type: string
+        address:
+          type: string
+        pincode:
+          type: string
+        logoUrl:
+          type: string
+        defaultTheme:
+          type: string
+        brandPrimaryColor:
+          type: string
+        reopenWindowHours:
+          type: integer
+          format: int32
+    TenantCard:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        city:
+          type: string
+        locality:
+          type: string
+        logoUrl:
+          type: string
+    CreateAdminRequest:
+      required:
+      - name
+      - phone
+      type: object
+      properties:
+        phone:
+          type: string
+        name:
+          maxLength: 160
+          minLength: 0
+          type: string
+    AdminCreated:
+      type: object
+      properties:
+        userId:
+          type: string
+        tenantId:
+          type: string
+        phoneMasked:
+          type: string
+    JoinRequest:
+      required:
+      - tenantId
+      type: object
+      properties:
+        tenantId:
+          type: string
+        inviteCode:
+          type: string
+        requestedFlatLabel:
+          type: string
+    SessionResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        expiresInSeconds:
+          type: integer
+          format: int64
+        onboardingState:
+          type: string
+        user:
+          $ref: '#/components/schemas/UserSummary'
+    UserSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+        name:
+          type: string
+        phoneMasked:
+          type: string
+        profileCompleted:
+          type: boolean
+        preferredTheme:
+          type: string
+        activeTenantId:
+          type: string
+          format: uuid
+    DeviceRequest:
+      required:
+      - platform
+      - token
+      type: object
+      properties:
+        token:
+          type: string
+        platform:
+          type: string
+        provider:
+          type: string
+    ProfileRequest:
+      required:
+      - name
+      type: object
+      properties:
+        name:
+          maxLength: 160
+          minLength: 0
+          type: string
+        email:
+          maxLength: 200
+          minLength: 0
+          type: string
+    OtpVerifyRequest:
+      required:
+      - code
+      - phone
+      type: object
+      properties:
+        phone:
+          type: string
+        code:
+          maxLength: 8
+          minLength: 4
+          type: string
+    OtpRequest:
+      required:
+      - phone
+      type: object
+      properties:
+        phone:
+          type: string
+    OtpRequestResult:
+      type: object
+      properties:
+        sent:
+          type: boolean
+        devCode:
+          type: string
+    CreateProviderRequest:
+      required:
+      - contactPhone
+      - name
+      - vendorCategoryId
+      type: object
+      properties:
+        name:
+          type: string
+        vendorCategoryId:
+          type: string
+        company:
+          type: boolean
+        contactPhone:
+          type: string
+        contactEmail:
+          type: string
+        serviceArea:
+          type: string
+    ProviderView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        vendorCategoryId:
+          type: string
+        company:
+          type: boolean
+        contactPhoneMasked:
+          type: string
+        verificationStatus:
+          type: string
+        tier:
+          type: string
+        active:
+          type: boolean
+        assignable:
+          type: boolean
+    VerifyRequest:
+      required:
+      - status
+      type: object
+      properties:
+        status:
+          type: string
+    ApproveRequest:
+      type: object
+      properties:
+        flatId:
+          type: string
+    CreateInviteRequest:
+      type: object
+      properties:
+        flatId:
+          type: string
+        relation:
+          type: string
+        validDays:
+          type: integer
+          format: int32
+        maxUses:
+          type: integer
+          format: int32
+    InviteView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        relation:
+          type: string
+        status:
+          type: string
+        flatId:
+          type: string
+          format: uuid
+        maxUses:
+          type: integer
+          format: int32
+        useCount:
+          type: integer
+          format: int32
+        expiresAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    CreateFlatRequest:
+      required:
+      - flatNumber
+      type: object
+      properties:
+        block:
+          type: string
+        flatNumber:
+          type: string
+        addressText:
+          type: string
+        geoLat:
+          type: number
+        geoLng:
+          type: number
+    VendorCategoryView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        kind:
+          type: string
+        sortOrder:
+          type: integer
+          format: int32
+    PageResponseTicketView:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketView'
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+    TimelineEntry:
+      type: object
+      properties:
+        fromStatus:
+          type: string
+        toStatus:
+          type: string
+        actorRole:
+          type: string
+        remarks:
+          type: string
+        at:
+          type: string
+          format: date-time
+    PageResponseTenantCard:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/TenantCard'
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+    TenantHealth:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        city:
+          type: string
+        openTickets:
+          type: integer
+          format: int64
+        totalTickets:
+          type: integer
+          format: int64
+    MeResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        role:
+          type: string
+        name:
+          type: string
+        phoneMasked:
+          type: string
+        email:
+          type: string
+        profileCompleted:
+          type: boolean
+        preferredTheme:
+          type: string
+        activeTenantId:
+          type: string
+          format: uuid
+        activeTenantBranding:
+          $ref: '#/components/schemas/TenantBranding'
+        memberships:
+          type: array
+          items:
+            $ref: '#/components/schemas/MembershipView'
+    MembershipView:
+      type: object
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        tenantName:
+          type: string
+        status:
+          type: string
+        relation:
+          type: string
+        flatId:
+          type: string
+          format: uuid
+        flatLabel:
+          type: string
+    TenantBranding:
+      type: object
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        logoUrl:
+          type: string
+        defaultTheme:
+          type: string
+        brandPrimaryColor:
+          type: string
+    CategoryView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        requestType:
+          type: string
+        slaHours:
+          type: integer
+          format: int32
+        sortOrder:
+          type: integer
+          format: int32
+    JoinRequestView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        userName:
+          type: string
+        userPhoneMasked:
+          type: string
+        requestedFlatLabel:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
