@@ -53,12 +53,21 @@ public class MeController {
                         memberships.stream().map(UserTenantMembership::getTenantId).collect(Collectors.toList()))
                 .stream().collect(Collectors.toMap(Tenant::getId, t -> t));
 
-        UUID activeTenant = userService.resolveActiveTenant(u);
+        // Residents get their active tenant from an ACTIVE membership; admins/providers from
+        // their assigned tenant. Matches AuthService's JWT tenant claim.
+        UUID activeTenant = switch (u.getRole()) {
+            case SUPER_ADMIN -> null;
+            case ADMIN, PROVIDER -> u.getCurrentTenantId();
+            case RESIDENT -> userService.resolveActiveTenant(u);
+        };
         MeDtos.TenantBranding branding = null;
-        if (activeTenant != null && tenants.get(activeTenant) != null) {
-            Tenant t = tenants.get(activeTenant);
-            branding = new MeDtos.TenantBranding(t.getId(), t.getName(), t.getBrandLogoUrl() != null ? t.getBrandLogoUrl() : t.getLogoUrl(),
-                    t.getDefaultTheme(), t.getBrandPrimaryColor());
+        if (activeTenant != null) {
+            Tenant t = tenants.computeIfAbsent(activeTenant, id -> tenantRepository.findById(id).orElse(null));
+            if (t != null) {
+                branding = new MeDtos.TenantBranding(t.getId(), t.getName(),
+                        t.getBrandLogoUrl() != null ? t.getBrandLogoUrl() : t.getLogoUrl(),
+                        t.getDefaultTheme(), t.getBrandPrimaryColor());
+            }
         }
 
         List<MeDtos.MembershipView> views = memberships.stream().map(m -> {

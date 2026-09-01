@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "single-point-mobile-web",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["expo", "start", "--web", "--port", "19010"],
+      "cwd": "D:\\Single Point\\mobile",
+      "port": 19010
+    },
+    {
+      "name": "single-point-api",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "mvn", "-q", "-DskipTests", "spring-boot:run", "-Dspring-boot.run.profiles=local"],
+      "cwd": "D:\\Single Point\\backend",
+      "port": 18080
+    }
+  ]
+}

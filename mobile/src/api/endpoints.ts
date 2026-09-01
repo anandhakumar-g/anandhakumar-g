@@ -1,0 +1,95 @@
+import { api, uploadFile } from "./client";
+import {
+  AttachmentView, Category, FlatView, InviteView, JoinRequestView, MeResponse, Page,
+  ProviderView, SessionResponse, TenantCard, TicketView, TimelineEntry, VendorCategory,
+} from "./types";
+
+export const auth = {
+  requestOtp: (phone: string) =>
+    api.post<{ sent: boolean; devCode: string | null }>("/auth/otp/request", { phone }, { auth: false }),
+  verifyOtp: (phone: string, code: string) =>
+    api.post<SessionResponse>("/auth/otp/verify", { phone, code }, { auth: false }),
+  completeProfile: (name: string, email?: string) =>
+    api.post<SessionResponse>("/auth/profile", { name, email }),
+};
+
+export const me = {
+  get: () => api.get<MeResponse>("/me"),
+  setTheme: (theme: string) => api.put<void>("/me/theme", { theme }),
+  registerDevice: (token: string, platform: string, provider = "expo") =>
+    api.post<void>("/me/devices", { token, platform, provider }),
+};
+
+export const communities = {
+  search: (query?: string) => api.get<Page<TenantCard>>("/tenants", { query: { query, size: 30 } }),
+  join: (tenantId: string, inviteCode?: string, requestedFlatLabel?: string) =>
+    api.post<SessionResponse>("/memberships/join", { tenantId, inviteCode, requestedFlatLabel }),
+};
+
+export const catalog = {
+  categories: () => api.get<Category[]>("/categories"),
+  vendorCategories: () => api.get<VendorCategory[]>("/vendor-categories"),
+};
+
+export const tickets = {
+  list: (status?: string, page = 0) =>
+    api.get<Page<TicketView>>("/tickets", { query: { status, page, size: 50 } }),
+  get: (id: string) => api.get<TicketView>(`/tickets/${id}`),
+  timeline: (id: string) => api.get<TimelineEntry[]>(`/tickets/${id}/timeline`),
+  attachments: (id: string) => api.get<AttachmentView[]>(`/tickets/${id}/attachments`),
+  raise: (body: {
+    categoryId: string; description: string; priority?: string;
+    serviceAddressText?: string; serviceGeoLat?: number; serviceGeoLng?: number;
+    serviceLandmark?: string; preferredTimeWindow?: string; flatId?: string;
+  }) => api.post<TicketView>("/tickets", body),
+  upload: (id: string, file: { uri: string; name: string; type: string }) =>
+    uploadFile<AttachmentView>(`/tickets/${id}/attachments`, file),
+  // admin
+  acknowledge: (id: string, remarks?: string) => api.post<TicketView>(`/tickets/${id}/acknowledge`, { remarks }),
+  resolveDirect: (id: string, resolutionNotes: string) => api.post<TicketView>(`/tickets/${id}/resolve`, { resolutionNotes }),
+  assign: (id: string, providerId: string, remarks?: string) => api.post<TicketView>(`/tickets/${id}/assign`, { providerId, remarks }),
+  reroute: (id: string, providerId: string, remarks?: string) => api.post<TicketView>(`/tickets/${id}/reroute`, { providerId, remarks }),
+  // provider
+  accept: (id: string) => api.post<TicketView>(`/tickets/${id}/accept`),
+  reject: (id: string, reason?: string) => api.post<TicketView>(`/tickets/${id}/reject`, { reason }),
+  providerStatus: (id: string, toStatus: string, reason?: string, resolutionNotes?: string) =>
+    api.post<TicketView>(`/tickets/${id}/status`, { toStatus, reason, resolutionNotes }),
+  // resident
+  reopen: (id: string, remarks?: string) => api.post<TicketView>(`/tickets/${id}/reopen`, { remarks }),
+  close: (id: string, rating?: number, remarks?: string) => api.post<TicketView>(`/tickets/${id}/close`, { rating, remarks }),
+};
+
+export const superadmin = {
+  tenantHealth: () =>
+    api.get<{ id: string; name: string; city: string | null; openTickets: number; totalTickets: number }[]>(
+      "/superadmin/tenants"
+    ),
+  createTenant: (body: {
+    name: string; city?: string; locality?: string; address?: string; pincode?: string;
+    defaultTheme?: string; brandPrimaryColor?: string; reopenWindowHours?: number;
+  }) => api.post<TenantCard>("/superadmin/tenants", body),
+  createAdmin: (tenantId: string, phone: string, name: string) =>
+    api.post<{ userId: string; tenantId: string; phoneMasked: string }>(
+      `/superadmin/tenants/${tenantId}/admins`,
+      { phone, name }
+    ),
+};
+
+export const admin = {
+  flats: () => api.get<FlatView[]>("/admin/flats"),
+  createFlat: (body: { block?: string; flatNumber: string; addressText?: string }) =>
+    api.post<FlatView>("/admin/flats", body),
+  invites: () => api.get<InviteView[]>("/admin/invite-codes"),
+  createInvite: (body: { flatId?: string; relation?: string; validDays?: number; maxUses?: number }) =>
+    api.post<InviteView>("/admin/invite-codes", body),
+  revokeInvite: (id: string) => api.del<InviteView>(`/admin/invite-codes/${id}`),
+  joinRequests: () => api.get<JoinRequestView[]>("/admin/join-requests"),
+  approveJoin: (id: string, flatId?: string) => api.post<void>(`/admin/join-requests/${id}/approve`, { flatId }),
+  rejectJoin: (id: string) => api.post<void>(`/admin/join-requests/${id}/reject`),
+  providers: () => api.get<ProviderView[]>("/admin/providers"),
+  addProvider: (body: {
+    name: string; vendorCategoryId: string; company: boolean; contactPhone: string;
+    contactEmail?: string; serviceArea?: string;
+  }) => api.post<ProviderView>("/admin/providers", body),
+  verifyProvider: (id: string, status: string) => api.post<ProviderView>(`/admin/providers/${id}/verify`, { status }),
+};

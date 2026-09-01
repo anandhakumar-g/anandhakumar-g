@@ -1,0 +1,24 @@
+import { Tabs } from "expo-router";
+import React from "react";
+import { useTheme } from "@/theme/ThemeProvider";
+
+export default function ResidentLayout() {
+  const { theme } = useTheme();
+  return (
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: theme.color.primary,
+        tabBarInactiveTintColor: theme.color.textFaint,
+        tabBarStyle: { backgroundColor: theme.color.surface, borderTopColor: theme.color.border },
+        tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
+      }}
+    >
+      <Tabs.Screen name="index" options={{ title: "Home" }} />
+      <Tabs.Screen name="tickets" options={{ title: "Tickets" }} />
+      <Tabs.Screen name="settings" options={{ title: "Settings" }} />
+      <Tabs.Screen name="raise" options={{ href: null }} />
+      <Tabs.Screen name="ticket/[id]" options={{ href: null }} />
+    </Tabs>
+  );
+}
