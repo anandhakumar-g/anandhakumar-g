@@ -1,0 +1,40 @@
+# ---- Java / Maven ----
+target/
+*.jar
+*.war
+*.class
+.mvn/
+!.mvn/wrapper/maven-wrapper.jar
+
+# ---- IDE ----
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# ---- Logs ----
+logs/
+*.log
+
+# ---- Node / Expo ----
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+*.tsbuildinfo
+
+# ---- Env / secrets ----
+.env
+.env.*
+!.env.example
+*.p12
+*.pem
+!backend/src/main/resources/keys/*dev*
+local-attachments/
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
