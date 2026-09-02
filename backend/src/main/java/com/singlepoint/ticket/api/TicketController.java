@@ -47,7 +47,8 @@ public class TicketController {
                 body.description(), body.priority(), body.serviceAddressText(),
                 body.serviceGeoLat(), body.serviceGeoLng(), body.serviceLandmark(),
                 body.preferredTimeWindow(),
-                body.flatId() != null ? UUID.fromString(body.flatId()) : null));
+                body.flatId() != null ? UUID.fromString(body.flatId()) : null,
+                body.providerId() != null ? UUID.fromString(body.providerId()) : null));
         return ResponseEntity.status(HttpStatus.CREATED).body(mapper.toView(t, principal));
     }
 
@@ -173,6 +174,15 @@ public class TicketController {
             @PathVariable UUID id, @RequestBody(required = false) TicketDtos.RejectRequest body) {
         return ResponseEntity.ok(mapper.toView(
                 ticketService.rejectAllocation(p, id, body != null ? body.reason() : null), p));
+    }
+
+    @PostMapping("/{id}/rebook")
+    @PreAuthorize("hasRole('RESIDENT')")
+    @Operation(summary = "Pick a new provider after a direct booking was declined")
+    public ResponseEntity<TicketDtos.TicketView> rebook(@AuthenticationPrincipal AppPrincipal p,
+            @PathVariable UUID id, @Valid @RequestBody TicketDtos.RebookRequest body) {
+        return ResponseEntity.ok(mapper.toView(
+                ticketService.rebookDirect(p, id, UUID.fromString(body.providerId())), p));
     }
 
     @PostMapping("/{id}/reopen")

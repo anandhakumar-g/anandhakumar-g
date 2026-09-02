@@ -58,6 +58,10 @@ public class Tenant extends BaseEntity {
     @Column(name = "category_admin", nullable = false, length = 20)
     private CategoryAdmin categoryAdmin = CategoryAdmin.SUPER_ADMIN;
 
+    /** MVP-6: residents may book a verified provider directly (request_mode = DIRECT_SERVICE). */
+    @Column(name = "direct_service_enabled", nullable = false)
+    private boolean directServiceEnabled = false;
+
     @Column(name = "default_theme", length = 40)
     private String defaultTheme;
 

@@ -206,6 +206,11 @@ public abstract class IntegrationTestBase {
                 Map.of("requireAllocationApproval", on));
     }
 
+    /** Turn on Direct-to-Provider booking for a community (Super Admin). */
+    protected void enableDirectService(String superToken, UUID tenantId) {
+        put("/api/v1/superadmin/tenants/" + tenantId, superToken, Map.of("directServiceEnabled", true));
+    }
+
     protected String firstCategoryId(String token, String name) {
         for (JsonNode c : get("/api/v1/categories", token)) {
             if (c.get("name").asText().equals(name)) return c.get("id").asText();

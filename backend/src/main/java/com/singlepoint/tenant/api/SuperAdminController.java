@@ -61,7 +61,8 @@ public class SuperAdminController {
         Tenant t = tenantService.update(java.util.UUID.fromString(tenantId),
                 body.name(), body.city(), body.locality(), body.address(), body.pincode(),
                 body.logoUrl(), body.defaultTheme(), body.brandPrimaryColor(),
-                body.reopenWindowHours(), body.requireAllocationApproval(), body.categoryAdmin());
+                body.reopenWindowHours(), body.requireAllocationApproval(), body.categoryAdmin(),
+                body.directServiceEnabled());
         return ResponseEntity.ok(TenantDtos.TenantSettingsView.from(t));
     }
 

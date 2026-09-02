@@ -19,7 +19,10 @@ public final class TicketDtos {
                                BigDecimal serviceGeoLng,
                                String serviceLandmark,
                                String preferredTimeWindow,
-                               String flatId) { }
+                               String flatId,
+                               String providerId) { }
+
+    public record RebookRequest(@NotBlank String providerId) { }
 
     public record RemarksRequest(String remarks) { }
 

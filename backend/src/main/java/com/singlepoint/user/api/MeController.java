@@ -69,12 +69,14 @@ public class MeController {
             case RESIDENT -> userService.resolveActiveTenant(u);
         };
         MeDtos.TenantBranding branding = null;
+        boolean directServiceEnabled = false;
         if (activeTenant != null) {
             Tenant t = tenants.computeIfAbsent(activeTenant, id -> tenantRepository.findById(id).orElse(null));
             if (t != null) {
                 branding = new MeDtos.TenantBranding(t.getId(), t.getName(),
                         t.getBrandLogoUrl() != null ? t.getBrandLogoUrl() : t.getLogoUrl(),
                         t.getDefaultTheme(), t.getBrandPrimaryColor());
+                directServiceEnabled = t.isDirectServiceEnabled();
             }
         }
 
@@ -86,7 +88,7 @@ public class MeController {
 
         return ResponseEntity.ok(new MeDtos.MeResponse(u.getId(), u.getRole().name(), u.getName(),
                 PhoneNumbers.mask(u.getPhone()), u.getEmail(), u.isProfileCompleted(), u.getPreferredTheme(),
-                activeTenant, branding, views, u.getAwayUntil()));
+                activeTenant, branding, views, u.getAwayUntil(), directServiceEnabled));
     }
 
     @PostMapping("/active-community")

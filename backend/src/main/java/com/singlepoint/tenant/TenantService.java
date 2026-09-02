@@ -55,7 +55,8 @@ public class TenantService {
     @Transactional
     public Tenant update(UUID id, String name, String city, String locality, String address, String pincode,
                          String logoUrl, String defaultTheme, String brandPrimaryColor,
-                         Integer reopenWindowHours, Boolean requireAllocationApproval, String categoryAdmin) {
+                         Integer reopenWindowHours, Boolean requireAllocationApproval, String categoryAdmin,
+                         Boolean directServiceEnabled) {
         Tenant t = require(id);
         if (name != null) t.setName(name);
         if (city != null) t.setCity(city);
@@ -68,6 +69,7 @@ public class TenantService {
         if (reopenWindowHours != null && reopenWindowHours > 0) t.setReopenWindowHours(reopenWindowHours);
         if (requireAllocationApproval != null) t.setRequireAllocationApproval(requireAllocationApproval);
         if (categoryAdmin != null) t.setCategoryAdmin(parseCategoryAdmin(categoryAdmin));
+        if (directServiceEnabled != null) t.setDirectServiceEnabled(directServiceEnabled);
         return repository.save(t);
     }
 

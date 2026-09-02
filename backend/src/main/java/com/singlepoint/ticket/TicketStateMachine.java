@@ -48,6 +48,8 @@ public class TicketStateMachine {
             // Resident answers the allocation prompt
             new Edge(PENDING_RESIDENT_APPROVAL, ASSIGNED, Role.RESIDENT),       // approve
             new Edge(PENDING_RESIDENT_APPROVAL, ACKNOWLEDGED, Role.RESIDENT),   // decline
+            // Resident re-books a declined direct booking (MVP-6)
+            new Edge(REJECTED, ASSIGNED, Role.RESIDENT),
             // Provider
             new Edge(ASSIGNED, ACCEPTED, Role.PROVIDER),
             new Edge(ASSIGNED, REJECTED, Role.PROVIDER),

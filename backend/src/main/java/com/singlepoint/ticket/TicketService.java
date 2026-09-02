@@ -81,7 +81,7 @@ public class TicketService {
 
     public record RaiseCommand(UUID categoryId, UUID subcategoryId, String description, String priority,
                                String serviceAddressText, BigDecimal serviceGeoLat, BigDecimal serviceGeoLng,
-                               String serviceLandmark, String preferredTimeWindow, UUID flatId) { }
+                               String serviceLandmark, String preferredTimeWindow, UUID flatId, UUID providerId) { }
 
     @Transactional
     public Ticket raise(AppPrincipal principal, RaiseCommand cmd) {
@@ -131,12 +131,54 @@ public class TicketService {
         if (category.getSlaHours() != null) {
             t.setSlaDueAt(Instant.now().plus(category.getSlaHours(), ChronoUnit.HOURS));
         }
-        t.setStatus(TicketStatus.NEW);
+
+        ServiceProvider directProvider = null;
+        if (cmd.providerId() != null) {
+            boolean enabled = tenantRepository.findById(tenantId)
+                    .map(com.singlepoint.tenant.domain.Tenant::isDirectServiceEnabled).orElse(false);
+            if (!enabled) {
+                throw new AppException(ErrorCode.FORBIDDEN, "Direct booking isn't enabled for your community");
+            }
+            directProvider = requireAssignableProvider(tenantId, cmd.providerId());
+            t.setRequestMode(Ticket.RequestMode.DIRECT_SERVICE);
+            t.setAssignedProviderId(directProvider.getId());
+            t.setAllocationApprovedByResident(true);
+            t.setAssignedAt(Instant.now());
+            t.setStatus(TicketStatus.ASSIGNED);
+        } else {
+            t.setStatus(TicketStatus.NEW);
+        }
         ticketRepository.save(t);
 
-        recordHistory(t, null, TicketStatus.NEW, principal.getUserId(), Role.RESIDENT, "Ticket raised");
-        notifyAdmins(t, "New ticket " + t.getReferenceCode(),
-                category.getName() + ": " + shorten(t.getDescription()));
+        if (directProvider != null) {
+            recordHistory(t, null, TicketStatus.ASSIGNED, principal.getUserId(), Role.RESIDENT,
+                    "Direct booking: " + directProvider.getName());
+            notifyAssignedProvider(t, directProvider);
+            notifyAdmins(t, "New direct booking " + t.getReferenceCode(),
+                    category.getName() + ": " + shorten(t.getDescription()));
+        } else {
+            recordHistory(t, null, TicketStatus.NEW, principal.getUserId(), Role.RESIDENT, "Ticket raised");
+            notifyAdmins(t, "New ticket " + t.getReferenceCode(),
+                    category.getName() + ": " + shorten(t.getDescription()));
+        }
+        return t;
+    }
+
+    /** Resident picks a new provider after a direct booking was rejected. */
+    @Transactional
+    public Ticket rebookDirect(AppPrincipal principal, UUID ticketId, UUID providerId) {
+        Ticket t = loadForActor(principal, ticketId);
+        requireRaiser(principal, t);
+        if (t.getRequestMode() != Ticket.RequestMode.DIRECT_SERVICE || t.getStatus() != TicketStatus.REJECTED) {
+            throw new AppException(ErrorCode.CONFLICT, "This ticket isn't a declined direct booking");
+        }
+        ServiceProvider provider = requireAssignableProvider(t.getTenantId(), providerId);
+        transition(t, TicketStatus.ASSIGNED, principal, Role.RESIDENT, "Re-booked: " + provider.getName());
+        t.setAssignedProviderId(provider.getId());
+        t.setAllocationApprovedByResident(true);
+        t.setAssignedAt(Instant.now());
+        ticketRepository.save(t);
+        notifyAssignedProvider(t, provider);
         return t;
     }
 

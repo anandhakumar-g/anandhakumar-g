@@ -30,20 +30,21 @@ public final class TenantDtos {
                                       String address, String pincode, String logoUrl,
                                       String defaultTheme, String brandPrimaryColor,
                                       Integer reopenWindowHours, Boolean requireAllocationApproval,
-                                      String categoryAdmin) { }
+                                      String categoryAdmin, Boolean directServiceEnabled) { }
 
     /** Community-admin view — only the levers an admin may see/set. */
-    public record CommunitySettingsRequest(Integer reopenWindowHours, Boolean requireAllocationApproval) { }
+    public record CommunitySettingsRequest(Integer reopenWindowHours, Boolean requireAllocationApproval,
+                                           Boolean directServiceEnabled) { }
 
     public record TenantSettingsView(UUID id, String name, String city, String locality,
                                      String defaultTheme, String brandPrimaryColor,
                                      int reopenWindowHours, boolean requireAllocationApproval,
-                                     String categoryAdmin) {
+                                     String categoryAdmin, boolean directServiceEnabled) {
         public static TenantSettingsView from(Tenant t) {
             return new TenantSettingsView(t.getId(), t.getName(), t.getCity(), t.getLocality(),
                     t.getDefaultTheme(), t.getBrandPrimaryColor(),
                     t.getReopenWindowHours(), t.isRequireAllocationApproval(),
-                    t.getCategoryAdmin().name());
+                    t.getCategoryAdmin().name(), t.isDirectServiceEnabled());
         }
     }
 }
