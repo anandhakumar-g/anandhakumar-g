@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -17,6 +18,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
 import java.util.Map;
 import java.util.UUID;
@@ -34,13 +37,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public abstract class IntegrationTestBase {
 
     public static final String SUPER_ADMIN_PHONE = "+910000009999";
-    /** Seeded global vendor category "Electrical" (V3). */
+    /** Seeded global vendor categories. */
     public static final String VENDOR_CAT_ELECTRICAL = "22222222-0000-0000-0000-000000000001";
+    public static final String VENDOR_CAT_RESTAURANT = "22222222-0000-0000-0001-000000000001";
 
     /** All application tables are wiped before each test (Flyway history is kept). */
     private static final String TRUNCATE_SQL = """
             TRUNCATE TABLE
               audit_log, notification, notification_outbox, otp_challenge, device_token,
+              notification_preference,
+              offer_redemption, offer_target, offer,
+              provider_kyc_document,
               ticket_status_history, ticket_attachment, ticket,
               tenant_service_provider, service_provider,
               invite_code, user_tenant_membership, flat, app_user, tenant,
@@ -55,8 +62,14 @@ public abstract class IntegrationTestBase {
               ('11111111-0000-0000-0000-000000000002', NULL, 'Plumbing',   'ISSUE', 24, 20, true),
               ('11111111-0000-0000-0000-00000000000d', NULL, 'Enquiry',    'ENQUIRY', NULL, 130, true);
             INSERT INTO vendor_category (id, name, kind, sort_order, active) VALUES
-              ('22222222-0000-0000-0000-000000000001', 'Electrical', 'MAINTENANCE', 10, true),
-              ('22222222-0000-0000-0000-000000000002', 'Plumbing',   'MAINTENANCE', 20, true);
+              ('22222222-0000-0000-0000-000000000001', 'Electrical',  'MAINTENANCE',          10,  true),
+              ('22222222-0000-0000-0000-000000000002', 'Plumbing',    'MAINTENANCE',          20,  true),
+              ('22222222-0000-0000-0001-000000000001', 'Restaurant',  'FOOD_DINING',          200, true),
+              ('22222222-0000-0000-0001-000000000002', 'Caterer',     'FOOD_DINING',          210, true),
+              ('22222222-0000-0000-0002-000000000001', 'Garments',    'RETAIL',               300, true),
+              ('22222222-0000-0000-0003-000000000001', 'Travel Agent','TRAVEL',               400, true),
+              ('22222222-0000-0000-0004-000000000001', 'Guest House', 'ACCOMMODATION',        500, true),
+              ('22222222-0000-0000-0005-000000000001', 'Party Planning','EVENTS_ENTERTAINMENT', 600, true);
             """;
 
     @Autowired protected TestRestTemplate rest;
@@ -101,6 +114,20 @@ public abstract class IntegrationTestBase {
         return r.getBody();
     }
 
+    protected ResponseEntity<JsonNode> multipart(String path, String token, Map<String, String> parts,
+                                                 String fileField, String filename, byte[] bytes) {
+        HttpHeaders h = new HttpHeaders();
+        h.setContentType(MediaType.MULTIPART_FORM_DATA);
+        if (token != null) h.setBearerAuth(token);
+        MultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
+        parts.forEach(form::add);
+        ByteArrayResource res = new ByteArrayResource(bytes) {
+            @Override public String getFilename() { return filename; }
+        };
+        form.add(fileField, res);
+        return rest.exchange(path, HttpMethod.POST, new HttpEntity<>(form, h), JsonNode.class);
+    }
+
     // ---- domain helpers ---------------------------------------------------
 
     protected record Session(String token, String onboardingState, String role, UUID activeTenantId) { }
@@ -143,6 +170,13 @@ public abstract class IntegrationTestBase {
         JsonNode p = post("/api/v1/admin/providers", adminToken,
                 Map.of("name", name, "vendorCategoryId", VENDOR_CAT_ELECTRICAL, "company", true, "contactPhone", phone));
         UUID id = UUID.fromString(p.get("id").asText());
+        // KYC gate: seed accepted docs directly (KycWorkflowIT exercises the real upload/review path).
+        for (String docType : new String[]{"GOV_ID", "ADDRESS_PROOF", "COMPANY_REG"}) {
+            jdbcTemplate.update(
+                    "insert into provider_kyc_document (service_provider_id, doc_type, storage_key, content_type, "
+                    + "size_bytes, status, reviewed_at) values (?::uuid, ?, ?, 'text/plain', 0, 'ACCEPTED', now())",
+                    id.toString(), docType, "seed/kyc/" + id + "/" + docType);
+        }
         JsonNode v = post("/api/v1/admin/providers/" + id + "/verify", adminToken, Map.of("status", "VERIFIED"));
         assertEquals("VERIFIED", v.get("verificationStatus").asText());
         return id;
@@ -153,5 +187,60 @@ public abstract class IntegrationTestBase {
             if (c.get("name").asText().equals(name)) return c.get("id").asText();
         }
         throw new IllegalStateException("category not found: " + name);
+    }
+
+    protected record Marketplace(String superToken, UUID tenantId, String adminToken,
+                                 UUID providerId, String providerToken) { }
+
+    /** One tenant + admin + a VERIFIED provider signed in. */
+    protected Marketplace marketplace(String adminPhone, String providerPhone) {
+        String su = login(SUPER_ADMIN_PHONE).token();
+        UUID tenant = createTenant(su, "Green Meadows " + adminPhone, "#2E7D32");
+        createAdmin(su, tenant, adminPhone, "Admin " + adminPhone);
+        String admin = login(adminPhone).token();
+        UUID providerId = createVerifiedProvider(admin, su, "Sparky " + providerPhone, providerPhone);
+        String providerToken = login(providerPhone).token();
+        return new Marketplace(su, tenant, admin, providerId, providerToken);
+    }
+
+    protected String joinResident(UUID tenantId, String adminToken, String phone, String name) {
+        String code = createInvite(adminToken);
+        String tok = completeProfile(login(phone).token(), name, name.toLowerCase() + "@example.com").token();
+        return toSession(post("/api/v1/memberships/join", tok,
+                Map.of("tenantId", tenantId.toString(), "inviteCode", code))).token();
+    }
+
+    protected String createDraftOffer(String authorToken, String vendorCategoryId) {
+        JsonNode o = post("/api/v1/offers", authorToken, Map.ofEntries(
+                Map.entry("vendorCategoryId", vendorCategoryId),
+                Map.entry("title", "Festive 20% off sweets"),
+                Map.entry("description", "Diwali special"),
+                Map.entry("discountType", "PERCENTAGE"),
+                Map.entry("discountValue", 20),
+                Map.entry("couponCode", "DIWALI20"),
+                Map.entry("validFrom", java.time.Instant.now().minusSeconds(60).toString()),
+                Map.entry("validTo", java.time.Instant.now().plus(java.time.Duration.ofDays(30)).toString()),
+                Map.entry("redemptionLimitPerUser", 1)));
+        return o.get("id").asText();
+    }
+
+    /** Blocks until the notification outbox has drained (poller runs every ~1s in the test profile). */
+    protected void awaitOutboxDrained() {
+        for (int i = 0; i < 40; i++) {
+            Integer pending = jdbcTemplate.queryForObject(
+                    "select count(*) from notification_outbox where status = 'PENDING'", Integer.class);
+            if (pending != null && pending == 0) {
+                try { Thread.sleep(300); } catch (InterruptedException ignored) { }
+                return;
+            }
+            try { Thread.sleep(250); } catch (InterruptedException ignored) { }
+        }
+        throw new IllegalStateException("outbox did not drain");
+    }
+
+    protected long notificationCount(String userId, String templatePrefix, String status) {
+        return jdbcTemplate.queryForObject(
+                "select count(*) from notification where user_id = ?::uuid and template like ? and status = ?",
+                Long.class, userId, templatePrefix + "%", status);
     }
 }

@@ -28,7 +28,20 @@ public class CategoryController {
     }
 
     public record CategoryView(UUID id, String name, String requestType, Integer slaHours, int sortOrder) { }
-    public record VendorCategoryView(UUID id, String name, String kind, int sortOrder) { }
+    public record VendorCategoryView(UUID id, String name, String kind, String kindLabel,
+                                     UUID parentCategoryId, int sortOrder) { }
+
+    private static String kindLabel(String kind) {
+        return switch (kind) {
+            case "MAINTENANCE" -> "Home & Maintenance";
+            case "FOOD_DINING" -> "Food & Dining";
+            case "RETAIL" -> "Shops & Retail";
+            case "TRAVEL" -> "Travel";
+            case "ACCOMMODATION" -> "Stays";
+            case "EVENTS_ENTERTAINMENT" -> "Events & Entertainment";
+            default -> "Other";
+        };
+    }
 
     @GetMapping("/categories")
     @Operation(summary = "Ticket categories for the raise-ticket picker")
@@ -41,10 +54,11 @@ public class CategoryController {
     }
 
     @GetMapping("/vendor-categories")
-    @Operation(summary = "Vendor categories (used when adding a provider)")
+    @Operation(summary = "Vendor categories (add-provider picker + offer authoring); group by kind")
     public ResponseEntity<List<VendorCategoryView>> vendorCategories() {
         List<VendorCategoryView> out = vendorCategoryRepository.findByActiveTrueOrderBySortOrderAsc().stream()
-                .map(v -> new VendorCategoryView(v.getId(), v.getName(), v.getKind().name(), v.getSortOrder()))
+                .map(v -> new VendorCategoryView(v.getId(), v.getName(), v.getKind().name(),
+                        kindLabel(v.getKind().name()), v.getParentCategoryId(), v.getSortOrder()))
                 .toList();
         return ResponseEntity.ok(out);
     }

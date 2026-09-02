@@ -2,7 +2,7 @@ import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { View } from "react-native";
 import { admin, catalog } from "@/api/endpoints";
-import { ProviderView, VendorCategory } from "@/api/types";
+import { groupVendorCategories, ProviderView } from "@/api/types";
 import { Button } from "@/components/Button";
 import { Divider, EmptyState, Pill } from "@/components/Bits";
 import { Field } from "@/components/Field";
@@ -79,17 +79,24 @@ export default function Providers() {
           <AppText size="sm" weight="600" tone="muted">
             Category
           </AppText>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: theme.space(2) }}>
-            {(vcats.data ?? []).map((v: VendorCategory) => (
-              <Button
-                key={v.id}
-                label={v.name}
-                variant={vcat === v.id ? "primary" : "secondary"}
-                fullWidth={false}
-                onPress={() => setVcat(v.id)}
-              />
-            ))}
-          </View>
+          {groupVendorCategories(vcats.data ?? []).map((group) => (
+            <View key={group.kind} style={{ gap: theme.space(1.5) }}>
+              <AppText size="xs" weight="700" tone="faint" style={{ letterSpacing: 0.6 }}>
+                {group.kindLabel.toUpperCase()}
+              </AppText>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: theme.space(2) }}>
+                {group.items.map((v) => (
+                  <Button
+                    key={v.id}
+                    label={v.name}
+                    variant={vcat === v.id ? "primary" : "secondary"}
+                    fullWidth={false}
+                    onPress={() => setVcat(v.id)}
+                  />
+                ))}
+              </View>
+            </View>
+          ))}
           <Button label="Add provider (pending verification)" onPress={create} disabled={!name.trim() || !phone.trim() || !vcat} />
         </Card>
       ) : null}

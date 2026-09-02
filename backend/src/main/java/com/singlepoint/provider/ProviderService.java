@@ -29,13 +29,17 @@ public class ProviderService {
     public ProviderService(ServiceProviderRepository providerRepository,
                            TenantServiceProviderRepository tenantProviderRepository,
                            VendorCategoryRepository vendorCategoryRepository,
-                           AppUserRepository userRepository, CryptoService crypto) {
+                           AppUserRepository userRepository, CryptoService crypto,
+                           com.singlepoint.provider.kyc.KycService kycService) {
         this.providerRepository = providerRepository;
         this.tenantProviderRepository = tenantProviderRepository;
         this.vendorCategoryRepository = vendorCategoryRepository;
         this.userRepository = userRepository;
         this.crypto = crypto;
+        this.kycService = kycService;
     }
+
+    private final com.singlepoint.provider.kyc.KycService kycService;
 
     /** Admin adds a provider to their community's directory. Providers are never self-approved. */
     @Transactional
@@ -69,11 +73,17 @@ public class ProviderService {
         return provider;
     }
 
-    /** Manual verification step for MVP-1 (KYC document workflow arrives in MVP-2). */
+    /**
+     * Verification transition. Moving a provider to VERIFIED now requires that the KYC document
+     * gate is satisfied (accepted GOV_ID + ADDRESS_PROOF, plus COMPANY_REG for companies).
+     */
     @Transactional
     public ServiceProvider setVerification(UUID providerId, VerificationStatus status, UUID adminUserId) {
         ServiceProvider p = providerRepository.findById(providerId)
                 .orElseThrow(() -> AppException.notFound("Service provider"));
+        if (status == VerificationStatus.VERIFIED) {
+            kycService.assertVerifiable(p);
+        }
         p.setVerificationStatus(status);
         if (status == VerificationStatus.VERIFIED) {
             p.setVerifiedByUserId(adminUserId);

@@ -34,4 +34,9 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
     long countByTenantId(UUID tenantId);
 
     long countByTenantIdAndStatusNot(UUID tenantId, TicketStatus status);
+
+    @Query("select distinct t.raisedByUserId from Ticket t where t.categoryId = :categoryId")
+    List<UUID> findDistinctRaiserIdsByCategoryId(UUID categoryId);
+
+    boolean existsByRaisedByUserIdAndCategoryId(UUID raisedByUserId, UUID categoryId);
 }

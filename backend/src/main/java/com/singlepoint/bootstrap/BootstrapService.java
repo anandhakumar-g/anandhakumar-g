@@ -9,6 +9,8 @@ import com.singlepoint.provider.ProviderService;
 import com.singlepoint.provider.ServiceProviderRepository;
 import com.singlepoint.provider.domain.ServiceProvider;
 import com.singlepoint.provider.domain.VerificationStatus;
+import com.singlepoint.provider.kyc.ProviderKycDocument;
+import com.singlepoint.provider.kyc.ProviderKycDocumentRepository;
 import com.singlepoint.security.TenantScopedExecutor;
 import com.singlepoint.tenant.TenantService;
 import com.singlepoint.tenant.domain.Tenant;
@@ -41,12 +43,14 @@ public class BootstrapService implements ApplicationRunner {
     private final InviteCodeService inviteCodeService;
     private final ProviderService providerService;
     private final ServiceProviderRepository providerRepository;
+    private final ProviderKycDocumentRepository kycRepository;
     private final CryptoService crypto;
     private final TenantScopedExecutor tenantScoped;
 
     public BootstrapService(AppUserRepository userRepository, TenantService tenantService,
                             FlatRepository flatRepository, InviteCodeService inviteCodeService,
                             ProviderService providerService, ServiceProviderRepository providerRepository,
+                            ProviderKycDocumentRepository kycRepository,
                             CryptoService crypto, TenantScopedExecutor tenantScoped) {
         this.userRepository = userRepository;
         this.tenantService = tenantService;
@@ -54,8 +58,28 @@ public class BootstrapService implements ApplicationRunner {
         this.inviteCodeService = inviteCodeService;
         this.providerService = providerService;
         this.providerRepository = providerRepository;
+        this.kycRepository = kycRepository;
         this.crypto = crypto;
         this.tenantScoped = tenantScoped;
+    }
+
+    private void seedAcceptedKyc(UUID providerId, UUID reviewerId) {
+        for (ProviderKycDocument.DocType type : new ProviderKycDocument.DocType[]{
+                ProviderKycDocument.DocType.GOV_ID,
+                ProviderKycDocument.DocType.ADDRESS_PROOF,
+                ProviderKycDocument.DocType.COMPANY_REG}) {
+            ProviderKycDocument d = new ProviderKycDocument();
+            d.setServiceProviderId(providerId);
+            d.setDocType(type);
+            d.setStorageKey("seed/kyc/" + providerId + "/" + type.name().toLowerCase() + ".txt");
+            d.setContentType("text/plain");
+            d.setSizeBytes(0);
+            d.setOriginalFilename(type.name().toLowerCase() + ".txt");
+            d.setStatus(ProviderKycDocument.Status.ACCEPTED);
+            d.setReviewedByUserId(reviewerId);
+            d.setReviewedAt(java.time.Instant.now());
+            kycRepository.save(d);
+        }
     }
 
     @Override
@@ -76,12 +100,13 @@ public class BootstrapService implements ApplicationRunner {
         AppUser greenAdmin = createUser(Role.ADMIN, "Green Meadows Admin", "+919000000101", green.getId());
         AppUser lakeAdmin = createUser(Role.ADMIN, "Lakeview Admin", "+919000000201", lake.getId());
 
-        // Provider directory entry (global) + tenant enrolment (RLS) + verify.
+        // Provider directory entry (global) + tenant enrolment (RLS) + accepted KYC + verify.
         AppUser providerUser = createUser(Role.PROVIDER, "Sparky Electricals", "+919000000301", null);
         UUID sparkyId = tenantScoped.inTenant(green.getId(), () -> {
             ServiceProvider sp = providerService.createForTenant(green.getId(), "Sparky Electricals",
                     UUID.fromString("22222222-0000-0000-0000-000000000001"), true,
                     "+919000000301", "ops@sparky.example", "Whitefield");
+            seedAcceptedKyc(sp.getId(), superAdmin.getId());
             providerService.setVerification(sp.getId(), VerificationStatus.VERIFIED, superAdmin.getId());
             ServiceProvider linked = providerRepository.findById(sp.getId()).orElseThrow();
             linked.setUserId(providerUser.getId());

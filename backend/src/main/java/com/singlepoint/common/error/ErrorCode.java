@@ -18,6 +18,8 @@ public enum ErrorCode {
     ILLEGAL_TRANSITION      ("SP-409-TRANSITION",   HttpStatus.CONFLICT,             "Illegal status transition"),
     UNPROCESSABLE          ("SP-422",              HttpStatus.UNPROCESSABLE_ENTITY,  "Request could not be processed"),
     PROVIDER_NOT_ASSIGNABLE ("SP-422-PROVIDER",     HttpStatus.UNPROCESSABLE_ENTITY,  "Service provider is not verified/active"),
+    KYC_INCOMPLETE          ("SP-422-KYC",          HttpStatus.UNPROCESSABLE_ENTITY,  "Required KYC documents are not accepted yet"),
+    OFFER_LIMIT_REACHED     ("SP-409-OFFER",        HttpStatus.CONFLICT,              "Offer redemption limit reached"),
     RATE_LIMITED           ("SP-429",              HttpStatus.TOO_MANY_REQUESTS,     "Too many requests, try again later"),
     INTERNAL               ("SP-500",              HttpStatus.INTERNAL_SERVER_ERROR, "Something went wrong"),
     STORAGE_ERROR          ("SP-500-STORAGE",      HttpStatus.INTERNAL_SERVER_ERROR, "File storage error"),

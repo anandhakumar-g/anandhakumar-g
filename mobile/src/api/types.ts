@@ -68,7 +68,23 @@ export interface VendorCategory {
   id: string;
   name: string;
   kind: string;
+  kindLabel: string;
+  parentCategoryId: string | null;
   sortOrder: number;
+}
+
+/** Group a flat vendor-category list by kind, preserving sort order. */
+export function groupVendorCategories(list: VendorCategory[]): { kind: string; kindLabel: string; items: VendorCategory[] }[] {
+  const order: string[] = [];
+  const map = new Map<string, { kind: string; kindLabel: string; items: VendorCategory[] }>();
+  for (const v of [...list].sort((a, b) => a.sortOrder - b.sortOrder)) {
+    if (!map.has(v.kind)) {
+      map.set(v.kind, { kind: v.kind, kindLabel: v.kindLabel, items: [] });
+      order.push(v.kind);
+    }
+    map.get(v.kind)!.items.push(v);
+  }
+  return order.map((k) => map.get(k)!);
 }
 
 export interface PartyView {
