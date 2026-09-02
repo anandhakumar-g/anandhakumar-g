@@ -14,7 +14,13 @@ public interface UserTenantMembershipRepository extends JpaRepository<UserTenant
 
     List<UserTenantMembership> findByUserIdAndStatus(UUID userId, MembershipStatus status);
 
+    /** Deterministic order for picking a fallback active tenant / community list. */
+    List<UserTenantMembership> findByUserIdAndStatusOrderByJoinedAtAscCreatedAtAsc(UUID userId, MembershipStatus status);
+
     Optional<UserTenantMembership> findByUserIdAndTenantIdAndStatus(UUID userId, UUID tenantId, MembershipStatus status);
+
+    List<UserTenantMembership> findByUserIdAndTenantIdAndStatusIn(UUID userId, UUID tenantId,
+                                                                 java.util.Collection<MembershipStatus> statuses);
 
     boolean existsByUserIdAndTenantIdAndStatusIn(UUID userId, UUID tenantId, List<MembershipStatus> statuses);
 

@@ -23,6 +23,8 @@ public final class MeDtos {
 
     public record AwayRequest(java.time.Instant awayUntil) { }
 
+    public record ActiveCommunityRequest(@NotBlank String tenantId) { }
+
     public record JoinRequest(@NotBlank String tenantId, String inviteCode, String requestedFlatLabel) { }
 
     public record DeviceRequest(@NotBlank String token, @NotBlank String platform, String provider) { }

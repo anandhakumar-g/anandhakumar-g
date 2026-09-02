@@ -1,6 +1,8 @@
 package com.singlepoint.auth.api;
 
 import com.singlepoint.auth.AuthService;
+import com.singlepoint.common.error.AppException;
+import com.singlepoint.common.error.ErrorCode;
 import com.singlepoint.security.AppPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -43,6 +45,14 @@ public class AuthController {
             @AuthenticationPrincipal AppPrincipal principal,
             @Valid @RequestBody AuthDtos.ProfileRequest body) {
         authService.completeProfileAndRefresh(principal.getUserId(), body.name(), body.email());
+        return ResponseEntity.ok(AuthDtos.SessionResponse.from(
+                authService.refreshSessionFor(principal.getUserId())));
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "Re-mint the caller's session (picks up an approved membership / a community switch)")
+    public ResponseEntity<AuthDtos.SessionResponse> refresh(@AuthenticationPrincipal AppPrincipal principal) {
+        if (principal == null) throw new AppException(ErrorCode.UNAUTHENTICATED, "Sign in first");
         return ResponseEntity.ok(AuthDtos.SessionResponse.from(
                 authService.refreshSessionFor(principal.getUserId())));
     }

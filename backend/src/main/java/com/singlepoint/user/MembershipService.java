@@ -130,6 +130,39 @@ public class MembershipService {
         return membershipRepository.save(m);
     }
 
+    /** Resident leaves a community — EXITs every ACTIVE membership they hold there and unlinks their flats. */
+    @Transactional
+    public List<UserTenantMembership> leave(UUID userId, UUID tenantId) {
+        List<UserTenantMembership> active = membershipRepository.findByUserIdAndTenantIdAndStatusIn(
+                userId, tenantId, List.of(MembershipStatus.ACTIVE));
+        if (active.isEmpty()) throw AppException.notFound("Membership");
+        for (UserTenantMembership m : active) {
+            m.setStatus(MembershipStatus.EXITED);
+            m.setExitedAt(Instant.now());
+            if (m.getFlatId() != null) unlinkFromFlat(m.getFlatId(), userId);
+            membershipRepository.save(m);
+        }
+        return active;
+    }
+
+    private void unlinkFromFlat(UUID flatId, UUID userId) {
+        flatRepository.findById(flatId).ifPresent(flat -> {
+            boolean changed = false;
+            if (userId.equals(flat.getCurrentOccupantUserId())) {
+                flat.setCurrentOccupantUserId(null);
+                if (flat.getOccupancyType() == Flat.OccupancyType.RENTED) {
+                    flat.setOccupancyType(Flat.OccupancyType.VACANT);
+                }
+                changed = true;
+            }
+            if (userId.equals(flat.getOwnerUserId())) {
+                flat.setOwnerUserId(null);
+                changed = true;
+            }
+            if (changed) flatRepository.save(flat);
+        });
+    }
+
     @Transactional
     public UserTenantMembership reject(UUID tenantId, UUID membershipId, UUID adminUserId) {
         UserTenantMembership m = membershipRepository.findById(membershipId)

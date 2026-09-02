@@ -234,6 +234,13 @@ public abstract class IntegrationTestBase {
                 Map.of("tenantId", tenantId.toString(), "inviteCode", code))).token();
     }
 
+    /** An already-onboarded resident joins another community with their existing token (invite-code path). */
+    protected String joinExistingResident(String residentToken, UUID tenantId, String adminTokenForThatTenant) {
+        String code = createInvite(adminTokenForThatTenant);
+        return toSession(post("/api/v1/memberships/join", residentToken,
+                Map.of("tenantId", tenantId.toString(), "inviteCode", code))).token();
+    }
+
     /** Raise a ticket as the resident and drive it to RESOLVED via the assigned provider. */
     protected String resolvedTicket(String residentToken, String adminToken, String providerToken, UUID providerId) {
         String cat = firstCategoryId(residentToken, "Electrical");

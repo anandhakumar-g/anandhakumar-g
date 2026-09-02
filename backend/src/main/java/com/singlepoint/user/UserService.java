@@ -80,17 +80,23 @@ public class UserService {
         return membershipRepository.findByUserId(userId);
     }
 
-    /** Active tenant = current_tenant_id if it still has an ACTIVE membership, else any ACTIVE one. */
+    /** Active tenant = current_tenant_id if it still has an ACTIVE membership, else the earliest-joined ACTIVE one. */
     @Transactional(readOnly = true)
     public UUID resolveActiveTenant(AppUser user) {
-        List<UserTenantMembership> active =
-                membershipRepository.findByUserIdAndStatus(user.getId(), MembershipStatus.ACTIVE);
+        List<UserTenantMembership> active = activeMembershipsOrdered(user.getId());
         if (active.isEmpty()) return null;
         if (user.getCurrentTenantId() != null) {
             boolean stillActive = active.stream().anyMatch(m -> m.getTenantId().equals(user.getCurrentTenantId()));
             if (stillActive) return user.getCurrentTenantId();
         }
         return active.get(0).getTenantId();
+    }
+
+    /** All ACTIVE memberships, oldest first (by joined_at, then created_at). */
+    @Transactional(readOnly = true)
+    public List<UserTenantMembership> activeMembershipsOrdered(UUID userId) {
+        return membershipRepository.findByUserIdAndStatusOrderByJoinedAtAscCreatedAtAsc(
+                userId, MembershipStatus.ACTIVE);
     }
 
     @Transactional
