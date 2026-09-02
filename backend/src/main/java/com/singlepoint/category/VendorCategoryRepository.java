@@ -9,4 +9,8 @@ import java.util.UUID;
 public interface VendorCategoryRepository extends JpaRepository<VendorCategory, UUID> {
 
     List<VendorCategory> findByActiveTrueOrderBySortOrderAsc();
+
+    List<VendorCategory> findAllByOrderBySortOrderAsc();
+
+    boolean existsByKind(String kind);
 }

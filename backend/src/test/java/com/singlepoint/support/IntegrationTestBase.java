@@ -46,12 +46,13 @@ public abstract class IntegrationTestBase {
             TRUNCATE TABLE
               audit_log, notification, notification_outbox, otp_challenge, device_token,
               notification_preference,
+              payment_event, payment_receipt, ticket_payment,
               offer_redemption, offer_target, offer,
               provider_kyc_document,
               ticket_status_history, ticket_attachment, ticket,
               tenant_service_provider, service_provider,
               invite_code, user_tenant_membership, flat, app_user, tenant,
-              category, vendor_category
+              category, vendor_category, vendor_category_kind
             RESTART IDENTITY CASCADE
             """;
 
@@ -70,6 +71,10 @@ public abstract class IntegrationTestBase {
               ('22222222-0000-0000-0003-000000000001', 'Travel Agent','TRAVEL',               400, true),
               ('22222222-0000-0000-0004-000000000001', 'Guest House', 'ACCOMMODATION',        500, true),
               ('22222222-0000-0000-0005-000000000001', 'Party Planning','EVENTS_ENTERTAINMENT', 600, true);
+            INSERT INTO vendor_category_kind (code, label, sort_order) VALUES
+              ('MAINTENANCE','Home & Maintenance',10), ('FOOD_DINING','Food & Dining',20),
+              ('RETAIL','Shops & Retail',30), ('TRAVEL','Travel',40), ('ACCOMMODATION','Stays',50),
+              ('EVENTS_ENTERTAINMENT','Events & Entertainment',60), ('OTHER','Other',99);
             """;
 
     @Autowired protected TestRestTemplate rest;
@@ -208,6 +213,19 @@ public abstract class IntegrationTestBase {
         String tok = completeProfile(login(phone).token(), name, name.toLowerCase() + "@example.com").token();
         return toSession(post("/api/v1/memberships/join", tok,
                 Map.of("tenantId", tenantId.toString(), "inviteCode", code))).token();
+    }
+
+    /** Raise a ticket as the resident and drive it to RESOLVED via the assigned provider. */
+    protected String resolvedTicket(String residentToken, String adminToken, String providerToken, UUID providerId) {
+        String cat = firstCategoryId(residentToken, "Electrical");
+        String id = post("/api/v1/tickets", residentToken, Map.of(
+                "categoryId", cat, "description", "fix it", "serviceAddressText", "A-1")).get("id").asText();
+        post("/api/v1/tickets/" + id + "/assign", adminToken, Map.of("providerId", providerId.toString()));
+        post("/api/v1/tickets/" + id + "/accept", providerToken, Map.of());
+        post("/api/v1/tickets/" + id + "/status", providerToken, Map.of("toStatus", "IN_PROGRESS"));
+        post("/api/v1/tickets/" + id + "/status", providerToken,
+                Map.of("toStatus", "RESOLVED", "resolutionNotes", "done"));
+        return id;
     }
 
     protected String createDraftOffer(String authorToken, String vendorCategoryId) {
