@@ -1,10 +1,12 @@
 package com.singlepoint.flat.domain;
 
 import com.singlepoint.common.domain.BaseEntity;
+import com.singlepoint.crypto.EncryptedStringConverter;
 import lombok.Getter;
 import lombok.Setter;
 
 import javax.persistence.Column;
+import javax.persistence.Convert;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
@@ -45,7 +47,8 @@ public class Flat extends BaseEntity {
     @Column(name = "geo_lng", precision = 9, scale = 6)
     private BigDecimal geoLng;
 
-    @Column(name = "address_text")
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "address_text_enc")
     private String addressText;
 
     public String label() {

@@ -1,10 +1,12 @@
 package com.singlepoint.ticket.domain;
 
 import com.singlepoint.common.domain.BaseEntity;
+import com.singlepoint.crypto.EncryptedStringConverter;
 import lombok.Getter;
 import lombok.Setter;
 
 import javax.persistence.Column;
+import javax.persistence.Convert;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
@@ -44,7 +46,8 @@ public class Ticket extends BaseEntity {
     @Column(name = "subcategory_id")
     private UUID subcategoryId;
 
-    @Column(name = "description", nullable = false)
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "description_enc", nullable = false)
     private String description;
 
     @Enumerated(EnumType.STRING)
@@ -79,19 +82,22 @@ public class Ticket extends BaseEntity {
     @Column(name = "service_geo_lng", precision = 9, scale = 6)
     private BigDecimal serviceGeoLng;
 
-    @Column(name = "service_landmark", length = 200)
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "service_landmark_enc")
     private String serviceLandmark;
 
     @Column(name = "hold_reason")
     private String holdReason;
 
-    @Column(name = "resolution_notes")
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "resolution_notes_enc")
     private String resolutionNotes;
 
     @Column(name = "rating")
     private Integer rating;
 
-    @Column(name = "rating_comment")
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "rating_comment_enc")
     private String ratingComment;
 
     @Column(name = "reopened_count", nullable = false)

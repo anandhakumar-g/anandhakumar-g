@@ -22,11 +22,19 @@ public class AuditWriter {
     /** Own transaction so a failure audit survives the business transaction's rollback. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void write(String action, boolean ok, String errorCode, int durationMs) {
+        write(action, ok, errorCode, durationMs, null, null);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void write(String action, boolean ok, String errorCode, int durationMs,
+                      String entityType, java.util.UUID entityId) {
         AuditLog entry = new AuditLog();
         entry.setAction(action);
         entry.setSuccess(ok);
         entry.setErrorCode(errorCode);
         entry.setDurationMs(durationMs);
+        entry.setEntityType(entityType);
+        entry.setEntityId(entityId);
         entry.setRequestId(MDC.get("requestId"));
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();

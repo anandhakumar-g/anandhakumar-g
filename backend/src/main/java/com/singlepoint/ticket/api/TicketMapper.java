@@ -64,12 +64,21 @@ public class TicketMapper {
         String flatLabel = t.getFlatId() == null ? null :
                 flatRepository.findById(t.getFlatId()).map(f -> f.label()).orElse(null);
 
+        // Full service address only for the raiser, the community admin, or the assigned
+        // provider while the job is live. Everyone else sees the landmark only.
+        boolean revealAddress = viewer.isAdmin()
+                || (viewer.isResident() && t.getRaisedByUserId().equals(viewer.getUserId()))
+                || (viewerIsAssignedProvider && engaged);
+        String serviceAddress = revealAddress ? t.getServiceAddressText() : null;
+        java.math.BigDecimal geoLat = revealAddress ? t.getServiceGeoLat() : null;
+        java.math.BigDecimal geoLng = revealAddress ? t.getServiceGeoLng() : null;
+
         return new TicketDtos.TicketView(
                 t.getId(), t.getReferenceCode(), t.getStatus().name(), t.getRequestMode().name(),
                 t.getCategoryId().toString(),
                 t.getPriority() != null ? t.getPriority().name() : null,
                 t.getDescription(), flatLabel,
-                t.getServiceAddressText(), t.getServiceGeoLat(), t.getServiceGeoLng(),
+                serviceAddress, geoLat, geoLng,
                 t.getServiceLandmark(), t.getPreferredTimeWindow(),
                 raisedBy, provider, t.isAllocationApprovedByResident(),
                 t.getRating(), t.getRatingComment(), t.getReopenedCount(),

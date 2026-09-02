@@ -63,6 +63,7 @@ public class TicketController {
     }
 
     @GetMapping("/{id}")
+    @com.singlepoint.audit.AuditRead(entity = "ticket")
     public ResponseEntity<TicketDtos.TicketView> get(@AuthenticationPrincipal AppPrincipal principal,
                                                      @PathVariable UUID id) {
         return ResponseEntity.ok(mapper.toView(ticketService.getForActor(principal, id), principal));

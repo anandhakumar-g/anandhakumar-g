@@ -53,7 +53,9 @@ export function TicketRow({
       ) : null}
       <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
         <AppText size="xs" tone="faint">
-          {showRaiser && ticket.raisedBy?.name ? ticket.raisedBy.name : ticket.flatLabel ?? ticket.serviceAddressText}
+          {showRaiser && ticket.raisedBy?.name
+            ? ticket.raisedBy.name
+            : ticket.flatLabel ?? ticket.serviceAddressText ?? ticket.serviceLandmark ?? "—"}
         </AppText>
         <AppText size="xs" tone="faint">
           {when}

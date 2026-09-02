@@ -67,6 +67,7 @@ public class ProviderKycController {
 
     @GetMapping("/{docId}/file")
     @Operation(summary = "Download one of my KYC documents")
+    @com.singlepoint.audit.AuditRead(entity = "kyc_document")
     public ResponseEntity<InputStreamResource> file(@AuthenticationPrincipal AppPrincipal p, @PathVariable UUID docId) {
         ProviderKycDocument d = kycService.require(docId);
         if (!d.getServiceProviderId().equals(self(p).getId())) throw AppException.notFound("Document");

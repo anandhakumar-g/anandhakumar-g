@@ -52,6 +52,7 @@ public class AdminKycController {
 
     @GetMapping("/{docId}/file")
     @Operation(summary = "Download a KYC document")
+    @com.singlepoint.audit.AuditRead(entity = "kyc_document")
     public ResponseEntity<InputStreamResource> file(@AuthenticationPrincipal AppPrincipal p,
                                                     @PathVariable UUID providerId, @PathVariable UUID docId) {
         assertEnrolled(p, providerId);

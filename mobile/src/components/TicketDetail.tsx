@@ -95,7 +95,7 @@ export function TicketDetail({ ticketId, role }: { ticketId: string; role: Role 
           <Button
             label="🧭 Navigate"
             variant="ghost"
-            onPress={() => Linking.openURL(mapsUrl(tk.serviceGeoLat!, tk.serviceGeoLng!, tk.serviceAddressText))}
+            onPress={() => Linking.openURL(mapsUrl(tk.serviceGeoLat!, tk.serviceGeoLng!, tk.serviceAddressText ?? ""))}
           />
         ) : null}
       </Card>

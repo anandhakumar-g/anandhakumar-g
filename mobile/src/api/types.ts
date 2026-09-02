@@ -122,7 +122,7 @@ export interface TicketView {
   priority: string | null;
   description: string;
   flatLabel: string | null;
-  serviceAddressText: string;
+  serviceAddressText: string | null;
   serviceGeoLat: number | null;
   serviceGeoLng: number | null;
   serviceLandmark: string | null;

@@ -1,10 +1,12 @@
 package com.singlepoint.tenant.domain;
 
 import com.singlepoint.common.domain.BaseEntity;
+import com.singlepoint.crypto.EncryptedStringConverter;
 import lombok.Getter;
 import lombok.Setter;
 
 import javax.persistence.Column;
+import javax.persistence.Convert;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
@@ -26,7 +28,8 @@ public class Tenant extends BaseEntity {
     @Column(name = "locality", length = 160)
     private String locality;
 
-    @Column(name = "address")
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "address_enc")
     private String address;
 
     @Column(name = "pincode", length = 12)
