@@ -1,6 +1,21 @@
-import { Stack } from "expo-router";
+import { Tabs } from "expo-router";
 import React from "react";
+import { useTheme } from "@/theme/ThemeProvider";
 
 export default function SuperLayout() {
-  return <Stack screenOptions={{ headerShown: false }} />;
+  const { theme } = useTheme();
+  return (
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: theme.color.primary,
+        tabBarInactiveTintColor: theme.color.textFaint,
+        tabBarStyle: { backgroundColor: theme.color.surface, borderTopColor: theme.color.border },
+        tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
+      }}
+    >
+      <Tabs.Screen name="index" options={{ title: "Platform" }} />
+      <Tabs.Screen name="offers" options={{ title: "Offer approvals" }} />
+    </Tabs>
+  );
 }

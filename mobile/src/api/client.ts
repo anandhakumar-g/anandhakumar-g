@@ -62,8 +62,13 @@ async function request<T>(method: string, path: string, body?: any, opts: Reques
   return data as T;
 }
 
-export async function uploadFile<T>(path: string, file: { uri: string; name: string; type: string }): Promise<T> {
+export async function uploadFile<T>(
+  path: string,
+  file: { uri: string; name: string; type: string },
+  fields?: Record<string, string>
+): Promise<T> {
   const form = new FormData();
+  if (fields) for (const [k, v] of Object.entries(fields)) form.append(k, v);
   // @ts-expect-error RN FormData file shape
   form.append("file", { uri: file.uri, name: file.name, type: file.type });
   const headers: Record<string, string> = {};

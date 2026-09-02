@@ -9,18 +9,26 @@ servers:
 security:
 - bearerAuth: []
 tags:
+- name: Offers
+  description: "Vendor/admin authoring, resident deals feed, redemption"
+- name: Me
+  description: "Signed-in user profile, theme, memberships, devices"
+- name: Super Admin
+  description: Platform-level tenant onboarding (no ticket content access)
+- name: Provider — KYC
+  description: Provider uploads its own verification documents
+- name: Admin — KYC review
+  description: Review a provider's verification documents
+- name: Me — Notification preferences
+  description: Anti-fatigue controls for promotional offers
 - name: Tickets
   description: "Raise, triage, resolve — role-aware"
 - name: Admin — Providers
   description: Community provider directory + manual verification
 - name: Auth
   description: Phone + OTP login and profile completion
-- name: Me
-  description: "Signed-in user profile, theme, memberships, devices"
 - name: Communities
   description: Community directory for onboarding
-- name: Super Admin
-  description: Platform-level tenant onboarding (no ticket content access)
 - name: Admin — Flats & Invites
   description: Community flat register and invite codes
 - name: Membership
@@ -29,7 +37,62 @@ tags:
   description: Ticket + vendor category lists
 - name: Admin — Join Requests
   description: Approve or reject residents joining the community
+- name: Super Admin — Offer approval
+  description: Validate every offer + assign its audience
 paths:
+  /api/v1/offers/{id}:
+    get:
+      tags:
+      - Offers
+      operationId: get_2
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/OfferView'
+    put:
+      tags:
+      - Offers
+      operationId: update
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/CreateOrUpdateRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/OfferView'
   /api/v1/me/theme:
     put:
       tags:
@@ -50,6 +113,49 @@ paths:
       responses:
         "200":
           description: OK
+  /api/v1/me/notification-preferences:
+    get:
+      tags:
+      - Me — Notification preferences
+      summary: Get my notification preferences (created with opt-in defaults on first
+        read)
+      operationId: get_3
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PrefView'
+    put:
+      tags:
+      - Me — Notification preferences
+      summary: Update notification preferences
+      operationId: update_1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/UpdateRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PrefView'
   /api/v1/admin/flats/{flatId}:
     put:
       tags:
@@ -525,6 +631,279 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/AdminCreated'
+  /api/v1/superadmin/offers/{id}/reject:
+    post:
+      tags:
+      - Super Admin — Offer approval
+      operationId: reject_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/RejectRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/OfferView'
+  /api/v1/superadmin/offers/{id}/approve:
+    post:
+      tags:
+      - Super Admin — Offer approval
+      summary: "Approve as submitted, or override the target audience, then publish"
+      operationId: approve
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/ApproveRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/OfferView'
+  /api/v1/provider/kyc:
+    get:
+      tags:
+      - Provider — KYC
+      summary: List my KYC documents and their review status
+      operationId: list_2
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocView'
+    post:
+      tags:
+      - Provider — KYC
+      summary: Upload a KYC document (GOV_ID / ADDRESS_PROOF / COMPANY_REG / OTHER)
+      operationId: upload_1
+      parameters:
+      - name: docType
+        in: query
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              required:
+              - file
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/DocView'
+  /api/v1/offers:
+    get:
+      tags:
+      - Offers
+      summary: Deals targeted to me (active + in validity)
+      operationId: feed
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OfferView'
+    post:
+      tags:
+      - Offers
+      operationId: create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/CreateOrUpdateRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/OfferView'
+  /api/v1/offers/{id}/submit:
+    post:
+      tags:
+      - Offers
+      summary: Submit an offer for Super Admin approval
+      operationId: submit
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/SubmitRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/OfferView'
+  /api/v1/offers/{id}/redeem:
+    post:
+      tags:
+      - Offers
+      summary: Redeem an offer (reveals the coupon; provider confirms usage later)
+      operationId: redeem
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/RedeemRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/RedemptionView'
+  /api/v1/offers/{id}/image:
+    post:
+      tags:
+      - Offers
+      operationId: image
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              required:
+              - file
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/OfferView'
+  /api/v1/offers/redemptions/{redemptionId}/confirm:
+    post:
+      tags:
+      - Offers
+      summary: Provider/admin confirms a coupon was used
+      operationId: confirm
+      parameters:
+      - name: redemptionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/RedemptionView'
   /api/v1/memberships/join:
     post:
       tags:
@@ -655,7 +1034,7 @@ paths:
     post:
       tags:
       - Admin — Providers
-      operationId: create
+      operationId: create_1
       requestBody:
         content:
           application/json:
@@ -705,11 +1084,48 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/ProviderView'
+  /api/v1/admin/providers/{providerId}/kyc/{docId}/review:
+    post:
+      tags:
+      - Admin — KYC review
+      summary: Accept or reject a KYC document
+      operationId: review
+      parameters:
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: docId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/ReviewRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/DocView'
   /api/v1/admin/join-requests/{membershipId}/reject:
     post:
       tags:
       - Admin — Join Requests
-      operationId: reject_1
+      operationId: reject_2
       parameters:
       - name: membershipId
         in: path
@@ -729,7 +1145,7 @@ paths:
     post:
       tags:
       - Admin — Join Requests
-      operationId: approve
+      operationId: approve_1
       parameters:
       - name: membershipId
         in: path
@@ -837,7 +1253,8 @@ paths:
     get:
       tags:
       - Categories
-      summary: Vendor categories (used when adding a provider)
+      summary: Vendor categories (add-provider picker + offer authoring); group by
+        kind
       operationId: vendorCategories
       responses:
         "200":
@@ -931,6 +1348,120 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/PageResponseTenantCard'
+  /api/v1/superadmin/offers:
+    get:
+      tags:
+      - Super Admin — Offer approval
+      summary: Offers by status (defaults to PENDING_APPROVAL queue)
+      operationId: list_1
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 50
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OfferView'
+  /api/v1/superadmin/offers/{id}:
+    get:
+      tags:
+      - Super Admin — Offer approval
+      operationId: get_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/OfferView'
+  /api/v1/provider/kyc/{docId}/file:
+    get:
+      tags:
+      - Provider — KYC
+      summary: Download one of my KYC documents
+      operationId: file
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      - name: docId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+  /api/v1/offers/mine:
+    get:
+      tags:
+      - Offers
+      operationId: mine
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 50
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OfferView'
   /api/v1/me:
     get:
       tags:
@@ -984,6 +1515,65 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/CategoryView'
+  /api/v1/admin/providers/{providerId}/kyc:
+    get:
+      tags:
+      - Admin — KYC review
+      summary: List a provider's KYC documents
+      operationId: list_3
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocView'
+  /api/v1/admin/providers/{providerId}/kyc/{docId}/file:
+    get:
+      tags:
+      - Admin — KYC review
+      summary: Download a KYC document
+      operationId: file_1
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: docId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
   /api/v1/admin/join-requests:
     get:
       tags:
@@ -1048,14 +1638,116 @@ components:
           format: uuid
         name:
           type: string
-        resident:
+        superAdmin:
           type: boolean
-        admin:
+        resident:
           type: boolean
         provider:
           type: boolean
-        superAdmin:
+        admin:
           type: boolean
+    CreateOrUpdateRequest:
+      required:
+      - discountType
+      - discountValue
+      - title
+      - validFrom
+      - validTo
+      - vendorCategoryId
+      type: object
+      properties:
+        vendorCategoryId:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        discountType:
+          type: string
+        discountValue:
+          type: number
+        couponCode:
+          type: string
+        validFrom:
+          type: string
+          format: date-time
+        validTo:
+          type: string
+          format: date-time
+        redemptionLimitPerUser:
+          type: integer
+          format: int32
+        redemptionLimitTotal:
+          type: integer
+          format: int32
+        terms:
+          type: string
+    OfferView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+        vendorCategoryId:
+          type: string
+        discountType:
+          type: string
+        discountValue:
+          type: number
+        couponCode:
+          type: string
+        imageUrl:
+          type: string
+        validFrom:
+          type: string
+          format: date-time
+        validTo:
+          type: string
+          format: date-time
+        redemptionLimitPerUser:
+          type: integer
+          format: int32
+        redemptionLimitTotal:
+          type: integer
+          format: int32
+        terms:
+          type: string
+        createdByRole:
+          type: string
+        rejectReason:
+          type: string
+        target:
+          $ref: '#/components/schemas/TargetView'
+        submittedAt:
+          type: string
+          format: date-time
+        validatedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    TargetView:
+      type: object
+      properties:
+        targetType:
+          type: string
+        tenantIds:
+          type: array
+          items:
+            type: string
+        enquiryCategoryId:
+          type: string
+        segmentFilter:
+          type: string
+        summary:
+          type: string
     ThemeRequest:
       required:
       - theme
@@ -1063,6 +1755,38 @@ components:
       properties:
         theme:
           type: string
+    UpdateRequest:
+      type: object
+      properties:
+        subscribedVendorCategoryIds:
+          type: array
+          items:
+            type: string
+        promoFrequencyCapPerWeek:
+          type: integer
+          format: int32
+        digestMode:
+          type: string
+        ticketNotificationsEnabled:
+          type: boolean
+        promoNotificationsEnabled:
+          type: boolean
+    PrefView:
+      type: object
+      properties:
+        subscribedVendorCategoryIds:
+          type: array
+          items:
+            type: string
+        promoFrequencyCapPerWeek:
+          type: integer
+          format: int32
+        digestMode:
+          type: string
+        ticketNotificationsEnabled:
+          type: boolean
+        promoNotificationsEnabled:
+          type: boolean
     UpdateFlatRequest:
       type: object
       properties:
@@ -1332,6 +2056,84 @@ components:
           type: string
         phoneMasked:
           type: string
+    ApproveRequest:
+      type: object
+      properties:
+        target:
+          $ref: '#/components/schemas/TargetRequest'
+    TargetRequest:
+      required:
+      - targetType
+      type: object
+      properties:
+        targetType:
+          type: string
+        tenantIds:
+          type: array
+          items:
+            type: string
+        enquiryCategoryId:
+          type: string
+        segmentFilter:
+          type: string
+    DocView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        docType:
+          type: string
+        status:
+          type: string
+        contentType:
+          type: string
+        sizeBytes:
+          type: integer
+          format: int64
+        originalFilename:
+          type: string
+        reviewNote:
+          type: string
+        reviewedAt:
+          type: string
+          format: date-time
+        uploadedAt:
+          type: string
+          format: date-time
+    SubmitRequest:
+      required:
+      - target
+      type: object
+      properties:
+        target:
+          $ref: '#/components/schemas/TargetRequest'
+    RedeemRequest:
+      type: object
+      properties:
+        code:
+          type: string
+    RedemptionView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        offerId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        verifiedBy:
+          type: string
+        redeemedAt:
+          type: string
+          format: date-time
+        confirmedAt:
+          type: string
+          format: date-time
+        couponCode:
+          type: string
     JoinRequest:
       required:
       - tenantId
@@ -1473,10 +2275,14 @@ components:
       properties:
         status:
           type: string
-    ApproveRequest:
+    ReviewRequest:
+      required:
+      - status
       type: object
       properties:
-        flatId:
+        status:
+          type: string
+        note:
           type: string
     CreateInviteRequest:
       type: object
@@ -1543,6 +2349,11 @@ components:
           type: string
         kind:
           type: string
+        kindLabel:
+          type: string
+        parentCategoryId:
+          type: string
+          format: uuid
         sortOrder:
           type: integer
           format: int32

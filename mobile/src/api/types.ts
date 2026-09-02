@@ -196,3 +196,75 @@ export interface InviteView {
   expiresAt: string | null;
   createdAt: string;
 }
+
+// ---- MVP-2: KYC, offers, notification preferences ------------------------
+
+export type KycDocType = "GOV_ID" | "ADDRESS_PROOF" | "COMPANY_REG" | "OTHER";
+export interface KycDocView {
+  id: string;
+  docType: KycDocType;
+  status: "PENDING" | "ACCEPTED" | "REJECTED";
+  contentType: string;
+  sizeBytes: number;
+  originalFilename: string | null;
+  reviewNote: string | null;
+  reviewedAt: string | null;
+  uploadedAt: string;
+}
+
+export interface NotificationPreferences {
+  subscribedVendorCategoryIds: string[];
+  promoFrequencyCapPerWeek: number;
+  digestMode: "OFF" | "DAILY" | "WEEKLY";
+  ticketNotificationsEnabled: boolean;
+  promoNotificationsEnabled: boolean;
+}
+
+export type OfferStatus = "DRAFT" | "PENDING_APPROVAL" | "ACTIVE" | "EXPIRED" | "CANCELLED" | "REJECTED";
+export type TargetType = "SINGLE_TENANT" | "TENANT_LIST" | "ALL_TENANTS" | "USER_SEGMENT" | "ENQUIRY_BASED";
+
+export interface OfferTargetView {
+  targetType: TargetType;
+  tenantIds: string[];
+  enquiryCategoryId: string | null;
+  segmentFilter: string | null;
+  summary: string | null;
+}
+
+export interface OfferView {
+  id: string;
+  title: string;
+  description: string | null;
+  status: OfferStatus;
+  vendorCategoryId: string;
+  discountType: "FLAT" | "PERCENTAGE";
+  discountValue: number;
+  couponCode: string | null;
+  imageUrl: string | null;
+  validFrom: string;
+  validTo: string;
+  redemptionLimitPerUser: number;
+  redemptionLimitTotal: number | null;
+  terms: string | null;
+  createdByRole: string;
+  rejectReason: string | null;
+  target: OfferTargetView | null;
+  submittedAt: string | null;
+  validatedAt: string | null;
+  createdAt: string;
+}
+
+export interface RedemptionView {
+  id: string;
+  offerId: string;
+  status: string;
+  verifiedBy: string;
+  redeemedAt: string;
+  confirmedAt: string | null;
+  couponCode: string | null;
+}
+
+export function discountLabel(o: Pick<OfferView, "discountType" | "discountValue">): string {
+  const v = Number(o.discountValue);
+  return o.discountType === "PERCENTAGE" ? `${v}% off` : `₹${v} off`;
+}

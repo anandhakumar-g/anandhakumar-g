@@ -15,6 +15,8 @@ export default function ProviderLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: "Jobs" }} />
+      <Tabs.Screen name="offers" options={{ title: "Offers" }} />
+      <Tabs.Screen name="kyc" options={{ title: "Verify" }} />
       <Tabs.Screen name="settings" options={{ title: "Settings" }} />
       <Tabs.Screen name="job/[id]" options={{ href: null }} />
     </Tabs>

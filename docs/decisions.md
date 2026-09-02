@@ -4,6 +4,31 @@ Short ADRs. Newest first.
 
 ---
 
+## ADR-014 — Offers module: own tables, no RLS, Super-Admin-gated
+**Decision (MVP-2):** `offer` / `offer_target` / `offer_redemption` live in their own
+`com.singlepoint.offer` package and share only the provider directory, tenant list and
+notification service with the core. No RLS — offers are cross-tenant by nature; visibility is
+computed in the query layer from `offer_target` + the requesting user's tenant / enquiry
+history. Every offer passes through `PENDING_APPROVAL` and only a Super Admin can approve
+(optionally rewriting the target audience) or reject. `OfferTargetingService` resolves
+SINGLE_TENANT / TENANT_LIST / ALL_TENANTS / USER_SEGMENT / ENQUIRY_BASED to a recipient set at
+approval time (under the Super Admin's cross-tenant DB scope), then publishes one promo event.
+
+## ADR-013 — Anti-fatigue is opt-in by category
+**Decision (MVP-2):** `notification_preference` defaults to **no** subscribed vendor
+categories, so promotional pushes are suppressed until the resident actively subscribes; the
+in-app deals tab is always visible. `OutboxDispatcher` gates each promo recipient on:
+opt-out, category subscription, a central weekly frequency cap (counts SENT `OFFER_*`
+notifications in the last 7 days), and digest deferral. Ticket-status notifications are gated
+**only** by `ticket_notifications_enabled` — muting promos never mutes ticket updates.
+
+## ADR-012 — KYC verification gate + private storage
+**Decision (MVP-2):** setting a provider to `VERIFIED` now requires an ACCEPTED `GOV_ID` and
+`ADDRESS_PROOF` (plus `COMPANY_REG` for companies), enforced in `ProviderService.setVerification`
+(`422 SP-422-KYC`). KYC files use `StorageService.putPrivate` (local `private/` prefix; the
+separate KYC bucket in cloud) and are only ever streamed back through an auth-gated endpoint
+to the owning provider or an admin of a tenant the provider is enrolled in — never a public URL.
+
 ## ADR-011 — RLS scope narrowed to the ticket domain
 **Context:** `user_tenant_membership` and `tenant_service_provider` are read across tenant
 boundaries during login / onboarding / portability (before the caller has any tenant scope),

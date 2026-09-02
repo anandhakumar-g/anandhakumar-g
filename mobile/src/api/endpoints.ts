@@ -1,7 +1,8 @@
 import { api, uploadFile } from "./client";
 import {
-  AttachmentView, Category, FlatView, InviteView, JoinRequestView, MeResponse, Page,
-  ProviderView, SessionResponse, TenantCard, TicketView, TimelineEntry, VendorCategory,
+  AttachmentView, Category, FlatView, InviteView, JoinRequestView, KycDocView, MeResponse,
+  NotificationPreferences, OfferStatus, OfferView, Page, ProviderView, RedemptionView,
+  SessionResponse, TenantCard, TicketView, TimelineEntry, VendorCategory,
 } from "./types";
 
 export const auth = {
@@ -18,6 +19,39 @@ export const me = {
   setTheme: (theme: string) => api.put<void>("/me/theme", { theme }),
   registerDevice: (token: string, platform: string, provider = "expo") =>
     api.post<void>("/me/devices", { token, platform, provider }),
+  notificationPreferences: () => api.get<NotificationPreferences>("/me/notification-preferences"),
+  updateNotificationPreferences: (body: Partial<NotificationPreferences>) =>
+    api.put<NotificationPreferences>("/me/notification-preferences", body),
+};
+
+export const offers = {
+  feed: () => api.get<OfferView[]>("/offers"),
+  mine: () => api.get<OfferView[]>("/offers/mine"),
+  get: (id: string) => api.get<OfferView>(`/offers/${id}`),
+  create: (body: any) => api.post<OfferView>("/offers", body),
+  update: (id: string, body: any) => api.put<OfferView>(`/offers/${id}`, body),
+  submit: (id: string, target: any) => api.post<OfferView>(`/offers/${id}/submit`, { target }),
+  uploadImage: (id: string, file: { uri: string; name: string; type: string }) =>
+    uploadFile<OfferView>(`/offers/${id}/image`, file),
+  redeem: (id: string, code?: string) => api.post<RedemptionView>(`/offers/${id}/redeem`, { code }),
+  confirmRedemption: (rid: string) => api.post<RedemptionView>(`/offers/redemptions/${rid}/confirm`),
+};
+
+export const superOffers = {
+  list: (status?: OfferStatus) =>
+    api.get<OfferView[]>("/superadmin/offers", { query: { status } }),
+  get: (id: string) => api.get<OfferView>(`/superadmin/offers/${id}`),
+  approve: (id: string, target?: any) => api.post<OfferView>(`/superadmin/offers/${id}/approve`, target ? { target } : {}),
+  reject: (id: string, reason: string) => api.post<OfferView>(`/superadmin/offers/${id}/reject`, { reason }),
+};
+
+export const kyc = {
+  mine: () => api.get<KycDocView[]>("/provider/kyc"),
+  upload: (docType: string, file: { uri: string; name: string; type: string }) =>
+    uploadFile<KycDocView>("/provider/kyc", file, { docType }),
+  forProvider: (providerId: string) => api.get<KycDocView[]>(`/admin/providers/${providerId}/kyc`),
+  review: (providerId: string, docId: string, status: string, note?: string) =>
+    api.post<KycDocView>(`/admin/providers/${providerId}/kyc/${docId}/review`, { status, note }),
 };
 
 export const communities = {

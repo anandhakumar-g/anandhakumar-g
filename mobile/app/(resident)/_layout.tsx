@@ -16,9 +16,11 @@ export default function ResidentLayout() {
     >
       <Tabs.Screen name="index" options={{ title: "Home" }} />
       <Tabs.Screen name="tickets" options={{ title: "Tickets" }} />
+      <Tabs.Screen name="deals" options={{ title: "Deals" }} />
       <Tabs.Screen name="settings" options={{ title: "Settings" }} />
       <Tabs.Screen name="raise" options={{ href: null }} />
       <Tabs.Screen name="ticket/[id]" options={{ href: null }} />
+      <Tabs.Screen name="offer/[id]" options={{ href: null }} />
     </Tabs>
   );
 }
