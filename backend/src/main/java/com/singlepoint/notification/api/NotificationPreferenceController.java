@@ -23,15 +23,18 @@ public class NotificationPreferenceController {
     }
 
     public record PrefView(List<String> subscribedVendorCategoryIds, int promoFrequencyCapPerWeek,
-                           String digestMode, boolean ticketNotificationsEnabled, boolean promoNotificationsEnabled) {
+                           String digestMode, boolean ticketNotificationsEnabled, boolean promoNotificationsEnabled,
+                           boolean whatsappEnabled) {
         static PrefView of(NotificationPreference p) {
             return new PrefView(List.copyOf(p.subscribedCategorySet()), p.getPromoFrequencyCapPerWeek(),
-                    p.getDigestMode().name(), p.isTicketNotificationsEnabled(), p.isPromoNotificationsEnabled());
+                    p.getDigestMode().name(), p.isTicketNotificationsEnabled(), p.isPromoNotificationsEnabled(),
+                    p.isWhatsappEnabled());
         }
     }
 
     public record UpdateRequest(List<String> subscribedVendorCategoryIds, Integer promoFrequencyCapPerWeek,
-                                String digestMode, Boolean ticketNotificationsEnabled, Boolean promoNotificationsEnabled) { }
+                                String digestMode, Boolean ticketNotificationsEnabled, Boolean promoNotificationsEnabled,
+                                Boolean whatsappEnabled) { }
 
     @GetMapping
     @Operation(summary = "Get my notification preferences (created with opt-in defaults on first read)")
@@ -47,7 +50,7 @@ public class NotificationPreferenceController {
         var updated = service.update(p.getUserId(),
                 body.subscribedVendorCategoryIds() != null ? new java.util.LinkedHashSet<>(body.subscribedVendorCategoryIds()) : null,
                 body.promoFrequencyCapPerWeek(), digest,
-                body.ticketNotificationsEnabled(), body.promoNotificationsEnabled());
+                body.ticketNotificationsEnabled(), body.promoNotificationsEnabled(), body.whatsappEnabled());
         return ResponseEntity.ok(PrefView.of(updated));
     }
 }

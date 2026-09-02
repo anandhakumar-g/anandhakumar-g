@@ -48,6 +48,10 @@ public class NotificationPreference extends BaseEntity {
     @Column(name = "promo_notifications_enabled", nullable = false)
     private boolean promoNotificationsEnabled = true;
 
+    /** Opt-in: also deliver ticket notifications over WhatsApp (needs the tenant entitlement). */
+    @Column(name = "whatsapp_enabled", nullable = false)
+    private boolean whatsappEnabled = false;
+
     public Set<String> subscribedCategorySet() {
         if (subscribedVendorCategoryIds == null || subscribedVendorCategoryIds.isBlank()) return Set.of();
         return Arrays.stream(subscribedVendorCategoryIds.split(","))

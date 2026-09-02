@@ -175,6 +175,12 @@ function OfferNotificationPrefs() {
         onValueChange={(v) => patch({ ticketNotificationsEnabled: v })}
       />
       <Row
+        label="WhatsApp updates"
+        hint="Also get ticket updates on WhatsApp (if your community's plan includes it)"
+        value={prefs.whatsappEnabled}
+        onValueChange={(v) => patch({ whatsappEnabled: v })}
+      />
+      <Row
         label="Promotional offers"
         hint="Deals from vendors you follow"
         value={prefs.promoNotificationsEnabled}

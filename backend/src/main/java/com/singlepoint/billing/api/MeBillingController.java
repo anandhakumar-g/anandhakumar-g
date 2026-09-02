@@ -69,7 +69,7 @@ public class MeBillingController {
             case "OFFERS_PER_MONTH" -> ref.type() == SubjectType.TENANT
                     ? offers.countByTenantIdAndCreatedAtAfter(ref.id(), monthStart)
                     : offers.countByServiceProviderIdAndCreatedAtAfter(ref.id(), monthStart);
-            case "DIRECTORY_LISTING" -> 1L;
+            case "DIRECTORY_LISTING", "WHATSAPP_NOTIFICATIONS" -> 1L;
             default -> 0L;
         };
     }

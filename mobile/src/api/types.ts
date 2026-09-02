@@ -248,6 +248,7 @@ export interface NotificationPreferences {
   digestMode: "OFF" | "DAILY" | "WEEKLY";
   ticketNotificationsEnabled: boolean;
   promoNotificationsEnabled: boolean;
+  whatsappEnabled: boolean;
 }
 
 export type OfferStatus = "DRAFT" | "PENDING_APPROVAL" | "ACTIVE" | "EXPIRED" | "CANCELLED" | "REJECTED";

@@ -2,10 +2,13 @@ package com.singlepoint.notification;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.singlepoint.billing.domain.SubjectType;
+import com.singlepoint.entitlement.EntitlementService;
 import com.singlepoint.notification.domain.DeviceToken;
 import com.singlepoint.notification.domain.Notification;
 import com.singlepoint.notification.domain.NotificationOutbox;
 import com.singlepoint.notification.domain.NotificationPreference;
+import com.singlepoint.user.AppUserRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,16 +31,24 @@ public class OutboxDispatcher {
     private final NotificationRepository notificationRepository;
     private final NotificationPreferenceRepository preferenceRepository;
     private final PushSender pushSender;
+    private final WhatsAppSender whatsAppSender;
+    private final EntitlementService entitlements;
+    private final AppUserRepository userRepository;
     private final ObjectMapper mapper;
 
     public OutboxDispatcher(DeviceTokenRepository deviceTokenRepository,
                             NotificationRepository notificationRepository,
                             NotificationPreferenceRepository preferenceRepository,
-                            PushSender pushSender, ObjectMapper mapper) {
+                            PushSender pushSender, WhatsAppSender whatsAppSender,
+                            EntitlementService entitlements, AppUserRepository userRepository,
+                            ObjectMapper mapper) {
         this.deviceTokenRepository = deviceTokenRepository;
         this.notificationRepository = notificationRepository;
         this.preferenceRepository = preferenceRepository;
         this.pushSender = pushSender;
+        this.whatsAppSender = whatsAppSender;
+        this.entitlements = entitlements;
+        this.userRepository = userRepository;
         this.mapper = mapper;
     }
 
@@ -64,26 +75,48 @@ public class OutboxDispatcher {
 
         String skipReason = gate(pref, promo, vendorCategoryId, userId);
         if (skipReason != null) {
-            record(row, userId, title, body, data, Notification.Status.SKIPPED, skipReason, null);
+            record(row, userId, title, body, data, Notification.Status.SKIPPED, skipReason, null,
+                    Notification.Channel.PUSH);
             return;
         }
 
         // Digest deferral: queue for OfferDigestJob rather than push now.
         if (promo && pref != null && pref.getDigestMode() != NotificationPreference.DigestMode.OFF) {
-            record(row, userId, title, body, data, Notification.Status.QUEUED, "digest", "OFFER_DIGEST_PENDING");
+            record(row, userId, title, body, data, Notification.Status.QUEUED, "digest", "OFFER_DIGEST_PENDING",
+                    Notification.Channel.PUSH);
             return;
         }
 
         List<String> tokens = new ArrayList<>();
         for (DeviceToken dt : deviceTokenRepository.findByUserId(userId)) tokens.add(dt.getToken());
         if (tokens.isEmpty()) {
-            record(row, userId, title, body, data, Notification.Status.SKIPPED, "no device tokens", null);
+            record(row, userId, title, body, data, Notification.Status.SKIPPED, "no device tokens", null,
+                    Notification.Channel.PUSH);
+        } else {
+            boolean ok = pushSender.send(tokens, title, body, data);
+            record(row, userId, title, body, data,
+                    ok ? Notification.Status.SENT : Notification.Status.FAILED,
+                    ok ? null : "push transport rejected batch", null, Notification.Channel.PUSH);
+        }
+
+        // Additive WhatsApp delivery for ticket notifications, when the community is entitled
+        // and the user has opted in.
+        if (!promo) maybeSendWhatsApp(row, userId, title, body, data, pref);
+    }
+
+    private void maybeSendWhatsApp(NotificationOutbox row, UUID userId, String title, String body,
+                                   Map<String, Object> data, NotificationPreference pref) throws Exception {
+        if (pref == null || !pref.isWhatsappEnabled()) return;
+        if (row.getTenantId() == null
+                || !entitlements.isEntitled(SubjectType.TENANT, row.getTenantId(), "WHATSAPP_NOTIFICATIONS")) {
             return;
         }
-        boolean ok = pushSender.send(tokens, title, body, data);
+        String phone = userRepository.findById(userId).map(u -> u.getPhone()).orElse(null);
+        if (phone == null || phone.isBlank()) return;
+        boolean ok = whatsAppSender.send(phone, title, body, data);
         record(row, userId, title, body, data,
                 ok ? Notification.Status.SENT : Notification.Status.FAILED,
-                ok ? null : "push transport rejected batch", null);
+                ok ? null : "whatsapp transport rejected", null, Notification.Channel.WHATSAPP);
     }
 
     /** @return skip reason, or null to proceed. */
@@ -105,11 +138,12 @@ public class OutboxDispatcher {
     }
 
     private void record(NotificationOutbox row, UUID userId, String title, String body, Map<String, Object> data,
-                        Notification.Status status, String note, String templateOverride) throws Exception {
+                        Notification.Status status, String note, String templateOverride,
+                        Notification.Channel channel) throws Exception {
         Notification n = new Notification();
         n.setTenantId(row.getTenantId());
         n.setUserId(userId);
-        n.setChannel(Notification.Channel.PUSH);
+        n.setChannel(channel);
         n.setTemplate(templateOverride != null ? templateOverride : row.getEventType());
         n.setTitle(title);
         n.setBody(body);
