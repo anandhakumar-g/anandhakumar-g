@@ -4,6 +4,25 @@ Short ADRs. Newest first.
 
 ---
 
+## ADR-016 — Vendor-category "kinds" are data
+**Decision (MVP-3, pulled from MVP-7):** `vendor_category.kind` is a free-text code, and the
+`CHECK` constraint is replaced by a `vendor_category_kind` lookup table. Super Admin can open
+new verticals and categories at runtime via `SuperAdminTaxonomyController`; deactivation is
+soft (rows already referencing a category keep it, it just leaves the pickers). New categories
+are data, no migration (blueprint 4.17).
+
+## ADR-015 — Payments module: loosely coupled, gateway-abstracted, receipts immutable
+**Decision (MVP-3):** `com.singlepoint.payment` owns `ticket_payment` / `payment_receipt`
+(append-only trigger) / `payment_event`, all RLS-scoped like the ticket child tables. It
+references `ticket_id` and **never mutates `ticket.status`** (blueprint 4.6). Online payment
+goes through a `PaymentGateway` interface — `StubGateway` locally (with a `/dev/pay` page that
+self-posts a signed synthetic webhook) and `RazorpayGateway` on the cloud profile (Payment
+Links + `X-Razorpay-Signature` HMAC, no SDK). Cash uses the existing `OtpService`
+(`CASH_PAYMENT` purpose) — the OTP is sent to the resident and either the resident or the
+assigned provider may submit it (blueprint 4.9). Webhook handling is idempotent. Receipts are
+a structured record + a plain-text `shareText`; no PDF (deferred). Saved payment methods
+(`PaymentMethodToken`) skipped — a payment-link flow doesn't need stored tokens.
+
 ## ADR-014 — Offers module: own tables, no RLS, Super-Admin-gated
 **Decision (MVP-2):** `offer` / `offer_target` / `offer_redemption` live in their own
 `com.singlepoint.offer` package and share only the provider directory, tenant list and

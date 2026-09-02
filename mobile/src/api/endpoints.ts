@@ -1,8 +1,9 @@
 import { api, uploadFile } from "./client";
 import {
-  AttachmentView, Category, FlatView, InviteView, JoinRequestView, KycDocView, MeResponse,
-  NotificationPreferences, OfferStatus, OfferView, Page, ProviderView, RedemptionView,
-  SessionResponse, TenantCard, TicketView, TimelineEntry, VendorCategory,
+  AdminVendorCategory, AttachmentView, Category, FlatView, InviteView, JoinRequestView, KycDocView,
+  MeResponse, NotificationPreferences, OfferStatus, OfferView, Page, PaymentView, ProviderView,
+  ReceiptView, RedemptionView, SessionResponse, TenantCard, TicketView, TimelineEntry,
+  VendorCategory, VendorCategoryKind,
 } from "./types";
 
 export const auth = {
@@ -52,6 +53,44 @@ export const kyc = {
   forProvider: (providerId: string) => api.get<KycDocView[]>(`/admin/providers/${providerId}/kyc`),
   review: (providerId: string, docId: string, status: string, note?: string) =>
     api.post<KycDocView>(`/admin/providers/${providerId}/kyc/${docId}/review`, { status, note }),
+};
+
+export const payments = {
+  forTicket: (ticketId: string) =>
+    api.get<PaymentView | null>(`/tickets/${ticketId}/payment`),
+  charge: (ticketId: string, amount: number, note?: string) =>
+    api.post<PaymentView>(`/tickets/${ticketId}/payment/charge`, { amount, note }),
+  adjust: (ticketId: string, amount: number, note?: string) =>
+    api.put<PaymentView>(`/tickets/${ticketId}/payment/charge`, { amount, note }),
+  chooseMode: (ticketId: string, mode: "CASH" | "ONLINE") =>
+    api.post<PaymentView>(`/tickets/${ticketId}/payment/mode`, { mode }),
+  collectCash: (ticketId: string) =>
+    api.post<{ status: string; devOtp: string | null }>(`/tickets/${ticketId}/payment/cash/collect`),
+  confirmCash: (ticketId: string, otp: string) =>
+    api.post<PaymentView>(`/tickets/${ticketId}/payment/cash/confirm`, { otp }),
+  waive: (ticketId: string, reason: string) =>
+    api.post<PaymentView>(`/tickets/${ticketId}/payment/waive`, { reason }),
+  receipt: (ticketId: string) =>
+    api.get<ReceiptView>(`/tickets/${ticketId}/payment/receipt`),
+};
+
+export const taxonomy = {
+  kinds: () => api.get<VendorCategoryKind[]>("/superadmin/vendor-category-kinds"),
+  createKind: (code: string, label: string, sortOrder?: number) =>
+    api.post<VendorCategoryKind>("/superadmin/vendor-category-kinds", { code, label, sortOrder }),
+  renameKind: (id: string, label: string, sortOrder?: number) =>
+    api.put<VendorCategoryKind>(`/superadmin/vendor-category-kinds/${id}`, { label, sortOrder }),
+  deactivateKind: (id: string) =>
+    api.post<VendorCategoryKind>(`/superadmin/vendor-category-kinds/${id}/deactivate`),
+  categories: () => api.get<AdminVendorCategory[]>("/superadmin/vendor-categories"),
+  createCategory: (name: string, kind: string, parentCategoryId?: string, sortOrder?: number) =>
+    api.post<AdminVendorCategory>("/superadmin/vendor-categories", { name, kind, parentCategoryId, sortOrder }),
+  renameCategory: (id: string, name: string, sortOrder?: number) =>
+    api.put<AdminVendorCategory>(`/superadmin/vendor-categories/${id}`, { name, sortOrder }),
+  deactivateCategory: (id: string) =>
+    api.post<AdminVendorCategory>(`/superadmin/vendor-categories/${id}/deactivate`),
+  reactivateCategory: (id: string) =>
+    api.post<AdminVendorCategory>(`/superadmin/vendor-categories/${id}/reactivate`),
 };
 
 export const communities = {

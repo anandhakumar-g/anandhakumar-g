@@ -29,8 +29,14 @@ tags:
   description: Phone + OTP login and profile completion
 - name: Communities
   description: Community directory for onboarding
+- name: Super Admin — Taxonomy
+  description: Manage vendor categories and verticals
+- name: Payments — webhook
+  description: Gateway payment callbacks
 - name: Admin — Flats & Invites
   description: Community flat register and invite codes
+- name: Payments
+  description: "Service charge, cash-with-OTP, online payment, receipt"
 - name: Membership
   description: Joining a community
 - name: Categories
@@ -40,11 +46,122 @@ tags:
 - name: Super Admin — Offer approval
   description: Validate every offer + assign its audience
 paths:
+  /api/v1/tickets/{ticketId}/payment/charge:
+    put:
+      tags:
+      - Payments
+      summary: Adjust an unsettled charge
+      operationId: adjust
+      parameters:
+      - name: ticketId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/ChargeRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PaymentView'
+    post:
+      tags:
+      - Payments
+      summary: Add a service charge (admin or the assigned provider)
+      operationId: charge
+      parameters:
+      - name: ticketId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/ChargeRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PaymentView'
+  /api/v1/superadmin/vendor-category-kinds/{id}:
+    put:
+      tags:
+      - Super Admin — Taxonomy
+      operationId: renameKind
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RenameRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/KindView'
+  /api/v1/superadmin/vendor-categories/{id}:
+    put:
+      tags:
+      - Super Admin — Taxonomy
+      operationId: updateCategory
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RenameRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/CategoryView'
   /api/v1/offers/{id}:
     get:
       tags:
       - Offers
-      operationId: get_2
+      operationId: get_3
       parameters:
       - name: p
         in: query
@@ -119,7 +236,7 @@ paths:
       - Me — Notification preferences
       summary: Get my notification preferences (created with opt-in defaults on first
         read)
-      operationId: get_3
+      operationId: get_4
       parameters:
       - name: p
         in: query
@@ -186,6 +303,20 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/FlatView'
+  /dev/pay/{ref}/settle:
+    post:
+      tags:
+      - dev-payment-controller
+      operationId: settle
+      parameters:
+      - name: ref
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
   /api/v1/tickets:
     get:
       tags:
@@ -247,6 +378,123 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/TicketView'
+  /api/v1/tickets/{ticketId}/payment/waive:
+    post:
+      tags:
+      - Payments
+      operationId: waive
+      parameters:
+      - name: ticketId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/WaiveRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PaymentView'
+  /api/v1/tickets/{ticketId}/payment/mode:
+    post:
+      tags:
+      - Payments
+      summary: Resident chooses CASH or ONLINE; ONLINE returns a pay link
+      operationId: mode
+      parameters:
+      - name: ticketId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/ModeRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PaymentView'
+  /api/v1/tickets/{ticketId}/payment/cash/confirm:
+    post:
+      tags:
+      - Payments
+      summary: Resident or provider submits the resident's OTP to confirm cash
+      operationId: confirm
+      parameters:
+      - name: ticketId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/ConfirmCashRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PaymentView'
+  /api/v1/tickets/{ticketId}/payment/cash/collect:
+    post:
+      tags:
+      - Payments
+      summary: Provider marks cash collected → OTP goes to the resident
+      operationId: collect
+      parameters:
+      - name: ticketId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/StartCashResult'
   /api/v1/tickets/{id}/status:
     post:
       tags:
@@ -567,6 +815,128 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/TicketView'
+  /api/v1/superadmin/vendor-category-kinds:
+    get:
+      tags:
+      - Super Admin — Taxonomy
+      operationId: listKinds
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/KindView'
+    post:
+      tags:
+      - Super Admin — Taxonomy
+      summary: Open a new vendor vertical
+      operationId: createKind
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KindRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/KindView'
+  /api/v1/superadmin/vendor-category-kinds/{id}/deactivate:
+    post:
+      tags:
+      - Super Admin — Taxonomy
+      operationId: deactivateKind
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/KindView'
+  /api/v1/superadmin/vendor-categories:
+    get:
+      tags:
+      - Super Admin — Taxonomy
+      summary: "All vendor categories, including inactive"
+      operationId: listCategories
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryView'
+    post:
+      tags:
+      - Super Admin — Taxonomy
+      operationId: createCategory
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/CategoryView'
+  /api/v1/superadmin/vendor-categories/{id}/reactivate:
+    post:
+      tags:
+      - Super Admin — Taxonomy
+      operationId: reactivateCategory
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/CategoryView'
+  /api/v1/superadmin/vendor-categories/{id}/deactivate:
+    post:
+      tags:
+      - Super Admin — Taxonomy
+      summary: Hide a category from new pickers; existing providers/offers keep it
+      operationId: deactivateCategory
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/CategoryView'
   /api/v1/superadmin/tenants:
     get:
       tags:
@@ -743,6 +1113,29 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/DocView'
+  /api/v1/payments/webhook/{gateway}:
+    post:
+      tags:
+      - Payments — webhook
+      summary: Receive a payment outcome from the gateway
+      operationId: receive
+      parameters:
+      - name: gateway
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: request
+        in: query
+        required: true
+        schema:
+          type: array
+          items:
+            type: string
+            format: byte
+      responses:
+        "200":
+          description: OK
   /api/v1/offers:
     get:
       tags:
@@ -884,7 +1277,7 @@ paths:
       tags:
       - Offers
       summary: Provider/admin confirms a coupon was used
-      operationId: confirm
+      operationId: confirm_1
       parameters:
       - name: redemptionId
         in: path
@@ -1249,12 +1642,30 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/FlatView'
+  /dev/pay/{ref}:
+    get:
+      tags:
+      - dev-payment-controller
+      operationId: page
+      parameters:
+      - name: ref
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            text/html:
+              schema:
+                type: string
   /api/v1/vendor-categories:
     get:
       tags:
       - Categories
-      summary: Vendor categories (add-provider picker + offer authoring); group by
-        kind
+      summary: Active vendor categories (add-provider picker + offer authoring); group
+        by kind
       operationId: vendorCategories
       responses:
         "200":
@@ -1265,11 +1676,61 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/VendorCategoryView'
+  /api/v1/tickets/{ticketId}/payment:
+    get:
+      tags:
+      - Payments
+      summary: Current payment for the ticket (null if none)
+      operationId: get
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      - name: ticketId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PaymentView'
+  /api/v1/tickets/{ticketId}/payment/receipt:
+    get:
+      tags:
+      - Payments
+      summary: Digital receipt for a completed payment
+      operationId: receipt
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      - name: ticketId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ReceiptView'
   /api/v1/tickets/{id}:
     get:
       tags:
       - Tickets
-      operationId: get
+      operationId: get_1
       parameters:
       - name: principal
         in: query
@@ -1387,7 +1848,7 @@ paths:
     get:
       tags:
       - Super Admin — Offer approval
-      operationId: get_1
+      operationId: get_2
       parameters:
       - name: id
         in: path
@@ -1640,11 +2101,89 @@ components:
           type: string
         superAdmin:
           type: boolean
+        admin:
+          type: boolean
         resident:
           type: boolean
         provider:
           type: boolean
-        admin:
+    ChargeRequest:
+      required:
+      - amount
+      type: object
+      properties:
+        amount:
+          type: number
+        note:
+          type: string
+    PaymentView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+        currency:
+          type: string
+        mode:
+          type: string
+        status:
+          type: string
+        note:
+          type: string
+        payLink:
+          type: string
+        receiptNumber:
+          type: string
+        paidAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    RenameRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        label:
+          type: string
+        sortOrder:
+          type: integer
+          format: int32
+    KindView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        label:
+          type: string
+        sortOrder:
+          type: integer
+          format: int32
+        active:
+          type: boolean
+    CategoryView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        kind:
+          type: string
+        parentCategoryId:
+          type: string
+          format: uuid
+        sortOrder:
+          type: integer
+          format: int32
+        active:
           type: boolean
     CreateOrUpdateRequest:
       required:
@@ -1930,6 +2469,34 @@ components:
         updatedAt:
           type: string
           format: date-time
+    WaiveRequest:
+      required:
+      - reason
+      type: object
+      properties:
+        reason:
+          type: string
+    ModeRequest:
+      required:
+      - mode
+      type: object
+      properties:
+        mode:
+          type: string
+    ConfirmCashRequest:
+      required:
+      - otp
+      type: object
+      properties:
+        otp:
+          type: string
+    StartCashResult:
+      type: object
+      properties:
+        status:
+          type: string
+        devOtp:
+          type: string
     ProviderStatusRequest:
       required:
       - toStatus
@@ -1995,6 +2562,34 @@ components:
         at:
           type: string
           format: date-time
+    KindRequest:
+      required:
+      - code
+      - label
+      type: object
+      properties:
+        code:
+          type: string
+        label:
+          type: string
+        sortOrder:
+          type: integer
+          format: int32
+    CategoryRequest:
+      required:
+      - kind
+      - name
+      type: object
+      properties:
+        name:
+          type: string
+        kind:
+          type: string
+        parentCategoryId:
+          type: string
+        sortOrder:
+          type: integer
+          format: int32
     CreateTenantRequest:
       required:
       - name
@@ -2376,6 +2971,28 @@ components:
         totalPages:
           type: integer
           format: int32
+    ReceiptView:
+      type: object
+      properties:
+        receiptNumber:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        mode:
+          type: string
+        ticketReference:
+          type: string
+        payerName:
+          type: string
+        payeeName:
+          type: string
+        issuedAt:
+          type: string
+          format: date-time
+        shareText:
+          type: string
     TimelineEntry:
       type: object
       properties:
@@ -2483,22 +3100,6 @@ components:
           type: string
         brandPrimaryColor:
           type: string
-    CategoryView:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
-        requestType:
-          type: string
-        slaHours:
-          type: integer
-          format: int32
-        sortOrder:
-          type: integer
-          format: int32
     JoinRequestView:
       type: object
       properties:

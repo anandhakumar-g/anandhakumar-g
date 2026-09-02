@@ -268,3 +268,55 @@ export function discountLabel(o: Pick<OfferView, "discountType" | "discountValue
   const v = Number(o.discountValue);
   return o.discountType === "PERCENTAGE" ? `${v}% off` : `₹${v} off`;
 }
+
+// ---- MVP-3: payments + taxonomy ---------------------------------------
+
+export type PaymentStatus =
+  | "PENDING" | "CASH_PENDING_OTP" | "PAID_ONLINE" | "PAID_CASH" | "WAIVED" | "FAILED";
+
+export interface PaymentView {
+  id: string;
+  amount: number;
+  currency: string;
+  mode: "CASH" | "ONLINE" | null;
+  status: PaymentStatus;
+  note: string | null;
+  payLink: string | null;
+  receiptNumber: string | null;
+  paidAt: string | null;
+  createdAt: string;
+}
+
+export interface ReceiptView {
+  receiptNumber: string;
+  amount: number;
+  currency: string;
+  mode: string;
+  ticketReference: string;
+  payerName: string | null;
+  payeeName: string | null;
+  issuedAt: string;
+  shareText: string;
+}
+
+export interface VendorCategoryKind {
+  id: string;
+  code: string;
+  label: string;
+  sortOrder: number;
+  active: boolean;
+}
+
+export interface AdminVendorCategory {
+  id: string;
+  name: string;
+  kind: string;
+  parentCategoryId: string | null;
+  sortOrder: number;
+  active: boolean;
+}
+
+export function money(amount: number, currency = "INR"): string {
+  const sym = currency === "INR" ? "₹" : currency + " ";
+  return sym + Number(amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}

@@ -13,16 +13,39 @@
       "resizeMode": "contain",
       "backgroundColor": "#0F172A"
     },
-    "assetBundlePatterns": ["**/*"],
-    "ios": { "supportsTablet": true, "bundleIdentifier": "com.singlepoint.app" },
-    "android": { "package": "com.singlepoint.app" },
-    "web": { "favicon": "./assets/favicon.png", "bundler": "metro" },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.singlepoint.app"
+    },
+    "android": {
+      "package": "com.singlepoint.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
     "plugins": [
       "expo-router",
-      ["expo-location", { "locationWhenInUsePermission": "Allow Single Point to attach your location to a service request." }],
-      ["expo-image-picker", { "photosPermission": "Allow Single Point to attach photos to your tickets." }],
-      "expo-notifications"
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Single Point to attach your location to a service request."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Single Point to attach photos to your tickets."
+        }
+      ],
+      "expo-notifications",
+      "expo-web-browser"
     ],
-    "experiments": { "typedRoutes": false }
+    "experiments": {
+      "typedRoutes": false
+    }
   }
 }

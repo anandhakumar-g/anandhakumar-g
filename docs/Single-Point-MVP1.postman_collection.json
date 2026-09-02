@@ -81,6 +81,22 @@
     {
       "key": "redemptionId",
       "value": ""
+    },
+    {
+      "key": "cashOtp",
+      "value": ""
+    },
+    {
+      "key": "payRef",
+      "value": ""
+    },
+    {
+      "key": "kindCode",
+      "value": ""
+    },
+    {
+      "key": "vendorCategoryId2",
+      "value": ""
     }
   ],
   "item": [
@@ -1454,6 +1470,366 @@
               "mode": "raw",
               "raw": "{\n  \"subscribedVendorCategoryIds\": [\n    \"22222222-0000-0000-0001-000000000003\"\n  ],\n  \"promoFrequencyCapPerWeek\": 3,\n  \"digestMode\": \"WEEKLY\",\n  \"ticketNotificationsEnabled\": true,\n  \"promoNotificationsEnabled\": true\n}"
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7 · Payments & Receipts",
+      "item": [
+        {
+          "name": "Note",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/tickets/{{ticketId}}/payment",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Prereq: a RESOLVED ticket in {{ticketId}} (run folders 1-3 to raise/assign/resolve one)."
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Provider · add charge",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/charge",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 500,\n  \"note\": \"parts + labour\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Admin · adjust charge",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/charge",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 450\n}"
+            }
+          }
+        },
+        {
+          "name": "Resident · choose CASH",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/mode",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"CASH\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Provider · collect cash (OTP to resident)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/cash/collect",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if(pm.response.json().devOtp) pm.collectionVariables.set('cashOtp', pm.response.json().devOtp);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirm cash (resident or provider submits OTP)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/cash/confirm",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"otp\": \"{{cashOtp}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Resident · choose ONLINE",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/mode",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"ONLINE\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const l=pm.response.json().payLink||''; pm.collectionVariables.set('payRef', l.split('/').pop());"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Dev · settle online payment (local stub)",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:18080/dev/pay/{{payRef}}/settle"
+          }
+        },
+        {
+          "name": "Get payment",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/tickets/{{ticketId}}/payment",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Get receipt",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/receipt",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Admin · waive",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/waive",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"goodwill\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "8 · Vendor taxonomy (Super Admin)",
+      "item": [
+        {
+          "name": "List verticals",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/superadmin/vendor-category-kinds",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Create vertical",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/superadmin/vendor-category-kinds",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"PET_CARE\",\n  \"label\": \"Pet Care\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('kindCode','PET_CARE');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create category",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/superadmin/vendor-categories",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dog Grooming\",\n  \"kind\": \"{{kindCode}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('vendorCategoryId2', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List all categories (incl. inactive)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/superadmin/vendor-categories",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Rename category",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/superadmin/vendor-categories/{{vendorCategoryId2}}",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Pet Grooming\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Deactivate category",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/superadmin/vendor-categories/{{vendorCategoryId2}}/deactivate",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Public list now excludes it",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/vendor-categories",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           }
         }
       ]

@@ -8,6 +8,7 @@ import { useTheme } from "@/theme/ThemeProvider";
 import { Button } from "./Button";
 import { Divider, KeyValue, Pill, StatusBadge, Stars } from "./Bits";
 import { Field } from "./Field";
+import { PaymentPanel } from "./PaymentPanel";
 import { AppText, Card, Loading, Screen } from "./Themed";
 
 function mapsUrl(lat: number, lng: number, label?: string) {
@@ -135,6 +136,8 @@ export function TicketDetail({ ticketId, role }: { ticketId: string; role: Role 
           {err}
         </AppText>
       ) : null}
+
+      <PaymentPanel ticketId={ticketId} role={role} ticketStatus={tk.status} />
 
       <ActionArea
         role={role}
