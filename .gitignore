@@ -6,13 +6,14 @@ target/
 .mvn/
 !.mvn/wrapper/maven-wrapper.jar
 
-# ---- IDE ----
+# ---- IDE / tooling ----
 .idea/
 *.iml
 .vscode/
 .settings/
 .project
 .classpath
+.claude/
 
 # ---- Logs ----
 logs/
