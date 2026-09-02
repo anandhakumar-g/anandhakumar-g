@@ -2,6 +2,7 @@
  * Token-based design system. Every screen styles itself from these semantic tokens, so a new
  * theme is a config addition here — never a screen rewrite. (blueprint 4.15)
  */
+import { FONT_FAMILIES, FontFamilies } from "./fonts";
 
 export type ThemeName = "light" | "dark" | "ocean" | "sunset" | "forest";
 
@@ -29,6 +30,7 @@ export interface ThemeTokens {
   space: (n: number) => number;
   radius: { sm: number; md: number; lg: number; pill: number };
   font: { xs: number; sm: number; md: number; lg: number; xl: number; xxl: number };
+  type: FontFamilies;
 }
 
 const scale = (n: number) => n * 4;
@@ -36,7 +38,8 @@ const scale = (n: number) => n * 4;
 const shared = {
   space: scale,
   radius: { sm: 8, md: 12, lg: 20, pill: 999 },
-  font: { xs: 12, sm: 14, md: 16, lg: 20, xl: 26, xxl: 34 },
+  font: { xs: 12.5, sm: 14, md: 15.5, lg: 20, xl: 27, xxl: 34 },
+  type: FONT_FAMILIES,
 };
 
 export const THEMES: Record<ThemeName, ThemeTokens> = {

@@ -1,11 +1,16 @@
+import { useFonts } from "expo-font";
 import { Stack, useRouter, useSegments } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Loading } from "@/components/Themed";
 import { SessionProvider, useSession } from "@/store/SessionProvider";
+import { FONT_ASSETS } from "@/theme/fonts";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function homeFor(role?: string | null): string {
   switch (role) {
@@ -62,6 +67,14 @@ function ThemedStatusBar() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts(FONT_ASSETS);
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) SplashScreen.hideAsync().catch(() => {});
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) return null;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>

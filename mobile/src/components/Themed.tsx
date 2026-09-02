@@ -7,14 +7,23 @@ import { useTheme } from "@/theme/ThemeProvider";
 
 type TextTone = "default" | "muted" | "faint" | "primary" | "danger" | "success";
 type TextSize = "xs" | "sm" | "md" | "lg" | "xl" | "xxl";
+type TextWeight = "400" | "500" | "600" | "700";
+type FontRole = "body" | "display";
 
 export function AppText({
   tone = "default",
   size = "md",
   weight = "400",
+  family,
   style,
   ...rest
-}: TextProps & { tone?: TextTone; size?: TextSize; weight?: "400" | "500" | "600" | "700" }) {
+}: TextProps & {
+  tone?: TextTone;
+  size?: TextSize;
+  weight?: TextWeight;
+  /** Force a typeface role; defaults to display for lg/xl/xxl or bold text, body otherwise. */
+  family?: FontRole;
+}) {
   const { theme } = useTheme();
   const color =
     tone === "muted" ? theme.color.textMuted
@@ -23,7 +32,28 @@ export function AppText({
     : tone === "danger" ? theme.color.danger
     : tone === "success" ? theme.color.success
     : theme.color.text;
-  return <Text {...rest} style={[{ color, fontSize: theme.font[size], fontWeight: weight }, style]} />;
+
+  const role: FontRole =
+    family ?? (size === "lg" || size === "xl" || size === "xxl" || weight === "700" ? "display" : "body");
+  const fontFamily = theme.type[role][weight];
+  const fontSize = theme.font[size];
+  const isHeading = role === "display";
+
+  return (
+    <Text
+      {...rest}
+      style={[
+        {
+          color,
+          fontFamily,
+          fontSize,
+          lineHeight: Math.round(fontSize * (isHeading ? 1.18 : 1.44)),
+          letterSpacing: isHeading ? (fontSize >= 26 ? -0.7 : -0.3) : 0,
+        },
+        style,
+      ]}
+    />
+  );
 }
 
 export function Card({

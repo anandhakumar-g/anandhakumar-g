@@ -29,6 +29,7 @@ export function Field({
             paddingHorizontal: theme.space(3.5),
             paddingVertical: theme.space(3),
             color: theme.color.text,
+            fontFamily: theme.type.body["400"],
             fontSize: theme.font.md,
             minHeight: 48,
           },
