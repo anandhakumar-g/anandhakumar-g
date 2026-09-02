@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { Image, Linking, Platform, Pressable, View } from "react-native";
 import { admin, catalog, tickets } from "@/api/endpoints";
 import { ProviderView, Role, TicketView } from "@/api/types";
+import { DirectProviderPicker } from "./DirectProviderPicker";
 import { ratingText } from "@/lib/format";
 import { slaBadge } from "@/lib/sla";
 import { useAsync } from "@/hooks/useAsync";
@@ -37,6 +38,7 @@ export function TicketDetail({ ticketId, role }: { ticketId: string; role: Role 
   const [reason, setReason] = useState("");
   const [rating, setRating] = useState(0);
   const [picker, setPicker] = useState<null | "assign" | "reroute">(null);
+  const [rebooking, setRebooking] = useState(false);
 
   async function act(fn: () => Promise<TicketView>) {
     setBusy(true);
@@ -66,7 +68,10 @@ export function TicketDetail({ ticketId, role }: { ticketId: string; role: Role 
         <AppText size="lg" weight="700">
           {catName ?? "Ticket"}
         </AppText>
-        <StatusBadge status={tk.status} />
+        <View style={{ flexDirection: "row", gap: theme.space(1.5), alignItems: "center" }}>
+          {tk.requestMode === "DIRECT_SERVICE" ? <Pill text="Direct booking" tone="primary" /> : null}
+          <StatusBadge status={tk.status} />
+        </View>
       </View>
       <AppText>{tk.description}</AppText>
 
@@ -188,7 +193,19 @@ export function TicketDetail({ ticketId, role }: { ticketId: string; role: Role 
         onApproveAllocation={() => act(() => tickets.approveAllocation(tk.id))}
         onRejectAllocation={() => act(() => tickets.rejectAllocation(tk.id, reason.trim()))}
         onPickProvider={(mode: "assign" | "reroute") => setPicker(mode)}
+        onRebook={() => setRebooking(true)}
       />
+
+      {rebooking ? (
+        <DirectProviderPicker
+          title="Choose another provider"
+          onCancel={() => setRebooking(false)}
+          onPick={(p) => {
+            setRebooking(false);
+            act(() => tickets.rebook(tk.id, p.id));
+          }}
+        />
+      ) : null}
 
       {picker ? (
         <ProviderPicker
@@ -238,6 +255,15 @@ function ActionArea(props: any) {
   const s = tk.status as string;
 
   if (role === "RESIDENT") {
+    if (s === "REJECTED" && tk.requestMode === "DIRECT_SERVICE") {
+      return (
+        <Card style={{ gap: theme.space(2) }}>
+          <AppText weight="700">{tk.assignedProvider?.name ?? "The provider"} couldn't take this</AppText>
+          <AppText size="sm" tone="muted">Pick another provider to send this request to.</AppText>
+          <Button label="Choose another provider" onPress={props.onRebook} loading={busy} />
+        </Card>
+      );
+    }
     if (s === "PENDING_RESIDENT_APPROVAL") {
       return (
         <Card style={{ gap: theme.space(2) }}>

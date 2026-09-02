@@ -26,7 +26,9 @@ export default function Community() {
   const [reopenHrs, setReopenHrs] = useState("");
   const [savingGate, setSavingGate] = useState(false);
 
-  async function saveSettings(body: { reopenWindowHours?: number; requireAllocationApproval?: boolean }) {
+  async function saveSettings(body: {
+    reopenWindowHours?: number; requireAllocationApproval?: boolean; directServiceEnabled?: boolean;
+  }) {
     setSavingGate(true);
     setErr(null);
     try {
@@ -178,6 +180,23 @@ export default function Community() {
                   value={settings.data.requireAllocationApproval}
                   disabled={savingGate}
                   onValueChange={(v) => saveSettings({ requireAllocationApproval: v })}
+                />
+              </View>
+            </Card>
+
+            <Card style={{ gap: theme.space(2) }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <View style={{ flex: 1, paddingRight: theme.space(3) }}>
+                  <AppText weight="700">Direct booking</AppText>
+                  <AppText size="xs" tone="faint">
+                    Let residents pick a verified provider themselves — the request goes straight to
+                    that provider (you still see it in the queue).
+                  </AppText>
+                </View>
+                <Switch
+                  value={settings.data.directServiceEnabled}
+                  disabled={savingGate}
+                  onValueChange={(v) => saveSettings({ directServiceEnabled: v })}
                 />
               </View>
             </Card>

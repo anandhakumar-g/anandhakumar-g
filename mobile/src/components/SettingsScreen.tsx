@@ -1,5 +1,6 @@
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
+import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Platform, Pressable, Switch, View } from "react-native";
 import { catalog, me as meApi } from "@/api/endpoints";
@@ -62,7 +63,9 @@ export function SettingsScreen({
         <KeyValue k="Phone" v={user?.phoneMasked} />
         <KeyValue k="Email" v={me?.email} />
         <KeyValue k="Role" v={user?.role} />
-        <KeyValue k="Community" v={me?.activeTenantBranding?.name} />
+        {user?.role === "RESIDENT" ? <CommunityRow /> : (
+          <KeyValue k="Community" v={me?.activeTenantBranding?.name} />
+        )}
       </Card>
 
       <Card style={{ gap: theme.space(2) }}>
@@ -280,6 +283,68 @@ function Stepper({ value, onChange }: { value: number; onChange: (n: number) => 
         {value}
       </AppText>
       {btn("+", 1)}
+    </View>
+  );
+}
+
+function CommunityRow() {
+  const { theme } = useTheme();
+  const router = useRouter();
+  const { me, switchCommunity } = useSession();
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  const active = (me?.memberships ?? []).filter((m) => m.status === "ACTIVE");
+
+  async function pick(tenantId: string) {
+    if (tenantId === me?.activeTenantId) return setOpen(false);
+    setBusy(true);
+    try {
+      await switchCommunity(tenantId);
+      setOpen(false);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <View style={{ gap: theme.space(1) }}>
+      <Pressable
+        onPress={() => setOpen((o) => !o)}
+        style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: theme.space(1) }}
+      >
+        <AppText size="sm" tone="muted">Community</AppText>
+        <AppText size="sm" weight="500" tone="primary">
+          {me?.activeTenantBranding?.name ?? "—"} {open ? "▲" : "▾"}
+        </AppText>
+      </Pressable>
+      {open ? (
+        <View style={{ gap: theme.space(1) }}>
+          {active.map((m) => (
+            <Pressable
+              key={m.tenantId}
+              disabled={busy}
+              onPress={() => pick(m.tenantId)}
+              style={{
+                flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+                padding: theme.space(2.5), borderRadius: theme.radius.sm, borderWidth: 1,
+                borderColor: m.tenantId === me?.activeTenantId ? theme.color.primary : theme.color.border,
+              }}
+            >
+              <AppText size="sm">{m.tenantName ?? m.tenantId}</AppText>
+              <AppText size="xs" tone="faint">
+                {m.flatLabel ? m.flatLabel + " · " : ""}{m.householdRole.toLowerCase()}
+                {m.tenantId === me?.activeTenantId ? "  ✓" : ""}
+              </AppText>
+            </Pressable>
+          ))}
+          <Button
+            label="Manage / join communities"
+            variant="ghost"
+            onPress={() => { setOpen(false); router.push("/(resident)/community" as any); }}
+          />
+        </View>
+      ) : null}
     </View>
   );
 }

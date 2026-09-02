@@ -2,9 +2,9 @@ import { api, uploadFile } from "./client";
 import {
   AdminVendorCategory, AttachmentView, Category, CommunitySettings, FlatView, InvoiceView, InviteView,
   JoinRequestView, KycDocView, MeResponse, MyBillingView, NotificationPreferences, OfferStatus, OfferView,
-  Page, PaymentView, PlanView, ProviderProfile, ProviderTier, ProviderView, ReceiptView, RedemptionView,
-  SessionResponse, SubscriptionStatus, SubscriptionView, SubjectType, TenantCard, TicketCategory, TicketView,
-  TimelineEntry, VendorCategory, VendorCategoryKind,
+  HouseholdMember, MyFlat, Page, PaymentView, PlanView, ProviderProfile, ProviderTier, ProviderView,
+  PublicProviderView, ReceiptView, RedemptionView, SessionResponse, SubscriptionStatus, SubscriptionView,
+  SubjectType, TenantCard, TicketCategory, TicketView, TimelineEntry, VendorCategory, VendorCategoryKind,
 } from "./types";
 
 type TicketCategoryBody = Partial<{
@@ -19,6 +19,7 @@ export const auth = {
     api.post<SessionResponse>("/auth/otp/verify", { phone, code }, { auth: false }),
   completeProfile: (name: string, email?: string) =>
     api.post<SessionResponse>("/auth/profile", { name, email }),
+  refresh: () => api.post<SessionResponse>("/auth/refresh", {}),
 };
 
 export const me = {
@@ -30,6 +31,19 @@ export const me = {
   notificationPreferences: () => api.get<NotificationPreferences>("/me/notification-preferences"),
   updateNotificationPreferences: (body: Partial<NotificationPreferences>) =>
     api.put<NotificationPreferences>("/me/notification-preferences", body),
+  switchCommunity: (tenantId: string) => api.post<SessionResponse>("/me/active-community", { tenantId }),
+  leaveCommunity: (tenantId: string) => api.post<SessionResponse>(`/me/memberships/${tenantId}/leave`, {}),
+  flats: () => api.get<MyFlat[]>("/me/flats"),
+  householdMembers: (flatId: string) => api.get<HouseholdMember[]>(`/me/household/${flatId}/members`),
+  createHouseholdInvite: (flatId: string, maxUses?: number, validDays?: number) =>
+    api.post<{ code: string; maxUses: number; expiresAt: string }>("/me/household/invites",
+      { flatId, maxUses, validDays }),
+  removeHouseholdMember: (flatId: string, userId: string) =>
+    api.post<HouseholdMember[]>(`/me/household/${flatId}/members/${userId}/remove`, {}),
+};
+
+export const providers = {
+  list: () => api.get<PublicProviderView[]>("/providers"),
 };
 
 export const offers = {
@@ -177,7 +191,7 @@ export const tickets = {
   raise: (body: {
     categoryId: string; description: string; priority?: string;
     serviceAddressText?: string; serviceGeoLat?: number; serviceGeoLng?: number;
-    serviceLandmark?: string; preferredTimeWindow?: string; flatId?: string;
+    serviceLandmark?: string; preferredTimeWindow?: string; flatId?: string; providerId?: string;
   }) => api.post<TicketView>("/tickets", body),
   upload: (id: string, file: { uri: string; name: string; type: string }) =>
     uploadFile<AttachmentView>(`/tickets/${id}/attachments`, file),
@@ -192,6 +206,7 @@ export const tickets = {
   providerStatus: (id: string, toStatus: string, reason?: string, resolutionNotes?: string) =>
     api.post<TicketView>(`/tickets/${id}/status`, { toStatus, reason, resolutionNotes }),
   // resident
+  rebook: (id: string, providerId: string) => api.post<TicketView>(`/tickets/${id}/rebook`, { providerId }),
   approveAllocation: (id: string) => api.post<TicketView>(`/tickets/${id}/allocation/approve`, {}),
   rejectAllocation: (id: string, reason: string) =>
     api.post<TicketView>(`/tickets/${id}/allocation/reject`, { reason }),
@@ -219,7 +234,7 @@ export const superadmin = {
       name: string; city: string; locality: string; address: string; pincode: string;
       logoUrl: string; defaultTheme: string; brandPrimaryColor: string;
       reopenWindowHours: number; requireAllocationApproval: boolean;
-      categoryAdmin: "SUPER_ADMIN" | "COMMUNITY";
+      categoryAdmin: "SUPER_ADMIN" | "COMMUNITY"; directServiceEnabled: boolean;
     }>
   ) => api.put<CommunitySettings>(`/superadmin/tenants/${tenantId}`, body),
 };
@@ -236,8 +251,9 @@ export const admin = {
   approveJoin: (id: string, flatId?: string) => api.post<void>(`/admin/join-requests/${id}/approve`, { flatId }),
   rejectJoin: (id: string) => api.post<void>(`/admin/join-requests/${id}/reject`),
   communitySettings: () => api.get<CommunitySettings>("/admin/community-settings"),
-  updateCommunitySettings: (body: Partial<{ reopenWindowHours: number; requireAllocationApproval: boolean }>) =>
-    api.put<CommunitySettings>("/admin/community-settings", body),
+  updateCommunitySettings: (body: Partial<{
+    reopenWindowHours: number; requireAllocationApproval: boolean; directServiceEnabled: boolean;
+  }>) => api.put<CommunitySettings>("/admin/community-settings", body),
   providers: (opts?: { sort?: "rating"; includeInactive?: boolean }) =>
     api.get<ProviderView[]>("/admin/providers", { query: { sort: opts?.sort, includeInactive: opts?.includeInactive } }),
   addProvider: (body: {

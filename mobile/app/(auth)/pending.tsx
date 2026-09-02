@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { View } from "react-native";
+import { auth } from "@/api/endpoints";
 import { Button } from "@/components/Button";
 import { AppText, Screen } from "@/components/Themed";
 import { useSession } from "@/store/SessionProvider";
@@ -9,12 +10,17 @@ import { useTheme } from "@/theme/ThemeProvider";
 export default function Pending() {
   const { theme } = useTheme();
   const router = useRouter();
-  const { refreshMe, signOut } = useSession();
+  const { refreshMe, signIn, signOut } = useSession();
   const [busy, setBusy] = useState(false);
 
   async function check() {
     setBusy(true);
-    await refreshMe();
+    // If the admin approved us, /auth/refresh re-mints a tenant-scoped token; otherwise it's harmless.
+    try {
+      await signIn(await auth.refresh());
+    } catch {
+      await refreshMe();
+    }
     setBusy(false);
     router.replace("/");
   }

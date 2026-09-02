@@ -33,6 +33,35 @@ export interface MembershipView {
   relation: string;
   flatId: string | null;
   flatLabel: string | null;
+  householdRole: "PRIMARY" | "SECONDARY";
+}
+
+export interface PublicProviderView {
+  id: string;
+  name: string;
+  vendorCategoryId: string;
+  vendorCategoryLabel: string | null;
+  ratingAvg: number | null;
+  ratingCount: number;
+  tier: string;
+  availability: Availability;
+  availabilityNote: string | null;
+  assignable: boolean;
+}
+
+export interface MyFlat {
+  flatId: string;
+  label: string | null;
+  householdRole: "PRIMARY" | "SECONDARY";
+}
+
+export interface HouseholdMember {
+  userId: string;
+  name: string | null;
+  phoneMasked: string | null;
+  householdRole: "PRIMARY" | "SECONDARY";
+  status: string;
+  joinedAt: string | null;
 }
 
 export interface MeResponse {
@@ -47,6 +76,7 @@ export interface MeResponse {
   activeTenantBranding: TenantBranding | null;
   memberships: MembershipView[];
   awayUntil: string | null;
+  directServiceEnabled: boolean;
 }
 
 export type Availability = "AVAILABLE" | "BUSY" | "AWAY";
@@ -176,6 +206,7 @@ export interface CommunitySettings {
   reopenWindowHours: number;
   requireAllocationApproval: boolean;
   categoryAdmin: "SUPER_ADMIN" | "COMMUNITY";
+  directServiceEnabled: boolean;
 }
 
 export interface AttachmentView {

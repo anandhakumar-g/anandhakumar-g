@@ -16,6 +16,8 @@ interface SessionValue {
   signIn: (s: SessionResponse) => Promise<void>;
   signOut: () => Promise<void>;
   refreshMe: () => Promise<void>;
+  switchCommunity: (tenantId: string) => Promise<void>;
+  leaveCommunity: (tenantId: string) => Promise<void>;
 }
 
 const SessionContext = createContext<SessionValue | undefined>(undefined);
@@ -94,6 +96,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     clearSession();
   }, [clearSession]);
 
+  const switchCommunity = useCallback(async (tenantId: string) => {
+    await signIn(await meApi.switchCommunity(tenantId));
+  }, [signIn]);
+
+  const leaveCommunity = useCallback(async (tenantId: string) => {
+    await signIn(await meApi.leaveCommunity(tenantId));
+  }, [signIn]);
+
   useEffect(() => {
     (async () => {
       const t = await AsyncStorage.getItem(TOKEN_KEY);
@@ -118,8 +128,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [meData]);
 
   const value = useMemo<SessionValue>(
-    () => ({ ready, token, user, me: meData, onboardingState, signIn, signOut, refreshMe }),
-    [ready, token, user, meData, onboardingState, signIn, signOut, refreshMe]
+    () => ({ ready, token, user, me: meData, onboardingState, signIn, signOut, refreshMe,
+             switchCommunity, leaveCommunity }),
+    [ready, token, user, meData, onboardingState, signIn, signOut, refreshMe, switchCommunity, leaveCommunity]
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
