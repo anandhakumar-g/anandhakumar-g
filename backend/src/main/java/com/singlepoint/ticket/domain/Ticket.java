@@ -67,6 +67,9 @@ public class Ticket extends BaseEntity {
     @Column(name = "sla_due_at")
     private Instant slaDueAt;
 
+    @Column(name = "sla_breached_at")
+    private Instant slaBreachedAt;
+
     @Column(name = "service_address_text", nullable = false)
     private String serviceAddressText;
 

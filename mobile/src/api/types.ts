@@ -117,6 +117,7 @@ export interface TicketView {
   resolutionNotes: string | null;
   holdReason: string | null;
   slaDueAt: string | null;
+  slaBreachedAt: string | null;
   acknowledgedAt: string | null;
   assignedAt: string | null;
   resolvedAt: string | null;

@@ -2,8 +2,9 @@ import { useRouter } from "expo-router";
 import React from "react";
 import { Pressable, View } from "react-native";
 import { TicketView } from "@/api/types";
+import { slaBadge } from "@/lib/sla";
 import { useTheme } from "@/theme/ThemeProvider";
-import { StatusBadge } from "./Bits";
+import { Pill, StatusBadge } from "./Bits";
 import { AppText } from "./Themed";
 
 export function TicketRow({
@@ -23,6 +24,7 @@ export function TicketRow({
     month: "short",
     day: "numeric",
   });
+  const sla = slaBadge(ticket);
   return (
     <Pressable
       onPress={() => router.push(`${hrefBase}/${ticket.id}` as any)}
@@ -44,6 +46,11 @@ export function TicketRow({
         <StatusBadge status={ticket.status} />
       </View>
       <AppText numberOfLines={2}>{ticket.description}</AppText>
+      {sla ? (
+        <View style={{ flexDirection: "row" }}>
+          <Pill text={sla.text} tone={sla.tone} />
+        </View>
+      ) : null}
       <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
         <AppText size="xs" tone="faint">
           {showRaiser && ticket.raisedBy?.name ? ticket.raisedBy.name : ticket.flatLabel ?? ticket.serviceAddressText}

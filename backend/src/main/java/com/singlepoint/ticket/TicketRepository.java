@@ -26,6 +26,10 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
 
     List<Ticket> findByStatusAndResolvedAtBefore(TicketStatus status, Instant cutoff);
 
+    @Query("select t from Ticket t where t.slaBreachedAt is null and t.slaDueAt is not null "
+            + "and t.slaDueAt < :now and t.status not in :closedStates")
+    List<Ticket> findSlaBreachCandidates(Instant now, java.util.Collection<TicketStatus> closedStates);
+
     @Query(value = "select nextval('ticket_ref_seq')", nativeQuery = true)
     long nextReferenceSequence();
 

@@ -72,7 +72,7 @@ public class TicketMapper {
                 raisedBy, provider, t.isAllocationApprovedByResident(),
                 t.getRating(), t.getRatingComment(), t.getReopenedCount(),
                 t.getResolutionNotes(), t.getHoldReason(),
-                t.getSlaDueAt(), t.getAcknowledgedAt(), t.getAssignedAt(),
+                t.getSlaDueAt(), t.getSlaBreachedAt(), t.getAcknowledgedAt(), t.getAssignedAt(),
                 t.getResolvedAt(), t.getClosedAt(), t.getCreatedAt(), t.getUpdatedAt());
     }
 

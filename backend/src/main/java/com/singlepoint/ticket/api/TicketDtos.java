@@ -50,6 +50,6 @@ public final class TicketDtos {
                              boolean allocationApprovedByResident,
                              Integer rating, String ratingComment, int reopenedCount,
                              String resolutionNotes, String holdReason,
-                             Instant slaDueAt, Instant acknowledgedAt, Instant assignedAt,
+                             Instant slaDueAt, Instant slaBreachedAt, Instant acknowledgedAt, Instant assignedAt,
                              Instant resolvedAt, Instant closedAt, Instant createdAt, Instant updatedAt) { }
 }

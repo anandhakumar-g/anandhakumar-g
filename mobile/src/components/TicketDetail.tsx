@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { Image, Linking, Platform, Pressable, View } from "react-native";
 import { admin, catalog, tickets } from "@/api/endpoints";
 import { ProviderView, Role, TicketView } from "@/api/types";
+import { slaBadge } from "@/lib/sla";
 import { useAsync } from "@/hooks/useAsync";
 import { useTheme } from "@/theme/ThemeProvider";
 import { Button } from "./Button";
@@ -68,11 +69,26 @@ export function TicketDetail({ ticketId, role }: { ticketId: string; role: Role 
       </View>
       <AppText>{tk.description}</AppText>
 
+      {(() => {
+        const sla = slaBadge(tk);
+        return sla ? (
+          <View style={{ flexDirection: "row" }}>
+            <Pill text={sla.text} tone={sla.tone} />
+          </View>
+        ) : null;
+      })()}
+
       <Card style={{ gap: theme.space(1) }}>
         <KeyValue k="Priority" v={tk.priority ?? "Normal"} />
         <KeyValue k="Location" v={tk.serviceAddressText} />
         <KeyValue k="Landmark" v={tk.serviceLandmark} />
         <KeyValue k="Preferred time" v={tk.preferredTimeWindow} />
+        {tk.slaDueAt ? (
+          <KeyValue
+            k="SLA due"
+            v={new Date(tk.slaDueAt).toLocaleString() + (tk.slaBreachedAt ? " · breached" : "")}
+          />
+        ) : null}
         {tk.reopenedCount > 0 ? <KeyValue k="Reopened" v={`${tk.reopenedCount}×`} /> : null}
         {tk.serviceGeoLat != null && tk.serviceGeoLng != null ? (
           <Button
