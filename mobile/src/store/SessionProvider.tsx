@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { configureClient } from "@/api/client";
+import { ApiError, configureClient } from "@/api/client";
 import { me as meApi } from "@/api/endpoints";
 import { MeResponse, OnboardingState, SessionResponse, UserSummary } from "@/api/types";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -29,44 +29,55 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [onboardingState, setOnboardingState] = useState<OnboardingState | null>(null);
   const tokenRef = useRef<string | null>(null);
 
-  configureClient({
-    getToken: () => tokenRef.current,
-    onUnauthorized: () => {
-      tokenRef.current = null;
-      setToken(null);
-      setUser(null);
-      setMeData(null);
-      AsyncStorage.removeItem(TOKEN_KEY);
-    },
-  });
-
   const applyToken = useCallback((t: string | null) => {
     tokenRef.current = t;
     setToken(t);
   }, []);
 
-  const refreshMe = useCallback(async () => {
-    if (!tokenRef.current) return;
-    try {
-      const m = await meApi.get();
-      setMeData(m);
-      setUser((u) =>
-        u
-          ? { ...u, name: m.name, role: m.role, preferredTheme: m.preferredTheme, activeTenantId: m.activeTenantId }
-          : {
-              id: m.userId, role: m.role, name: m.name, phoneMasked: m.phoneMasked,
-              profileCompleted: m.profileCompleted, preferredTheme: m.preferredTheme,
-              activeTenantId: m.activeTenantId,
-            }
-      );
-      setBrand({
-        defaultTheme: m.activeTenantBranding?.defaultTheme,
-        brandPrimaryColor: m.activeTenantBranding?.brandPrimaryColor,
-      });
-    } catch {
-      /* ignore — keep last known */
-    }
+  const clearSession = useCallback(() => {
+    tokenRef.current = null;
+    setToken(null);
+    setUser(null);
+    setMeData(null);
+    setOnboardingState(null);
+    setBrand({ defaultTheme: null, brandPrimaryColor: null });
+    AsyncStorage.removeItem(TOKEN_KEY);
   }, [setBrand]);
+
+  configureClient({
+    getToken: () => tokenRef.current,
+    onUnauthorized: clearSession,
+  });
+
+  const refreshMe = useCallback(
+    async (opts?: { dropStaleToken?: boolean }) => {
+      if (!tokenRef.current) return;
+      try {
+        const m = await meApi.get();
+        setMeData(m);
+        setUser((u) =>
+          u
+            ? { ...u, name: m.name, role: m.role, preferredTheme: m.preferredTheme, activeTenantId: m.activeTenantId }
+            : {
+                id: m.userId, role: m.role, name: m.name, phoneMasked: m.phoneMasked,
+                profileCompleted: m.profileCompleted, preferredTheme: m.preferredTheme,
+                activeTenantId: m.activeTenantId,
+              }
+        );
+        setBrand({
+          defaultTheme: m.activeTenantBranding?.defaultTheme,
+          brandPrimaryColor: m.activeTenantBranding?.brandPrimaryColor,
+        });
+      } catch (e) {
+        // A stored token that no longer resolves (user/tenant gone after a data reset, expired,
+        // revoked) comes back as a 4xx. Drop it so the app falls back to the login screen instead
+        // of hanging. A 5xx or a network error is transient — keep the last known session.
+        const stale = e instanceof ApiError && e.status >= 400 && e.status < 500;
+        if (opts?.dropStaleToken && stale) clearSession();
+      }
+    },
+    [setBrand, clearSession]
+  );
 
   const signIn = useCallback(
     async (s: SessionResponse) => {
@@ -80,20 +91,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
-    applyToken(null);
-    setUser(null);
-    setMeData(null);
-    setOnboardingState(null);
-    setBrand({ defaultTheme: null, brandPrimaryColor: null });
-    await AsyncStorage.removeItem(TOKEN_KEY);
-  }, [applyToken, setBrand]);
+    clearSession();
+  }, [clearSession]);
 
   useEffect(() => {
     (async () => {
       const t = await AsyncStorage.getItem(TOKEN_KEY);
       if (t) {
         applyToken(t);
-        await refreshMe();
+        await refreshMe({ dropStaleToken: true });
       }
       setReady(true);
     })();
