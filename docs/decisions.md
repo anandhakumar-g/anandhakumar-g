@@ -4,6 +4,95 @@ Short ADRs. Newest first.
 
 ---
 
+## ADR-025 — PII: encrypt free-text at rest, defer names and key rotation
+**Decision (MVP-5):** extend the MVP-1 `@Convert(EncryptedStringConverter)` pattern to
+`ticket.description` / `resolution_notes` / `rating_comment` / `service_landmark`,
+`flat.address_text` and `tenant.address` (new `*_enc` columns; entity points at the encrypted
+one; `ticket.description` loses `NOT NULL`). New writes are ciphertext immediately;
+pre-existing plaintext is moved by `PiiBackfillRunner` — a boot-time `ApplicationRunner`
+guarded by `sp.pii.backfill.enabled`, wildcard-scoped, batched, idempotent (`enc IS NULL`) —
+run once per environment then turned off. Plaintext columns are kept this release and dropped
+in a later migration once every environment is confirmed backfilled.
+**Deferred — name encryption:** `app_user.name` / `service_provider.name` stay plaintext;
+`TenantRepository.search` does DB `ORDER BY name` + `LIKE`, and directory/name lookups aren't
+fully audited, so encrypting names needs an in-memory sort/search story or a `name_hash`
+prefix scheme — its own project.
+**Deferred — key rotation:** the AES envelope already carries a version byte (pinned to `1`).
+The design is a small keyring, `decrypt` accepting `{1,2}`, and a `ReEncryptJob` re-wrapping
+`v1 → v2`; not implemented.
+Also: service address + geo are revealed in `TicketView` only to the raiser, the community
+admin, or the assigned provider while the job is live (mirrors the phone-reveal rule);
+`@AuditRead` + a second `AuditAspect` `@Around` record contact/location reads into
+`audit_log` with `entity_type` / `entity_id` populated (applied to `GET /tickets/{id}` and the
+KYC file downloads).
+
+## ADR-024 — Provider directory management & availability are additive; availability is advisory
+**Decision (MVP-5):** an admin can edit a provider enrolled in their community
+(`PUT /api/v1/admin/providers/{id}` — name/email/area/category; a phone change re-hashes and
+is collision-checked) and remove/restore it from **that community's** directory
+(`tenant_service_provider.active`, never the global `service_provider.active`); a provider
+self-serves contact email, service area and availability (`GET/PUT /api/v1/provider/profile`)
+but not its name or phone (phone is the identity anchor + unique hash). `service_provider`
+gains `availability` (`AVAILABLE` / `BUSY` / `AWAY`) + `availability_note`, and `app_user`
+gains `away_until`. Availability is **surfaced, not enforced** — an `AWAY` provider can still
+be assigned (a small community may have no alternative); a *deactivated* enrolment, however,
+now blocks assignment (`requireAssignableProvider` requires an active enrolment).
+Resident `away_until` is informational — shown on the raiser card only.
+
+## ADR-023 — WhatsApp is an additive delivery channel gated by a plan entitlement
+**Decision (MVP-5):** `OutboxDispatcher` keeps its push path unchanged and, for **ticket**
+notifications only, *additionally* sends over WhatsApp when the community's plan carries the
+`WHATSAPP_NOTIFICATIONS` entitlement **and** the recipient has opted in
+(`notification_preference.whatsapp_enabled`, opt-in default). Because `SubscriptionPlan.limitFor`
+treats an absent key as `-1` (entitled), a plan that excludes the feature carries an explicit
+`0` (V16: `TENANT_FREE` = 0, `STANDARD`/`PLUS` = -1; PROVIDER plans untouched — the subject
+is `TENANT`). `WhatsAppSender` is a profile split — `LoggingWhatsAppSender` (`!cloud`) /
+`MetaCloudWhatsAppSender` (`cloud`, Meta Cloud API, plain REST) — matching the payment
+gateway, so the `test` profile can never reach a live API. `notification.channel` already
+allowed `WHATSAPP`; `record(...)` now takes the channel. Promo/offer notifications are
+push-only this MVP.
+
+## ADR-022 — Provider ratings aggregate onto the global provider row
+**Decision (MVP-5):** `service_provider` gains `rating_avg` (`numeric(3,2)`) + `rating_count`,
+denormalised like `tier` (global, no RLS). `TicketService.close` recomputes them from the
+provider's rated tickets (`TicketRepository.ratingAggregate`) on the **resident close** path
+only — `TicketAutoCloseJob` captures no rating. `ProviderService.directoryForTenant` takes an
+optional `sort` key (`FEATURED` first, then `rating` desc with unrated last when
+`?sort=rating`, else name); the rating is surfaced in the admin provider list, the assigned
+provider on a `TicketView`, and the Super Admin provider list.
+
+## ADR-021 — Ticket-category management is configurable per community
+**Decision (MVP-5):** a platform-wide catalogue (`category.tenant_id IS NULL`) always exists.
+`tenant.category_admin` (`SUPER_ADMIN` default, or `COMMUNITY`) — set by the Super Admin at/
+after onboarding — decides who curates a community's own categories. Super Admin manages both
+scopes (`/api/v1/superadmin/ticket-categories?tenantId=`); a community admin manages only its
+own list (`/api/v1/admin/ticket-categories`) and only when `category_admin = COMMUNITY` (else
+`403`); global rows are never reachable from the community editor (`404`). `GET /categories`
+returns the global set plus the caller's community's own; `TicketService.raise` accepts only
+an active in-scope category (other-tenant / inactive / unknown → `404`). Mirrors the MVP-3
+vendor-taxonomy admin, with a thin `TicketCategoryAdminService` shared by the two controllers.
+
+## ADR-020 — SLA breach is alert-and-flag only
+**Decision (MVP-5):** `ticket.sla_due_at` (already set at raise from `category.sla_hours`)
+gains a companion `sla_breached_at`. `SlaBreachJob` (`@Scheduled`, wildcard-scoped, `:05` so it
+never shares a minute with the auto-close job at `:15`) flags any still-open ticket found past
+its due time **once** and publishes `TICKET_SLA_BREACHED` to the community admins + the
+assigned provider. No status change, no priority bump, no rerouting — auto-escalation is a
+later concern.
+
+## ADR-019 — Resident approval-of-allocation is an explicit parked state
+**Decision (MVP-5):** when `tenant.require_allocation_approval` is on, `TicketService.assign`
+parks the ticket in a new `PENDING_RESIDENT_APPROVAL` status (V11 widens the status columns
+to `varchar(30)` and rebuilds the CHECK) and does **not** notify the provider. The resident
+approves (`POST /tickets/{id}/allocation/approve` → `ASSIGNED`, provider engaged now) or
+declines with a required reason (`.../allocation/reject` → back to `ACKNOWLEDGED`, admins
+notified). A reroute while parked re-parks. Reassignment already clears
+`allocation_approved_by_resident`. The gate is toggled via a new sparse tenant-update path
+(`PUT /api/v1/superadmin/tenants/{id}` — all fields incl. `category_admin`;
+`PUT /api/v1/admin/community-settings` — reopen window + the gate only). Also: reroute,
+provider decline and `ON_HOLD` now require a non-blank reason, and the timeline API carries
+the actor's name.
+
 ## ADR-018 — Featured vendor tier is a manual Super-Admin toggle
 **Decision (MVP-4):** the platform's paid placement is a per-provider `service_provider.tier`
 flag (`STANDARD` / `FEATURED`), set only by a Super Admin (`POST

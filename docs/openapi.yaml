@@ -2,21 +2,27 @@ openapi: 3.0.1
 info:
   title: Single Point API
   description: Multi-tenant gated-community ticket management platform.
-  version: MVP-4
+  version: MVP-5
 servers:
 - url: http://localhost:18080
   description: Generated server url
 security:
 - bearerAuth: []
 tags:
+- name: Admin — Community settings
+  description: Reopen window and the approval-of-allocation gate
 - name: Offers
   description: "Vendor/admin authoring, resident deals feed, redemption"
 - name: Me
   description: "Signed-in user profile, theme, memberships, devices"
+- name: Super Admin — Ticket categories
+  description: Global catalogue + per-community lists
 - name: Super Admin
   description: Platform-level tenant onboarding (no ticket content access)
 - name: Provider — KYC
   description: Provider uploads its own verification documents
+- name: Provider — Profile
+  description: Provider self-service (name/phone stay admin-only)
 - name: Admin — KYC review
   description: Review a provider's verification documents
 - name: Me — Notification preferences
@@ -31,6 +37,8 @@ tags:
   description: Phone + OTP login and profile completion
 - name: Communities
   description: Community directory for onboarding
+- name: Admin — Ticket categories
+  description: A community's own ticket categories
 - name: Me — Billing
   description: "Your plan, usage against limits, and any due invoices"
 - name: Super Admin — Taxonomy
@@ -161,6 +169,62 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/CategoryView'
+  /api/v1/superadmin/ticket-categories/{id}:
+    put:
+      tags:
+      - Super Admin — Ticket categories
+      operationId: update
+      parameters:
+      - name: tenantId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/CategoryView'
+  /api/v1/superadmin/tenants/{tenantId}:
+    put:
+      tags:
+      - Super Admin
+      summary: Update a community's settings (sparse — only the fields sent are changed)
+      operationId: updateTenant
+      parameters:
+      - name: tenantId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTenantRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TenantSettingsView'
   /api/v1/superadmin/plans/{id}:
     put:
       tags:
@@ -187,11 +251,52 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/PlanView'
+  /api/v1/provider/profile:
+    get:
+      tags:
+      - Provider — Profile
+      operationId: get_3
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ProfileView'
+    put:
+      tags:
+      - Provider — Profile
+      summary: "Update contact email, service area, availability"
+      operationId: update_1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/ProfileUpdateRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ProfileView'
   /api/v1/offers/{id}:
     get:
       tags:
       - Offers
-      operationId: get_3
+      operationId: get_4
       parameters:
       - name: p
         in: query
@@ -214,7 +319,7 @@ paths:
     put:
       tags:
       - Offers
-      operationId: update
+      operationId: update_2
       parameters:
       - name: id
         in: path
@@ -266,7 +371,7 @@ paths:
       - Me — Notification preferences
       summary: Get my notification preferences (created with opt-in defaults on first
         read)
-      operationId: get_4
+      operationId: get_5
       parameters:
       - name: p
         in: query
@@ -284,7 +389,7 @@ paths:
       tags:
       - Me — Notification preferences
       summary: Update notification preferences
-      operationId: update_1
+      operationId: update_3
       requestBody:
         content:
           application/json:
@@ -303,6 +408,87 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/PrefView'
+  /api/v1/me/away-until:
+    put:
+      tags:
+      - Me
+      summary: Mark yourself away until a date (or clear it with a null value)
+      operationId: setAwayUntil
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                principal:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/AwayRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+  /api/v1/admin/ticket-categories/{id}:
+    put:
+      tags:
+      - Admin — Ticket categories
+      operationId: update_4
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/UpdateRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/CategoryView'
+  /api/v1/admin/providers/{providerId}:
+    put:
+      tags:
+      - Admin — Providers
+      summary: Edit a provider enrolled in this community
+      operationId: update_5
+      parameters:
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/UpdateProviderRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ProviderView'
   /api/v1/admin/flats/{flatId}:
     put:
       tags:
@@ -333,6 +519,48 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/FlatView'
+  /api/v1/admin/community-settings:
+    get:
+      tags:
+      - Admin — Community settings
+      summary: This community's settings
+      operationId: get_7
+      parameters:
+      - name: principal
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TenantSettingsView'
+    put:
+      tags:
+      - Admin — Community settings
+      summary: Update the reopen window / approval-of-allocation gate
+      operationId: update_6
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                principal:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/CommunitySettingsRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TenantSettingsView'
   /dev/pay/{ref}/settle:
     post:
       tags:
@@ -792,6 +1020,62 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/TicketView'
+  /api/v1/tickets/{id}/allocation/reject:
+    post:
+      tags:
+      - Tickets
+      summary: Resident declines the proposed helper (a reason is required)
+      operationId: rejectAllocation
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/RejectRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TicketView'
+  /api/v1/tickets/{id}/allocation/approve:
+    post:
+      tags:
+      - Tickets
+      summary: Resident approves the proposed helper (communities with the approval
+        gate on)
+      operationId: approveAllocation
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TicketView'
   /api/v1/tickets/{id}/acknowledge:
     post:
       tags:
@@ -954,6 +1238,105 @@ paths:
       summary: Hide a category from new pickers; existing providers/offers keep it
       operationId: deactivateCategory
       parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/CategoryView'
+  /api/v1/superadmin/ticket-categories:
+    get:
+      tags:
+      - Super Admin — Ticket categories
+      summary: "List categories in a scope (global when tenantId is omitted), including\
+        \ inactive"
+      operationId: list_1
+      parameters:
+      - name: tenantId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryView'
+    post:
+      tags:
+      - Super Admin — Ticket categories
+      operationId: create
+      parameters:
+      - name: tenantId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/CategoryView'
+  /api/v1/superadmin/ticket-categories/{id}/reactivate:
+    post:
+      tags:
+      - Super Admin — Ticket categories
+      operationId: reactivate
+      parameters:
+      - name: tenantId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/CategoryView'
+  /api/v1/superadmin/ticket-categories/{id}/deactivate:
+    post:
+      tags:
+      - Super Admin — Ticket categories
+      summary: Hide a category from the raise-ticket picker; existing tickets keep
+        it
+      operationId: deactivate
+      parameters:
+      - name: tenantId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
       - name: id
         in: path
         required: true
@@ -1263,7 +1646,7 @@ paths:
       tags:
       - Provider — KYC
       summary: List my KYC documents and their review status
-      operationId: list_2
+      operationId: list_3
       parameters:
       - name: p
         in: query
@@ -1357,7 +1740,7 @@ paths:
     post:
       tags:
       - Offers
-      operationId: create
+      operationId: create_1
       requestBody:
         content:
           application/json:
@@ -1650,11 +2033,11 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/OtpRequestResult'
-  /api/v1/admin/providers:
+  /api/v1/admin/ticket-categories:
     get:
       tags:
-      - Admin — Providers
-      operationId: directory
+      - Admin — Ticket categories
+      operationId: list_4
       parameters:
       - name: p
         in: query
@@ -1669,11 +2052,114 @@ paths:
               schema:
                 type: array
                 items:
+                  $ref: '#/components/schemas/CategoryView'
+    post:
+      tags:
+      - Admin — Ticket categories
+      operationId: create_2
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/CreateRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/CategoryView'
+  /api/v1/admin/ticket-categories/{id}/reactivate:
+    post:
+      tags:
+      - Admin — Ticket categories
+      operationId: reactivate_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/CategoryView'
+  /api/v1/admin/ticket-categories/{id}/deactivate:
+    post:
+      tags:
+      - Admin — Ticket categories
+      operationId: deactivate_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/CategoryView'
+  /api/v1/admin/providers:
+    get:
+      tags:
+      - Admin — Providers
+      summary: This community's providers. ?includeInactive=true also lists deactivated
+        enrolments
+      operationId: directory
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: includeInactive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
                   $ref: '#/components/schemas/ProviderView'
     post:
       tags:
       - Admin — Providers
-      operationId: create_1
+      operationId: create_3
       requestBody:
         content:
           application/json:
@@ -1723,6 +2209,30 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/ProviderView'
+  /api/v1/admin/providers/{providerId}/reactivate:
+    post:
+      tags:
+      - Admin — Providers
+      operationId: reactivate_2
+      parameters:
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ProviderView'
   /api/v1/admin/providers/{providerId}/kyc/{docId}/review:
     post:
       tags:
@@ -1760,6 +2270,31 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/DocView'
+  /api/v1/admin/providers/{providerId}/deactivate:
+    post:
+      tags:
+      - Admin — Providers
+      summary: Remove a provider from this community's directory (keeps them elsewhere)
+      operationId: deactivate_2
+      parameters:
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ProviderView'
   /api/v1/admin/join-requests/{membershipId}/reject:
     post:
       tags:
@@ -2075,7 +2610,7 @@ paths:
       tags:
       - Super Admin — Offer approval
       summary: Offers by status (defaults to PENDING_APPROVAL queue)
-      operationId: list_1
+      operationId: list_2
       parameters:
       - name: status
         in: query
@@ -2228,7 +2763,7 @@ paths:
       tags:
       - Me — Billing
       summary: "Current plan, usage vs limits, due invoices, and upgrade options"
-      operationId: get_5
+      operationId: get_6
       parameters:
       - name: p
         in: query
@@ -2265,8 +2800,15 @@ paths:
     get:
       tags:
       - Categories
-      summary: Ticket categories for the raise-ticket picker
+      summary: Ticket categories for the raise-ticket picker (global + this community's
+        own)
       operationId: categories
+      parameters:
+      - name: principal
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
       responses:
         "200":
           description: OK
@@ -2281,7 +2823,7 @@ paths:
       tags:
       - Admin — KYC review
       summary: List a provider's KYC documents
-      operationId: list_3
+      operationId: list_5
       parameters:
       - name: p
         in: query
@@ -2401,11 +2943,11 @@ components:
           type: string
         superAdmin:
           type: boolean
-        resident:
+        admin:
           type: boolean
         provider:
           type: boolean
-        admin:
+        resident:
           type: boolean
     ChargeRequest:
       required:
@@ -2485,6 +3027,74 @@ components:
           format: int32
         active:
           type: boolean
+    UpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        requestType:
+          type: string
+        parentCategoryId:
+          type: string
+        slaHours:
+          type: integer
+          format: int32
+        defaultProviderKind:
+          type: string
+        sortOrder:
+          type: integer
+          format: int32
+    UpdateTenantRequest:
+      type: object
+      properties:
+        name:
+          maxLength: 160
+          minLength: 0
+          type: string
+        city:
+          type: string
+        locality:
+          type: string
+        address:
+          type: string
+        pincode:
+          type: string
+        logoUrl:
+          type: string
+        defaultTheme:
+          type: string
+        brandPrimaryColor:
+          type: string
+        reopenWindowHours:
+          type: integer
+          format: int32
+        requireAllocationApproval:
+          type: boolean
+        categoryAdmin:
+          type: string
+    TenantSettingsView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        city:
+          type: string
+        locality:
+          type: string
+        defaultTheme:
+          type: string
+        brandPrimaryColor:
+          type: string
+        reopenWindowHours:
+          type: integer
+          format: int32
+        requireAllocationApproval:
+          type: boolean
+        categoryAdmin:
+          type: string
     UpdatePlanRequest:
       type: object
       properties:
@@ -2536,6 +3146,39 @@ components:
         sortOrder:
           type: integer
           format: int32
+    ProfileUpdateRequest:
+      type: object
+      properties:
+        contactEmail:
+          type: string
+        serviceArea:
+          type: string
+        availability:
+          type: string
+        availabilityNote:
+          type: string
+    ProfileView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        contactPhoneMasked:
+          type: string
+        contactEmail:
+          type: string
+        serviceArea:
+          type: string
+        availability:
+          type: string
+        availabilityNote:
+          type: string
+        verificationStatus:
+          type: string
+        tier:
+          type: string
     CreateOrUpdateRequest:
       required:
       - discountType
@@ -2645,22 +3288,6 @@ components:
       properties:
         theme:
           type: string
-    UpdateRequest:
-      type: object
-      properties:
-        subscribedVendorCategoryIds:
-          type: array
-          items:
-            type: string
-        promoFrequencyCapPerWeek:
-          type: integer
-          format: int32
-        digestMode:
-          type: string
-        ticketNotificationsEnabled:
-          type: boolean
-        promoNotificationsEnabled:
-          type: boolean
     PrefView:
       type: object
       properties:
@@ -2677,6 +3304,58 @@ components:
           type: boolean
         promoNotificationsEnabled:
           type: boolean
+        whatsappEnabled:
+          type: boolean
+    AwayRequest:
+      type: object
+      properties:
+        awayUntil:
+          type: string
+          format: date-time
+    UpdateProviderRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        vendorCategoryId:
+          type: string
+        contactPhone:
+          type: string
+        contactEmail:
+          type: string
+        serviceArea:
+          type: string
+    ProviderView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        vendorCategoryId:
+          type: string
+        company:
+          type: boolean
+        contactPhoneMasked:
+          type: string
+        verificationStatus:
+          type: string
+        tier:
+          type: string
+        active:
+          type: boolean
+        assignable:
+          type: boolean
+        availability:
+          type: string
+        availabilityNote:
+          type: string
+        ratingAvg:
+          type: number
+        ratingCount:
+          type: integer
+          format: int32
     UpdateFlatRequest:
       type: object
       properties:
@@ -2712,6 +3391,14 @@ components:
         ownerUserId:
           type: string
           format: uuid
+    CommunitySettingsRequest:
+      type: object
+      properties:
+        reopenWindowHours:
+          type: integer
+          format: int32
+        requireAllocationApproval:
+          type: boolean
     RaiseRequest:
       required:
       - categoryId
@@ -2751,6 +3438,16 @@ components:
           type: string
         tier:
           type: string
+        ratingAvg:
+          type: number
+        ratingCount:
+          type: integer
+          format: int32
+        availability:
+          type: string
+        awayUntil:
+          type: string
+          format: date-time
     TicketView:
       type: object
       properties:
@@ -2800,6 +3497,9 @@ components:
         holdReason:
           type: string
         slaDueAt:
+          type: string
+          format: date-time
+        slaBreachedAt:
           type: string
           format: date-time
         acknowledgedAt:
@@ -2937,6 +3637,26 @@ components:
         kind:
           type: string
         parentCategoryId:
+          type: string
+        sortOrder:
+          type: integer
+          format: int32
+    CreateRequest:
+      required:
+      - name
+      - requestType
+      type: object
+      properties:
+        name:
+          type: string
+        requestType:
+          type: string
+        parentCategoryId:
+          type: string
+        slaHours:
+          type: integer
+          format: int32
+        defaultProviderKind:
           type: string
         sortOrder:
           type: integer
@@ -3328,28 +4048,6 @@ components:
           type: string
         serviceArea:
           type: string
-    ProviderView:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
-        vendorCategoryId:
-          type: string
-        company:
-          type: boolean
-        contactPhoneMasked:
-          type: string
-        verificationStatus:
-          type: string
-        tier:
-          type: string
-        active:
-          type: boolean
-        assignable:
-          type: boolean
     VerifyRequest:
       required:
       - status
@@ -3489,6 +4187,8 @@ components:
           type: string
         actorRole:
           type: string
+        actorName:
+          type: string
         remarks:
           type: string
         at:
@@ -3541,6 +4241,11 @@ components:
           type: string
         verificationStatus:
           type: string
+        ratingAvg:
+          type: number
+        ratingCount:
+          type: integer
+          format: int32
     MeResponse:
       type: object
       properties:
@@ -3568,6 +4273,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/MembershipView'
+        awayUntil:
+          type: string
+          format: date-time
     MembershipView:
       type: object
       properties:
