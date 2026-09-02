@@ -4,6 +4,45 @@ Short ADRs. Newest first.
 
 ---
 
+## ADR-018 — Featured vendor tier is a manual Super-Admin toggle
+**Decision (MVP-4):** the platform's paid placement is a per-provider `service_provider.tier`
+flag (`STANDARD` / `FEATURED`), set only by a Super Admin (`POST
+/api/v1/superadmin/providers/{id}/tier`). It is **not** attached to a subscription plan —
+featuring is an editorial/commercial decision made case by case. `ProviderService`
+`directoryForTenant` and `OfferService.feedForResident` sort `FEATURED` ahead of the rest
+(then by name / feed order); nothing else changes. Automating it (plan-driven, auction, etc.)
+is deferred.
+
+## ADR-017 — Monetization: subscription plans + real entitlement enforcement, billed through the payment gateway
+**Decision (MVP-4):** `com.singlepoint.billing` owns `subscription_plan` / `subscription` /
+`subscription_invoice` — app-scoped, **no RLS** (a tenant admin reads its own by `subject_id`,
+a provider its own, Super Admin all), consistent with [ADR-011]. A subject (TENANT or
+PROVIDER) with no `subscription` row resolves to its target's `is_default` FREE plan — **zero
+migration data**, nothing that worked before breaks. `entitlements` is a JSON map
+`{FEATURE: limit}` with sentinels `-1` unlimited / `0` disabled / positive = per-calendar-month
+cap. FREE tiers carry deliberately generous caps (V10) and core ticketing
+(`TICKETS_PER_MONTH`) is never metered on any tier.
+
+`EntitlementService` (was a no-op seam since MVP-1) now reads the effective plan and enforces:
+`requireWithinQuota(...)` → `402 SP-402-QUOTA`; `assertWritable(...)` → `402 SP-402-SUBSCRIPTION`
+once a paid plan has lapsed past its grace window. Guards sit in `TicketService.raise`
+(`TICKETS_PER_MONTH`), `SuperAdminController.createAdmin` (`ADMIN_SEATS`),
+`OfferService.createDraft` (`OFFERS_PER_MONTH`, subject = provider or tenant), and provider
+assignability / directory visibility (`DIRECTORY_LISTING` + not lapsed).
+
+Billing mechanism reuses the MVP-3 `PaymentGateway`: assigning a paid plan (Super Admin or
+self-serve `POST /api/v1/me/billing/plan`) creates the subscription `PAST_DUE` with
+`grace_until = now + sp.billing.grace-days` (7) and a `DUE` `subscription_invoice` carrying a
+one-off pay link. `PaymentService.handleWebhook` gained a `WebhookFallback` seam (interface in
+`payment.gateway`, implemented by `BillingService` — one-way dependency, no cycle): when a
+callback's gateway ref is not a ticket payment, the fallback settles the matching invoice and
+flips the subscription to `ACTIVE` with fresh period dates. Super Admin can also `comp` a
+subscription (→ `COMPED`, no invoice) or `mark-paid` an invoice out of band. `BillingRenewalJob`
+(`@Scheduled`, wildcard tenant scope) rolls `ACTIVE`/`COMPED` past `current_period_end` into
+the next period (`COMPED` renews free; paid → `PAST_DUE` + new invoice + grace) and expires
+`PAST_DUE` past `grace_until` (→ `EXPIRED`, writes blocked, reads still fine). No recurring
+auto-charge, proration, or dunning yet.
+
 ## ADR-016 — Vendor-category "kinds" are data
 **Decision (MVP-3, pulled from MVP-7):** `vendor_category.kind` is a free-text code, and the
 `CHECK` constraint is replaced by a `vendor_category_kind` lookup table. Super Admin can open

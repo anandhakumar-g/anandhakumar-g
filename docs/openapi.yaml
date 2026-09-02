@@ -2,7 +2,7 @@ openapi: 3.0.1
 info:
   title: Single Point API
   description: Multi-tenant gated-community ticket management platform.
-  version: MVP-1
+  version: MVP-4
 servers:
 - url: http://localhost:18080
   description: Generated server url
@@ -25,10 +25,14 @@ tags:
   description: "Raise, triage, resolve — role-aware"
 - name: Admin — Providers
   description: Community provider directory + manual verification
+- name: Super Admin — Billing
+  description: "Subscription plans, subscriptions, invoices, featured tier"
 - name: Auth
   description: Phone + OTP login and profile completion
 - name: Communities
   description: Community directory for onboarding
+- name: Me — Billing
+  description: "Your plan, usage against limits, and any due invoices"
 - name: Super Admin — Taxonomy
   description: Manage vendor categories and verticals
 - name: Payments — webhook
@@ -157,6 +161,32 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/CategoryView'
+  /api/v1/superadmin/plans/{id}:
+    put:
+      tags:
+      - Super Admin — Billing
+      summary: Update a plan's price / entitlements / visibility
+      operationId: updatePlan
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePlanRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PlanView'
   /api/v1/offers/{id}:
     get:
       tags:
@@ -1001,6 +1031,153 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/AdminCreated'
+  /api/v1/superadmin/subscriptions:
+    get:
+      tags:
+      - Super Admin — Billing
+      summary: "Subscriptions, filterable by subjectType and status"
+      operationId: subscriptions
+      parameters:
+      - name: subjectType
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - TENANT
+          - PROVIDER
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubscriptionView'
+    post:
+      tags:
+      - Super Admin — Billing
+      summary: Assign a plan to a tenant or provider (comp = free of charge)
+      operationId: assign_1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignSubscriptionRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SubscriptionView'
+  /api/v1/superadmin/subscriptions/{id}/comp:
+    post:
+      tags:
+      - Super Admin — Billing
+      operationId: comp
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SubscriptionView'
+  /api/v1/superadmin/subscriptions/{id}/cancel:
+    post:
+      tags:
+      - Super Admin — Billing
+      operationId: cancel
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SubscriptionView'
+  /api/v1/superadmin/providers/{id}/tier:
+    post:
+      tags:
+      - Super Admin — Billing
+      summary: Set a provider's directory tier (STANDARD / FEATURED)
+      operationId: setTier
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TierRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+  /api/v1/superadmin/plans:
+    get:
+      tags:
+      - Super Admin — Billing
+      summary: All plans (add ?activeOnly=true for the sellable set)
+      operationId: plans
+      parameters:
+      - name: activeOnly
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlanView'
+    post:
+      tags:
+      - Super Admin — Billing
+      summary: Create a subscription plan
+      operationId: createPlan
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePlanRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PlanView'
   /api/v1/superadmin/offers/{id}/reject:
     post:
       tags:
@@ -1061,6 +1238,26 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/OfferView'
+  /api/v1/superadmin/invoices/{id}/mark-paid:
+    post:
+      tags:
+      - Super Admin — Billing
+      summary: Record an out-of-band payment and activate the subscription
+      operationId: markPaid
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/InvoiceView'
   /api/v1/provider/kyc:
     get:
       tags:
@@ -1342,6 +1539,55 @@ paths:
       responses:
         "200":
           description: OK
+  /api/v1/me/billing/plan:
+    post:
+      tags:
+      - Me — Billing
+      summary: Switch to a paid plan (creates a due invoice + grace window)
+      operationId: selfUpgrade
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/SelfPlanRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SubscriptionView'
+  /api/v1/me/billing/invoices/{id}/pay:
+    post:
+      tags:
+      - Me — Billing
+      summary: Get (or create) the payment link for a due invoice
+      operationId: pay
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PayLinkResponse'
   /api/v1/auth/profile:
     post:
       tags:
@@ -1809,6 +2055,21 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/PageResponseTenantCard'
+  /api/v1/superadmin/providers:
+    get:
+      tags:
+      - Super Admin — Billing
+      summary: Every provider with its current directory tier
+      operationId: providers
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProviderTierView'
   /api/v1/superadmin/offers:
     get:
       tags:
@@ -1863,6 +2124,26 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/OfferView'
+  /api/v1/superadmin/invoices:
+    get:
+      tags:
+      - Super Admin — Billing
+      operationId: invoices
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InvoiceView'
   /api/v1/provider/kyc/{docId}/file:
     get:
       tags:
@@ -1942,6 +2223,25 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/MeResponse'
+  /api/v1/me/billing:
+    get:
+      tags:
+      - Me — Billing
+      summary: "Current plan, usage vs limits, due invoices, and upgrade options"
+      operationId: get_5
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/MyBillingView'
   /api/v1/files/{*key}:
     get:
       tags:
@@ -2101,11 +2401,11 @@ components:
           type: string
         superAdmin:
           type: boolean
-        admin:
-          type: boolean
         resident:
           type: boolean
         provider:
+          type: boolean
+        admin:
           type: boolean
     ChargeRequest:
       required:
@@ -2185,6 +2485,57 @@ components:
           format: int32
         active:
           type: boolean
+    UpdatePlanRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        entitlements:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        active:
+          type: boolean
+        sortOrder:
+          type: integer
+          format: int32
+    PlanView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        target:
+          type: string
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        billingCycle:
+          type: string
+        price:
+          type: number
+        currency:
+          type: string
+        entitlements:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        active:
+          type: boolean
+        isDefault:
+          type: boolean
+        sortOrder:
+          type: integer
+          format: int32
     CreateOrUpdateRequest:
       required:
       - discountType
@@ -2651,6 +3002,96 @@ components:
           type: string
         phoneMasked:
           type: string
+    AssignSubscriptionRequest:
+      required:
+      - planCode
+      - subjectId
+      - subjectType
+      type: object
+      properties:
+        subjectType:
+          type: string
+          enum:
+          - TENANT
+          - PROVIDER
+        subjectId:
+          type: string
+          format: uuid
+        planCode:
+          type: string
+        comp:
+          type: boolean
+    SubscriptionView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        subjectType:
+          type: string
+        subjectId:
+          type: string
+          format: uuid
+        planId:
+          type: string
+          format: uuid
+        planCode:
+          type: string
+        planName:
+          type: string
+        status:
+          type: string
+        currentPeriodStart:
+          type: string
+          format: date-time
+        currentPeriodEnd:
+          type: string
+          format: date-time
+        graceUntil:
+          type: string
+          format: date-time
+        autoRenew:
+          type: boolean
+    TierRequest:
+      required:
+      - tier
+      type: object
+      properties:
+        tier:
+          type: string
+    CreatePlanRequest:
+      required:
+      - code
+      - name
+      - target
+      type: object
+      properties:
+        target:
+          type: string
+          enum:
+          - TENANT
+          - PROVIDER
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        billingCycle:
+          type: string
+          enum:
+          - MONTHLY
+          - ANNUAL
+        price:
+          type: number
+        entitlements:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        sortOrder:
+          type: integer
+          format: int32
     ApproveRequest:
       type: object
       properties:
@@ -2671,6 +3112,40 @@ components:
           type: string
         segmentFilter:
           type: string
+    InvoiceView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        subscriptionId:
+          type: string
+          format: uuid
+        subjectType:
+          type: string
+        subjectId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+        currency:
+          type: string
+        periodStart:
+          type: string
+          format: date-time
+        periodEnd:
+          type: string
+          format: date-time
+        status:
+          type: string
+        paymentLink:
+          type: string
+        paidAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
     DocView:
       type: object
       properties:
@@ -2782,6 +3257,18 @@ components:
         platform:
           type: string
         provider:
+          type: string
+    SelfPlanRequest:
+      required:
+      - planCode
+      type: object
+      properties:
+        planCode:
+          type: string
+    PayLinkResponse:
+      type: object
+      properties:
+        paymentLink:
           type: string
     ProfileRequest:
       required:
@@ -3042,6 +3529,18 @@ components:
         totalTickets:
           type: integer
           format: int64
+    ProviderTierView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        tier:
+          type: string
+        verificationStatus:
+          type: string
     MeResponse:
       type: object
       properties:
@@ -3100,6 +3599,43 @@ components:
           type: string
         brandPrimaryColor:
           type: string
+    MyBillingView:
+      type: object
+      properties:
+        subjectType:
+          type: string
+        subjectId:
+          type: string
+          format: uuid
+        providerTier:
+          type: string
+        plan:
+          $ref: '#/components/schemas/PlanView'
+        subscription:
+          $ref: '#/components/schemas/SubscriptionView'
+        usage:
+          type: array
+          items:
+            $ref: '#/components/schemas/UsageView'
+        dueInvoices:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceView'
+        upgradeOptions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanView'
+    UsageView:
+      type: object
+      properties:
+        feature:
+          type: string
+        limit:
+          type: integer
+          format: int64
+        used:
+          type: integer
+          format: int64
     JoinRequestView:
       type: object
       properties:
