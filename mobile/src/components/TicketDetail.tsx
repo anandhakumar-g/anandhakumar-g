@@ -117,6 +117,9 @@ export function TicketDetail({ ticketId, role }: { ticketId: string; role: Role 
             {ratingText(tk.assignedProvider.ratingAvg, tk.assignedProvider.ratingCount) ? (
               <Pill text={ratingText(tk.assignedProvider.ratingAvg, tk.assignedProvider.ratingCount)!} />
             ) : null}
+            {tk.assignedProvider.availability && tk.assignedProvider.availability !== "AVAILABLE" ? (
+              <Pill text={tk.assignedProvider.availability.toLowerCase()} tone="danger" />
+            ) : null}
           </View>
           <KeyValue k="Contact" v={tk.assignedProvider.phone} />
         </Card>
@@ -130,6 +133,9 @@ export function TicketDetail({ ticketId, role }: { ticketId: string; role: Role 
           <KeyValue k="Resident" v={tk.raisedBy.name} />
           <KeyValue k="Contact" v={tk.raisedBy.phone} />
           <KeyValue k="Flat" v={tk.flatLabel} />
+          {tk.raisedBy.awayUntil && new Date(tk.raisedBy.awayUntil).getTime() > Date.now() ? (
+            <Pill text={`Away until ${new Date(tk.raisedBy.awayUntil).toLocaleDateString()}`} tone="primary" />
+          ) : null}
         </Card>
       ) : null}
 
@@ -343,7 +349,7 @@ function ActionArea(props: any) {
 function ProviderPicker({ onPick, onCancel }: { onPick: (p: ProviderView) => void; onCancel: () => void }) {
   const { theme } = useTheme();
   const [sort, setSort] = useState<"rating" | undefined>(undefined);
-  const list = useAsync(() => admin.providers(sort), [sort]);
+  const list = useAsync(() => admin.providers({ sort }), [sort]);
   return (
     <Card style={{ gap: theme.space(2), borderColor: theme.color.primary }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
@@ -378,6 +384,7 @@ function ProviderPicker({ onPick, onCancel }: { onPick: (p: ProviderView) => voi
             <AppText weight="600">{p.name}</AppText>
             <AppText size="xs" tone="faint">
               {ratingText(p.ratingAvg, p.ratingCount) ?? p.verificationStatus}
+              {p.availability !== "AVAILABLE" ? ` · ${p.availability.toLowerCase()}` : ""}
               {disabled ? " · not assignable" : ""}
             </AppText>
           </Pressable>

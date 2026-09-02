@@ -41,23 +41,30 @@ public class AdminProviderController {
                                         boolean company, @NotBlank String contactPhone,
                                         String contactEmail, String serviceArea) { }
     public record VerifyRequest(@NotBlank String status) { }
+    public record UpdateProviderRequest(String name, String vendorCategoryId, String contactPhone,
+                                        String contactEmail, String serviceArea) { }
     public record ProviderView(UUID id, String name, String vendorCategoryId, boolean company,
                                String contactPhoneMasked, String verificationStatus, String tier,
-                               boolean active, boolean assignable,
+                               boolean active, boolean assignable, String availability, String availabilityNote,
                                java.math.BigDecimal ratingAvg, int ratingCount) {
         static ProviderView of(ServiceProvider p) {
             return new ProviderView(p.getId(), p.getName(), p.getVendorCategoryId().toString(), p.isCompany(),
                     PhoneNumbers.mask(p.getContactPhone()), p.getVerificationStatus().name(),
                     p.getTier().name(), p.isActive(), p.isAssignable(),
+                    p.getAvailability().name(), p.getAvailabilityNote(),
                     p.getRatingAvg(), p.getRatingCount());
         }
     }
 
     @GetMapping
+    @Operation(summary = "This community's providers. ?includeInactive=true also lists deactivated enrolments")
     public ResponseEntity<List<ProviderView>> directory(@AuthenticationPrincipal AppPrincipal p,
-                                                        @RequestParam(required = false) String sort) {
-        return ResponseEntity.ok(providerService.directoryForTenant(tenant(p), sort).stream()
-                .map(ProviderView::of).toList());
+                                                        @RequestParam(required = false) String sort,
+                                                        @RequestParam(defaultValue = "false") boolean includeInactive) {
+        var providers = includeInactive
+                ? providerService.allForTenant(tenant(p))
+                : providerService.directoryForTenant(tenant(p), sort);
+        return ResponseEntity.ok(providers.stream().map(ProviderView::of).toList());
     }
 
     @PostMapping
@@ -69,15 +76,41 @@ public class AdminProviderController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ProviderView.of(sp));
     }
 
+    @PutMapping("/{providerId}")
+    @Operation(summary = "Edit a provider enrolled in this community")
+    public ResponseEntity<ProviderView> update(@AuthenticationPrincipal AppPrincipal p,
+                                               @PathVariable UUID providerId,
+                                               @RequestBody UpdateProviderRequest body) {
+        return ResponseEntity.ok(ProviderView.of(providerService.updateForTenant(
+                tenant(p), providerId, body.name(), body.contactPhone(), body.contactEmail(),
+                body.serviceArea(),
+                body.vendorCategoryId() != null ? UUID.fromString(body.vendorCategoryId()) : null)));
+    }
+
+    @PostMapping("/{providerId}/deactivate")
+    @Operation(summary = "Remove a provider from this community's directory (keeps them elsewhere)")
+    public ResponseEntity<ProviderView> deactivate(@AuthenticationPrincipal AppPrincipal p,
+                                                   @PathVariable UUID providerId) {
+        return ResponseEntity.ok(ProviderView.of(
+                providerService.setEnrolmentActive(tenant(p), providerId, false)));
+    }
+
+    @PostMapping("/{providerId}/reactivate")
+    public ResponseEntity<ProviderView> reactivate(@AuthenticationPrincipal AppPrincipal p,
+                                                   @PathVariable UUID providerId) {
+        return ResponseEntity.ok(ProviderView.of(
+                providerService.setEnrolmentActive(tenant(p), providerId, true)));
+    }
+
     @PostMapping("/{providerId}/verify")
     @Operation(summary = "Set verification status (VERIFIED / REJECTED / SUSPENDED / PENDING_VERIFICATION)")
     public ResponseEntity<ProviderView> verify(@AuthenticationPrincipal AppPrincipal p,
                                                @PathVariable UUID providerId,
                                                @Valid @RequestBody VerifyRequest body) {
         // ensure the provider is enrolled in this admin's tenant before touching global verification
-        boolean enrolled = providerService.directoryForTenant(tenant(p)).stream()
-                .anyMatch(sp -> sp.getId().equals(providerId));
-        if (!enrolled) throw AppException.notFound("Service provider");
+        if (!providerService.isEnrolledAndActive(tenant(p), providerId)) {
+            throw AppException.notFound("Service provider");
+        }
         VerificationStatus status = VerificationStatus.valueOf(body.status().toUpperCase());
         return ResponseEntity.ok(ProviderView.of(
                 providerService.setVerification(providerId, status, p.getUserId())));

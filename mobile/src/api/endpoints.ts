@@ -2,9 +2,9 @@ import { api, uploadFile } from "./client";
 import {
   AdminVendorCategory, AttachmentView, Category, CommunitySettings, FlatView, InvoiceView, InviteView,
   JoinRequestView, KycDocView, MeResponse, MyBillingView, NotificationPreferences, OfferStatus, OfferView,
-  Page, PaymentView, PlanView, ProviderTier, ProviderView, ReceiptView, RedemptionView, SessionResponse,
-  SubscriptionStatus, SubscriptionView, SubjectType, TenantCard, TicketCategory, TicketView, TimelineEntry,
-  VendorCategory, VendorCategoryKind,
+  Page, PaymentView, PlanView, ProviderProfile, ProviderTier, ProviderView, ReceiptView, RedemptionView,
+  SessionResponse, SubscriptionStatus, SubscriptionView, SubjectType, TenantCard, TicketCategory, TicketView,
+  TimelineEntry, VendorCategory, VendorCategoryKind,
 } from "./types";
 
 type TicketCategoryBody = Partial<{
@@ -26,6 +26,7 @@ export const me = {
   setTheme: (theme: string) => api.put<void>("/me/theme", { theme }),
   registerDevice: (token: string, platform: string, provider = "expo") =>
     api.post<void>("/me/devices", { token, platform, provider }),
+  setAwayUntil: (awayUntil: string | null) => api.put<void>("/me/away-until", { awayUntil }),
   notificationPreferences: () => api.get<NotificationPreferences>("/me/notification-preferences"),
   updateNotificationPreferences: (body: Partial<NotificationPreferences>) =>
     api.put<NotificationPreferences>("/me/notification-preferences", body),
@@ -237,10 +238,22 @@ export const admin = {
   communitySettings: () => api.get<CommunitySettings>("/admin/community-settings"),
   updateCommunitySettings: (body: Partial<{ reopenWindowHours: number; requireAllocationApproval: boolean }>) =>
     api.put<CommunitySettings>("/admin/community-settings", body),
-  providers: (sort?: "rating") => api.get<ProviderView[]>("/admin/providers", { query: { sort } }),
+  providers: (opts?: { sort?: "rating"; includeInactive?: boolean }) =>
+    api.get<ProviderView[]>("/admin/providers", { query: { sort: opts?.sort, includeInactive: opts?.includeInactive } }),
   addProvider: (body: {
     name: string; vendorCategoryId: string; company: boolean; contactPhone: string;
     contactEmail?: string; serviceArea?: string;
   }) => api.post<ProviderView>("/admin/providers", body),
+  updateProvider: (id: string, body: Partial<{
+    name: string; vendorCategoryId: string; contactPhone: string; contactEmail: string; serviceArea: string;
+  }>) => api.put<ProviderView>(`/admin/providers/${id}`, body),
+  deactivateProvider: (id: string) => api.post<ProviderView>(`/admin/providers/${id}/deactivate`, {}),
+  reactivateProvider: (id: string) => api.post<ProviderView>(`/admin/providers/${id}/reactivate`, {}),
   verifyProvider: (id: string, status: string) => api.post<ProviderView>(`/admin/providers/${id}/verify`, { status }),
+};
+
+export const providerProfile = {
+  get: () => api.get<ProviderProfile>("/provider/profile"),
+  update: (body: Partial<{ contactEmail: string; serviceArea: string; availability: string; availabilityNote: string }>) =>
+    api.put<ProviderProfile>("/provider/profile", body),
 };

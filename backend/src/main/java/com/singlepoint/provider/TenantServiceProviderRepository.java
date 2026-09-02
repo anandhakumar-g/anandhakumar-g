@@ -11,6 +11,8 @@ public interface TenantServiceProviderRepository extends JpaRepository<TenantSer
 
     List<TenantServiceProvider> findByTenantIdAndActiveTrue(UUID tenantId);
 
+    List<TenantServiceProvider> findByTenantId(UUID tenantId);
+
     List<TenantServiceProvider> findByServiceProviderIdAndActiveTrue(UUID serviceProviderId);
 
     Optional<TenantServiceProvider> findByTenantIdAndServiceProviderId(UUID tenantId, UUID serviceProviderId);

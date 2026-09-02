@@ -78,7 +78,15 @@ public class MeController {
 
         return ResponseEntity.ok(new MeDtos.MeResponse(u.getId(), u.getRole().name(), u.getName(),
                 PhoneNumbers.mask(u.getPhone()), u.getEmail(), u.isProfileCompleted(), u.getPreferredTheme(),
-                activeTenant, branding, views));
+                activeTenant, branding, views, u.getAwayUntil()));
+    }
+
+    @PutMapping("/away-until")
+    @Operation(summary = "Mark yourself away until a date (or clear it with a null value)")
+    public ResponseEntity<Void> setAwayUntil(@AuthenticationPrincipal AppPrincipal principal,
+                                             @RequestBody MeDtos.AwayRequest body) {
+        userService.setAwayUntil(principal.getUserId(), body.awayUntil());
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/theme")

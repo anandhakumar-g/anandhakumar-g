@@ -68,6 +68,13 @@ public class UserService {
         return userRepository.save(u);
     }
 
+    @Transactional
+    public AppUser setAwayUntil(UUID userId, java.time.Instant awayUntil) {
+        AppUser u = require(userId);
+        u.setAwayUntil(awayUntil);
+        return userRepository.save(u);
+    }
+
     @Transactional(readOnly = true)
     public List<UserTenantMembership> memberships(UUID userId) {
         return membershipRepository.findByUserId(userId);

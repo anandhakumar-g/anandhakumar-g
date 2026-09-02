@@ -13,7 +13,7 @@ import { useTheme } from "@/theme/ThemeProvider";
 
 export default function Providers() {
   const { theme } = useTheme();
-  const list = useAsync(() => admin.providers(), []);
+  const list = useAsync(() => admin.providers({ includeInactive: true }), []);
   const vcats = useAsync(() => catalog.vendorCategories(), []);
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
@@ -22,6 +22,22 @@ export default function Providers() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [openKyc, setOpenKyc] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editEmail, setEditEmail] = useState("");
+  const [editArea, setEditArea] = useState("");
+
+  async function act(id: string, fn: () => Promise<any>) {
+    setBusyId(id);
+    setErr(null);
+    try {
+      await fn();
+      list.reload();
+    } catch (e: any) {
+      setErr(e.message ?? "Failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -123,17 +139,50 @@ export default function Providers() {
               </View>
             </View>
             <AppText size="xs" tone="faint">
-              {p.contactPhoneMasked} · {p.assignable ? "assignable" : "not assignable"}
+              {p.contactPhoneMasked} · {p.active ? (p.assignable ? "assignable" : "not assignable") : "deactivated here"}
+              {p.availability !== "AVAILABLE" ? ` · ${p.availability.toLowerCase()}` : ""}
+              {p.availabilityNote ? ` (${p.availabilityNote})` : ""}
             </AppText>
 
-            <AppText
-              tone="primary"
-              size="sm"
-              onPress={() => setOpenKyc((cur) => (cur === p.id ? null : p.id))}
-            >
-              {openKyc === p.id ? "Hide KYC documents" : "Review KYC documents"}
-            </AppText>
+            <View style={{ flexDirection: "row", gap: theme.space(3) }}>
+              <AppText
+                tone="primary"
+                size="sm"
+                onPress={() => setOpenKyc((cur) => (cur === p.id ? null : p.id))}
+              >
+                {openKyc === p.id ? "Hide KYC" : "Review KYC"}
+              </AppText>
+              <AppText
+                tone="primary"
+                size="sm"
+                onPress={() => {
+                  setEditId((cur) => (cur === p.id ? null : p.id));
+                  setEditEmail("");
+                  setEditArea("");
+                }}
+              >
+                {editId === p.id ? "Cancel edit" : "Edit"}
+              </AppText>
+            </View>
             {openKyc === p.id ? <KycPanel providerId={p.id} /> : null}
+            {editId === p.id ? (
+              <View style={{ gap: theme.space(2) }}>
+                <Field placeholder="Contact email" value={editEmail} onChangeText={setEditEmail} />
+                <Field placeholder="Service area" value={editArea} onChangeText={setEditArea} />
+                <Button
+                  label="Save"
+                  fullWidth={false}
+                  loading={busyId === p.id}
+                  onPress={() => act(p.id, async () => {
+                    await admin.updateProvider(p.id, {
+                      contactEmail: editEmail.trim() || undefined,
+                      serviceArea: editArea.trim() || undefined,
+                    });
+                    setEditId(null);
+                  })}
+                />
+              </View>
+            ) : null}
 
             <View style={{ flexDirection: "row", gap: theme.space(2), flexWrap: "wrap" }}>
               {p.verificationStatus !== "VERIFIED" ? (
@@ -144,6 +193,13 @@ export default function Providers() {
               {p.verificationStatus !== "REJECTED" ? (
                 <Button label="Reject" variant="danger" fullWidth={false} loading={busyId === p.id} onPress={() => setStatus(p, "REJECTED")} />
               ) : null}
+              {p.active ? (
+                <Button label="Remove from directory" variant="secondary" fullWidth={false}
+                  loading={busyId === p.id} onPress={() => act(p.id, () => admin.deactivateProvider(p.id))} />
+              ) : (
+                <Button label="Restore" fullWidth={false}
+                  loading={busyId === p.id} onPress={() => act(p.id, () => admin.reactivateProvider(p.id))} />
+              )}
             </View>
           </Card>
         ))

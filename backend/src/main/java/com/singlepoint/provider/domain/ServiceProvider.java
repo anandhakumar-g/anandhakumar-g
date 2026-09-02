@@ -68,6 +68,13 @@ public class ServiceProvider extends BaseEntity {
     @Column(name = "active", nullable = false)
     private boolean active = true;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "availability", nullable = false, length = 12)
+    private Availability availability = Availability.AVAILABLE;
+
+    @Column(name = "availability_note", length = 200)
+    private String availabilityNote;
+
     /** Mean of resident ratings across this provider's closed tickets; null until the first rating. */
     @Column(name = "rating_avg", precision = 3, scale = 2)
     private java.math.BigDecimal ratingAvg;

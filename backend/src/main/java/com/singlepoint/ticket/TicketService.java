@@ -490,9 +490,11 @@ public class TicketService {
             throw new AppException(ErrorCode.PROVIDER_NOT_ASSIGNABLE,
                     "Provider's listing plan is not active");
         }
-        if (!tenantProviderRepository.existsByTenantIdAndServiceProviderId(tenantId, providerId)) {
+        boolean enrolledActive = tenantProviderRepository.findByTenantIdAndServiceProviderId(tenantId, providerId)
+                .map(com.singlepoint.provider.domain.TenantServiceProvider::isActive).orElse(false);
+        if (!enrolledActive) {
             throw new AppException(ErrorCode.PROVIDER_NOT_ASSIGNABLE,
-                    "Provider is not enrolled in this community");
+                    "Provider is not active in this community");
         }
         return p;
     }

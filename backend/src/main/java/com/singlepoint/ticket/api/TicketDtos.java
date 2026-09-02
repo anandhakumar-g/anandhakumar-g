@@ -34,7 +34,8 @@ public final class TicketDtos {
     public record CloseRequest(Integer rating, String remarks) { }
 
     public record PartyView(String name, String phone, String verificationStatus, String tier,
-                            java.math.BigDecimal ratingAvg, Integer ratingCount) { }
+                            java.math.BigDecimal ratingAvg, Integer ratingCount,
+                            String availability, Instant awayUntil) { }
 
     public record TimelineEntry(String fromStatus, String toStatus, String actorRole, String actorName,
                                 String remarks, Instant at) { }

@@ -46,6 +46,21 @@ export interface MeResponse {
   activeTenantId: string | null;
   activeTenantBranding: TenantBranding | null;
   memberships: MembershipView[];
+  awayUntil: string | null;
+}
+
+export type Availability = "AVAILABLE" | "BUSY" | "AWAY";
+
+export interface ProviderProfile {
+  id: string;
+  name: string;
+  contactPhoneMasked: string;
+  contactEmail: string | null;
+  serviceArea: string | null;
+  availability: Availability;
+  availabilityNote: string | null;
+  verificationStatus: string;
+  tier: string;
 }
 
 export interface TenantCard {
@@ -94,6 +109,8 @@ export interface PartyView {
   tier: string | null;
   ratingAvg: number | null;
   ratingCount: number | null;
+  availability: string | null;
+  awayUntil: string | null;
 }
 
 export interface TicketView {
@@ -190,6 +207,8 @@ export interface ProviderView {
   assignable: boolean;
   ratingAvg: number | null;
   ratingCount: number;
+  availability: Availability;
+  availabilityNote: string | null;
 }
 
 export interface JoinRequestView {

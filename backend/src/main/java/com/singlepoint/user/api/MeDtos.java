@@ -16,9 +16,12 @@ public final class MeDtos {
 
     public record MeResponse(UUID userId, String role, String name, String phoneMasked, String email,
                              boolean profileCompleted, String preferredTheme, UUID activeTenantId,
-                             TenantBranding activeTenantBranding, List<MembershipView> memberships) { }
+                             TenantBranding activeTenantBranding, List<MembershipView> memberships,
+                             java.time.Instant awayUntil) { }
 
     public record ThemeRequest(@NotBlank String theme) { }
+
+    public record AwayRequest(java.time.Instant awayUntil) { }
 
     public record JoinRequest(@NotBlank String tenantId, String inviteCode, String requestedFlatLabel) { }
 

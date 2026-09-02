@@ -15,9 +15,11 @@ import { THEMES, THEME_LABELS, ThemeName } from "@/theme/tokens";
 export function SettingsScreen({
   showOfferPrefs = false,
   showBilling = false,
+  children,
 }: {
   showOfferPrefs?: boolean;
   showBilling?: boolean;
+  children?: React.ReactNode;
 }) {
   const { theme, themeName, isExplicit, setTheme } = useTheme();
   const { me, user, signOut, refreshMe } = useSession();
@@ -101,6 +103,8 @@ export function SettingsScreen({
         })}
         <Button label="Use community default" variant="ghost" onPress={() => choose(null)} />
       </Card>
+
+      {children}
 
       {showBilling ? <BillingCard /> : null}
 

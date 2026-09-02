@@ -65,4 +65,8 @@ public class AppUser extends BaseEntity {
 
     @Column(name = "profile_completed", nullable = false)
     private boolean profileCompleted = false;
+
+    /** Self-reported: the user is away until this instant. Informational only. */
+    @Column(name = "away_until")
+    private java.time.Instant awayUntil;
 }
