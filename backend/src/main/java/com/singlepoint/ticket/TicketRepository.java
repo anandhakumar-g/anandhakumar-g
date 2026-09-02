@@ -39,4 +39,6 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
     List<UUID> findDistinctRaiserIdsByCategoryId(UUID categoryId);
 
     boolean existsByRaisedByUserIdAndCategoryId(UUID raisedByUserId, UUID categoryId);
+
+    long countByTenantIdAndCreatedAtAfter(UUID tenantId, Instant after);
 }

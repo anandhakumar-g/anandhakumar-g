@@ -34,13 +34,16 @@ public class SuperAdminController {
     private final AppUserRepository userRepository;
     private final TicketRepository ticketRepository;
     private final CryptoService crypto;
+    private final com.singlepoint.entitlement.EntitlementService entitlements;
 
     public SuperAdminController(TenantService tenantService, AppUserRepository userRepository,
-                               TicketRepository ticketRepository, CryptoService crypto) {
+                               TicketRepository ticketRepository, CryptoService crypto,
+                               com.singlepoint.entitlement.EntitlementService entitlements) {
         this.tenantService = tenantService;
         this.userRepository = userRepository;
         this.ticketRepository = ticketRepository;
         this.crypto = crypto;
+        this.entitlements = entitlements;
     }
 
     @PostMapping("/tenants")
@@ -57,6 +60,8 @@ public class SuperAdminController {
     public ResponseEntity<AdminCreated> createAdmin(@PathVariable String tenantId,
                                                     @Valid @RequestBody TenantDtos.CreateAdminRequest body) {
         Tenant tenant = tenantService.require(java.util.UUID.fromString(tenantId));
+        entitlements.requireWithinQuota(com.singlepoint.billing.domain.SubjectType.TENANT, tenant.getId(),
+                "ADMIN_SEATS", userRepository.countByRoleAndCurrentTenantId(Role.ADMIN, tenant.getId()));
         String phone = PhoneNumbers.normalize(body.phone());
         String phoneHash = crypto.lookupHash(phone);
         if (userRepository.findByPhoneHash(phoneHash).isPresent()) {

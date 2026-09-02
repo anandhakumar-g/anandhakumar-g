@@ -9,6 +9,7 @@ import com.singlepoint.payment.domain.PaymentEvent;
 import com.singlepoint.payment.domain.PaymentReceipt;
 import com.singlepoint.payment.domain.TicketPayment;
 import com.singlepoint.payment.gateway.PaymentGateway;
+import com.singlepoint.payment.gateway.WebhookFallback;
 import com.singlepoint.provider.ServiceProviderRepository;
 import com.singlepoint.provider.domain.ServiceProvider;
 import com.singlepoint.security.AppPrincipal;
@@ -40,12 +41,14 @@ public class PaymentService {
     private final ServiceProviderRepository providerRepository;
     private final OtpService otpService;
     private final DomainEventPublisher domainEvents;
+    private final List<WebhookFallback> webhookFallbacks;
     private final String currency;
 
     public PaymentService(TicketPaymentRepository payments, PaymentReceiptRepository receipts,
                           PaymentEventRepository events, PaymentGateway gateway, TicketRepository ticketRepository,
                           AppUserRepository userRepository, ServiceProviderRepository providerRepository,
                           OtpService otpService, DomainEventPublisher domainEvents,
+                          List<WebhookFallback> webhookFallbacks,
                           @Value("${sp.payment.currency:INR}") String currency) {
         this.payments = payments;
         this.receipts = receipts;
@@ -56,6 +59,7 @@ public class PaymentService {
         this.providerRepository = providerRepository;
         this.otpService = otpService;
         this.domainEvents = domainEvents;
+        this.webhookFallbacks = webhookFallbacks;
         this.currency = currency;
     }
 
@@ -178,7 +182,13 @@ public class PaymentService {
     public void handleWebhook(String gatewayName, Map<String, String> headers, String rawBody) {
         PaymentGateway.WebhookResult res = gateway.verifyAndParse(headers, rawBody);
         TicketPayment p = payments.findByGatewayRef(res.gatewayRef()).orElse(null);
-        if (p == null) return; // unknown ref — ignore
+        if (p == null) {
+            // not a ticket payment — let another module (e.g. subscription invoices) claim it
+            for (WebhookFallback fb : webhookFallbacks) {
+                if (fb.tryHandle(res.gatewayRef(), res.paid())) return;
+            }
+            return; // unknown ref — ignore
+        }
         events.save(PaymentEvent.of(p, "WEBHOOK", "paid=" + res.paid()));
         if (p.getStatus().isPaid()) return; // idempotent replay
         if (!res.paid()) return;

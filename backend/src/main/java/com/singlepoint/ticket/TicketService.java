@@ -48,12 +48,14 @@ public class TicketService {
     private final TenantRepository tenantRepository;
     private final DomainEventPublisher events;
     private final StorageService storageService;
+    private final com.singlepoint.entitlement.EntitlementService entitlements;
 
     public TicketService(TicketRepository ticketRepository, TicketStatusHistoryRepository historyRepository,
                          TicketAttachmentRepository attachmentRepository, CategoryRepository categoryRepository,
                          FlatRepository flatRepository, ServiceProviderRepository providerRepository,
                          TenantServiceProviderRepository tenantProviderRepository, AppUserRepository userRepository,
-                         TenantRepository tenantRepository, DomainEventPublisher events, StorageService storageService) {
+                         TenantRepository tenantRepository, DomainEventPublisher events, StorageService storageService,
+                         com.singlepoint.entitlement.EntitlementService entitlements) {
         this.ticketRepository = ticketRepository;
         this.historyRepository = historyRepository;
         this.attachmentRepository = attachmentRepository;
@@ -65,6 +67,12 @@ public class TicketService {
         this.tenantRepository = tenantRepository;
         this.events = events;
         this.storageService = storageService;
+        this.entitlements = entitlements;
+    }
+
+    public static java.time.Instant monthStart() {
+        return java.time.YearMonth.now(java.time.ZoneOffset.UTC)
+                .atDay(1).atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
     }
 
     private final TicketStateMachine stateMachine = new TicketStateMachine();
@@ -81,6 +89,8 @@ public class TicketService {
             throw new AppException(ErrorCode.FORBIDDEN, "Only residents can raise tickets");
         }
         UUID tenantId = requireTenant(principal);
+        entitlements.requireWithinQuota(com.singlepoint.billing.domain.SubjectType.TENANT, tenantId,
+                "TICKETS_PER_MONTH", ticketRepository.countByTenantIdAndCreatedAtAfter(tenantId, monthStart()));
         Category category = categoryRepository.findById(cmd.categoryId())
                 .orElseThrow(() -> AppException.notFound("Category"));
 
@@ -388,6 +398,12 @@ public class TicketService {
         if (!p.isAssignable()) {
             throw new AppException(ErrorCode.PROVIDER_NOT_ASSIGNABLE,
                     "Provider must be verified and active before assignment");
+        }
+        var pSubject = com.singlepoint.billing.domain.SubjectType.PROVIDER;
+        if (!entitlements.isEntitled(pSubject, p.getId(), "DIRECTORY_LISTING")
+                || entitlements.isLapsed(pSubject, p.getId())) {
+            throw new AppException(ErrorCode.PROVIDER_NOT_ASSIGNABLE,
+                    "Provider's listing plan is not active");
         }
         if (!tenantProviderRepository.existsByTenantIdAndServiceProviderId(tenantId, providerId)) {
             throw new AppException(ErrorCode.PROVIDER_NOT_ASSIGNABLE,

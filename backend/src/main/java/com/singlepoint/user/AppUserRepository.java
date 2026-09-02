@@ -16,5 +16,7 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
 
     List<AppUser> findByRoleAndCurrentTenantId(Role role, UUID currentTenantId);
 
+    long countByRoleAndCurrentTenantId(Role role, UUID currentTenantId);
+
     boolean existsByRole(Role role);
 }

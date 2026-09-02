@@ -25,18 +25,21 @@ public class ProviderService {
     private final VendorCategoryRepository vendorCategoryRepository;
     private final AppUserRepository userRepository;
     private final CryptoService crypto;
+    private final com.singlepoint.entitlement.EntitlementService entitlements;
 
     public ProviderService(ServiceProviderRepository providerRepository,
                            TenantServiceProviderRepository tenantProviderRepository,
                            VendorCategoryRepository vendorCategoryRepository,
                            AppUserRepository userRepository, CryptoService crypto,
-                           com.singlepoint.provider.kyc.KycService kycService) {
+                           com.singlepoint.provider.kyc.KycService kycService,
+                           com.singlepoint.entitlement.EntitlementService entitlements) {
         this.providerRepository = providerRepository;
         this.tenantProviderRepository = tenantProviderRepository;
         this.vendorCategoryRepository = vendorCategoryRepository;
         this.userRepository = userRepository;
         this.crypto = crypto;
         this.kycService = kycService;
+        this.entitlements = entitlements;
     }
 
     private final com.singlepoint.provider.kyc.KycService kycService;
@@ -92,11 +95,28 @@ public class ProviderService {
         return providerRepository.save(p);
     }
 
+    /** Featured providers first, then by name. Lapsed / unlisted providers are excluded. */
     @Transactional(readOnly = true)
     public List<ServiceProvider> directoryForTenant(UUID tenantId) {
         List<UUID> ids = tenantProviderRepository.findByTenantIdAndActiveTrue(tenantId)
                 .stream().map(TenantServiceProvider::getServiceProviderId).toList();
-        return providerRepository.findAllById(ids);
+        var pSubject = com.singlepoint.billing.domain.SubjectType.PROVIDER;
+        return providerRepository.findAllById(ids).stream()
+                .filter(p -> entitlements.isEntitled(pSubject, p.getId(), "DIRECTORY_LISTING")
+                        && !entitlements.isLapsed(pSubject, p.getId()))
+                .sorted((a, b) -> {
+                    int t = Boolean.compare(b.getTier() == com.singlepoint.provider.domain.ProviderTier.FEATURED,
+                            a.getTier() == com.singlepoint.provider.domain.ProviderTier.FEATURED);
+                    return t != 0 ? t : a.getName().compareToIgnoreCase(b.getName());
+                })
+                .toList();
+    }
+
+    @Transactional
+    public ServiceProvider setTier(UUID providerId, com.singlepoint.provider.domain.ProviderTier tier) {
+        ServiceProvider p = require(providerId);
+        p.setTier(tier);
+        return providerRepository.save(p);
     }
 
     @Transactional(readOnly = true)

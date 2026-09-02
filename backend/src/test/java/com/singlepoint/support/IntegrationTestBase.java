@@ -46,6 +46,7 @@ public abstract class IntegrationTestBase {
             TRUNCATE TABLE
               audit_log, notification, notification_outbox, otp_challenge, device_token,
               notification_preference,
+              subscription_invoice, subscription, subscription_plan,
               payment_event, payment_receipt, ticket_payment,
               offer_redemption, offer_target, offer,
               provider_kyc_document,
@@ -75,6 +76,12 @@ public abstract class IntegrationTestBase {
               ('MAINTENANCE','Home & Maintenance',10), ('FOOD_DINING','Food & Dining',20),
               ('RETAIL','Shops & Retail',30), ('TRAVEL','Travel',40), ('ACCOMMODATION','Stays',50),
               ('EVENTS_ENTERTAINMENT','Events & Entertainment',60), ('OTHER','Other',99);
+            INSERT INTO subscription_plan (target, code, name, billing_cycle, price_amount, entitlements, is_default, sort_order) VALUES
+              ('TENANT',  'TENANT_FREE',     'Community Free',     'MONTHLY',    0, '{"TICKETS_PER_MONTH":-1,"ADMIN_SEATS":5,"OFFERS_PER_MONTH":10}',  true,  10),
+              ('TENANT',  'TENANT_STANDARD', 'Community Standard', 'MONTHLY', 2999, '{"TICKETS_PER_MONTH":-1,"ADMIN_SEATS":15,"OFFERS_PER_MONTH":40}', false, 20),
+              ('TENANT',  'TENANT_PLUS',     'Community Plus',     'MONTHLY', 5999, '{"TICKETS_PER_MONTH":-1,"ADMIN_SEATS":-1,"OFFERS_PER_MONTH":-1}', false, 30),
+              ('PROVIDER','PROVIDER_FREE',   'Vendor Free',        'MONTHLY',    0, '{"DIRECTORY_LISTING":1,"OFFERS_PER_MONTH":8}',   true,  10),
+              ('PROVIDER','PROVIDER_LISTING','Vendor Listing',     'MONTHLY',  499, '{"DIRECTORY_LISTING":1,"OFFERS_PER_MONTH":40}',  false, 20);
             """;
 
     @Autowired protected TestRestTemplate rest;

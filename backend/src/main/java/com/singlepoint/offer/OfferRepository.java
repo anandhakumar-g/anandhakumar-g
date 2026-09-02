@@ -18,4 +18,8 @@ public interface OfferRepository extends JpaRepository<Offer, UUID> {
     Page<Offer> findByStatusOrderByCreatedAtDesc(Offer.Status status, Pageable pageable);
 
     List<Offer> findByStatusAndValidToBefore(Offer.Status status, Instant cutoff);
+
+    long countByServiceProviderIdAndCreatedAtAfter(UUID serviceProviderId, Instant after);
+
+    long countByTenantIdAndCreatedAtAfter(UUID tenantId, Instant after);
 }

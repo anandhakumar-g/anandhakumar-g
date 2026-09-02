@@ -34,11 +34,13 @@ public class OfferService {
     private final ServiceProviderRepository providerRepository;
     private final TicketRepository ticketRepository;
     private final DomainEventPublisher events;
+    private final com.singlepoint.entitlement.EntitlementService entitlements;
 
     public OfferService(OfferRepository offerRepository, OfferTargetRepository targetRepository,
                         OfferRedemptionRepository redemptionRepository, OfferTargetingService targetingService,
                         VendorCategoryRepository vendorCategoryRepository, ServiceProviderRepository providerRepository,
-                        TicketRepository ticketRepository, DomainEventPublisher events) {
+                        TicketRepository ticketRepository, DomainEventPublisher events,
+                        com.singlepoint.entitlement.EntitlementService entitlements) {
         this.offerRepository = offerRepository;
         this.targetRepository = targetRepository;
         this.redemptionRepository = redemptionRepository;
@@ -47,6 +49,7 @@ public class OfferService {
         this.providerRepository = providerRepository;
         this.ticketRepository = ticketRepository;
         this.events = events;
+        this.entitlements = entitlements;
     }
 
     public record OfferCommand(UUID vendorCategoryId, String title, String description,
@@ -66,12 +69,17 @@ public class OfferService {
         Offer o = new Offer();
         o.setCreatedByUserId(principal.getUserId());
         o.setCreatedByRole(principal.getRole().name());
+        var monthStart = com.singlepoint.ticket.TicketService.monthStart();
         if (principal.getRole() == Role.PROVIDER) {
             ServiceProvider sp = providerRepository.findByUserId(principal.getUserId())
                     .orElseThrow(() -> new AppException(ErrorCode.FORBIDDEN, "No provider profile"));
             o.setServiceProviderId(sp.getId());
+            entitlements.requireWithinQuota(com.singlepoint.billing.domain.SubjectType.PROVIDER, sp.getId(),
+                    "OFFERS_PER_MONTH", offerRepository.countByServiceProviderIdAndCreatedAtAfter(sp.getId(), monthStart));
         } else if (principal.getRole() == Role.ADMIN) {
             o.setTenantId(principal.getTenantId());
+            entitlements.requireWithinQuota(com.singlepoint.billing.domain.SubjectType.TENANT, principal.getTenantId(),
+                    "OFFERS_PER_MONTH", offerRepository.countByTenantIdAndCreatedAtAfter(principal.getTenantId(), monthStart));
         } else {
             throw new AppException(ErrorCode.FORBIDDEN, "Only vendors and admins can author offers");
         }
@@ -184,7 +192,13 @@ public class OfferService {
                 .getContent().stream()
                 .filter(o -> o.isLive(now))
                 .filter(o -> isTargeted(o, principal))
+                .sorted((a, b) -> Boolean.compare(isFeatured(b), isFeatured(a)))
                 .toList();
+    }
+
+    private boolean isFeatured(Offer o) {
+        return o.getServiceProviderId() != null && providerRepository.findById(o.getServiceProviderId())
+                .map(p -> p.getTier() == com.singlepoint.provider.domain.ProviderTier.FEATURED).orElse(false);
     }
 
     private boolean isTargeted(Offer offer, AppPrincipal principal) {
