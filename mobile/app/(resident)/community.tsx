@@ -91,6 +91,14 @@ export default function MyCommunities() {
                 onPress={() => run("switch" + m.tenantId, () => switchCommunity(m.tenantId))}
               />
             ) : null}
+            {m.flatId ? (
+              <Button
+                label="Household"
+                variant="secondary"
+                fullWidth={false}
+                onPress={() => router.push(`/(resident)/household?flatId=${m.flatId}` as any)}
+              />
+            ) : null}
             <Button
               label="Leave"
               variant="danger"
