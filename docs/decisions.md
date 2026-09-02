@@ -4,6 +4,55 @@ Short ADRs. Newest first.
 
 ---
 
+## ADR-028 — Household model: multi-flat membership, PRIMARY / SECONDARY
+**Decision (MVP-6):** a `user_tenant_membership` is now the link between a user and **a flat in
+a community**, not just a community. `V21` swaps the `(user_id, tenant_id)` active-unique index
+for `(user_id, flat_id)` (plus a flat-less-request guard and a one-PRIMARY-per-flat index), and
+adds `household_role` (`PRIMARY` | `SECONDARY`, default PRIMARY) + `invited_by_user_id`. One
+person can therefore hold flats in several communities, or several flats in one. The first
+person attached to a flat (admin invite / admin approval) is PRIMARY; a PRIMARY issues a
+`HOUSEHOLD` invite code (`invite_code.kind`) that joins family members as SECONDARY with **no
+admin step**. SECONDARY members raise/track their own requests and redeem offers but cannot
+manage the roster (`POST /me/household/invites`, `.../members/{id}/remove` are PRIMARY-only).
+`TicketService.raise` now **requires `flatId`** once the caller holds a flat membership in the
+active community, and it must be one of theirs. Endpoints: `GET /me/flats`,
+`GET /me/household/{flatId}/members`, `POST /me/household/invites`,
+`POST /me/household/{flatId}/members/{userId}/remove`. Deferred: a PRIMARY seeing every
+ticket raised for their flat (each member still sees only their own).
+
+## ADR-027 — Direct-to-Provider mode
+**Decision (MVP-6):** `ticket.request_mode` (a seam since MVP-1) goes live.
+`tenant.direct_service_enabled` (`V20`, default off; set by the Super Admin **and** the
+community admin) opts a community in. A resident then gets `GET /api/v1/providers` — a
+contact-free directory (id, name, category label, rating, tier, availability) reusing
+`ProviderService.directoryForTenant(tenantId, "rating")` — and may pass `providerId` to
+`POST /api/v1/tickets`. `TicketService.raise` runs the unchanged `requireAssignableProvider`
+gate (verified + active + `DIRECTORY_LISTING` + not lapsed + active enrolment in that
+community → `422`), sets `request_mode = DIRECT_SERVICE`, `assigned_provider_id`,
+`allocation_approved_by_resident = true`, and `status = ASSIGNED` directly (raise never
+asserts transitions), records a `null → ASSIGNED` RESIDENT history line, notifies the
+provider, and sends the admin an FYI. Direct bookings still count against
+`TICKETS_PER_MONTH`. If the provider **declines**, the resident re-picks:
+`POST /api/v1/tickets/{id}/rebook {providerId}` via a new RESIDENT `REJECTED → ASSIGNED`
+edge; the admin's own `REJECTED → ASSIGNED` / `→ PENDING_RESIDENT_APPROVAL` edges are
+untouched. A community running both `direct_service_enabled` and `require_allocation_approval`:
+a direct booking still goes straight to `ASSIGNED` (the resident already chose). Gating is by
+tenant flag only — a paid `DIRECT_SERVICE` entitlement is deferred. Community-less
+"individual service users" who book a provider with no community at all are **MVP-7**.
+
+## ADR-026 — User portability: explicit switch-community + session re-mint
+**Decision (MVP-6):** `app_user.current_tenant_id` was write-once for residents. It becomes a
+*user-driven* switch: `POST /api/v1/me/active-community {tenantId}` asserts an ACTIVE
+`user_tenant_membership`, sets `current_tenant_id`, and returns a freshly-minted
+`SessionResponse` (reusing `AuthService.refreshSessionFor` / `SessionResponse.from`). A new
+`POST /api/v1/auth/refresh` re-mints the caller's session with no body — this also fixes the
+edge where an admin-approved resident kept an unscoped token until re-login. Joining a 2nd
+community does **not** auto-switch. `POST /api/v1/me/memberships/{tenantId}/leave` EXITs every
+ACTIVE membership the caller holds there (+ `exited_at`), clears their flat occupant/owner
+links, and falls back to another ACTIVE membership or onboarding `NEEDS_COMMUNITY`.
+`resolveActiveTenant`'s fallback is now deterministically ordered (`joined_at`, then
+`created_at`). No migration. Multi-community **admins** are MVP-7.
+
 ## ADR-025 — PII: encrypt free-text at rest, defer names and key rotation
 **Decision (MVP-5):** extend the MVP-1 `@Convert(EncryptedStringConverter)` pattern to
 `ticket.description` / `resolution_notes` / `rating_comment` / `service_landmark`,

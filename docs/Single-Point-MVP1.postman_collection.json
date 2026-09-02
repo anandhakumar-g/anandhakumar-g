@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "Single Point — MVP-1 … MVP-5",
+    "name": "Single Point — MVP-1 … MVP-6",
     "_postman_id": "sp-mvp1-0001-0001-0001-000000000001",
     "description": "End-to-end walkthrough of the MVP-1 API: resident onboarding, ticket lifecycle, admin triage, provider workflow, super-admin onboarding.\n\nRun the requests top to bottom the first time — each folder's scripts capture the tokens / ids the next requests need into collection variables.\n\nLocal defaults: backend on http://localhost:18080, dev OTP mode ON (the code is returned in `devCode`).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -2569,6 +2569,251 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"whatsappEnabled\": true\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 · Reach expansion (MVP-6)",
+      "item": [
+        {
+          "name": "Auth — refresh session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{residentToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/refresh",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "Me — switch active community",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{residentToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/me/active-community",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantId\": \"{{tenantId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Me — leave a community",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{residentToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/me/memberships/{{tenantId}}/leave",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "Me — my flats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{residentToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/me/flats"
+          }
+        },
+        {
+          "name": "Household — roster",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{residentToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/me/household/{{flatId}}/members"
+          }
+        },
+        {
+          "name": "Household — invite a family member (PRIMARY)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{residentToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/me/household/invites",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flatId\": \"{{flatId}}\",\n  \"maxUses\": 3,\n  \"validDays\": 14\n}"
+            }
+          }
+        },
+        {
+          "name": "Household — remove a member (PRIMARY)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{residentToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/me/household/{{flatId}}/members/{{memberUserId}}/remove",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "Providers — resident directory",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{residentToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/providers"
+          }
+        },
+        {
+          "name": "Ticket — direct booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{residentToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/tickets",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"description\": \"AC not cooling\",\n  \"flatId\": \"{{flatId}}\",\n  \"providerId\": \"{{providerId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Ticket — rebook after a decline",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{residentToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/tickets/{{ticketId}}/rebook",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"providerId\": \"{{providerId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Super Admin — toggle direct booking",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/superadmin/tenants/{{tenantId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"directServiceEnabled\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Admin — toggle direct booking",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/community-settings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"directServiceEnabled\": true\n}"
             }
           }
         }

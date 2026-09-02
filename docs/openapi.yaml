@@ -2,19 +2,37 @@ openapi: 3.0.1
 info:
   title: Single Point API
   description: Multi-tenant gated-community ticket management platform.
-  version: MVP-5
+  version: MVP-6
 servers:
 - url: http://localhost:18080
   description: Generated server url
 security:
 - bearerAuth: []
 tags:
+- name: Me
+  description: "Signed-in user profile, theme, memberships, devices"
+- name: Admin — KYC review
+  description: Review a provider's verification documents
+- name: Me — Notification preferences
+  description: Anti-fatigue controls for promotional offers
+- name: Auth
+  description: Phone + OTP login and profile completion
+- name: Admin — Ticket categories
+  description: A community's own ticket categories
+- name: Me — Billing
+  description: "Your plan, usage against limits, and any due invoices"
+- name: Admin — Flats & Invites
+  description: Community flat register and invite codes
+- name: Me — Household
+  description: Flats I belong to and the family members in them
+- name: Admin — Join Requests
+  description: Approve or reject residents joining the community
+- name: Super Admin — Offer approval
+  description: Validate every offer + assign its audience
 - name: Admin — Community settings
   description: Reopen window and the approval-of-allocation gate
 - name: Offers
   description: "Vendor/admin authoring, resident deals feed, redemption"
-- name: Me
-  description: "Signed-in user profile, theme, memberships, devices"
 - name: Super Admin — Ticket categories
   description: Global catalogue + per-community lists
 - name: Super Admin
@@ -23,40 +41,26 @@ tags:
   description: Provider uploads its own verification documents
 - name: Provider — Profile
   description: Provider self-service (name/phone stay admin-only)
-- name: Admin — KYC review
-  description: Review a provider's verification documents
-- name: Me — Notification preferences
-  description: Anti-fatigue controls for promotional offers
 - name: Tickets
   description: "Raise, triage, resolve — role-aware"
 - name: Admin — Providers
   description: Community provider directory + manual verification
 - name: Super Admin — Billing
   description: "Subscription plans, subscriptions, invoices, featured tier"
-- name: Auth
-  description: Phone + OTP login and profile completion
+- name: Providers
+  description: Resident-facing directory for direct booking
 - name: Communities
   description: Community directory for onboarding
-- name: Admin — Ticket categories
-  description: A community's own ticket categories
-- name: Me — Billing
-  description: "Your plan, usage against limits, and any due invoices"
 - name: Super Admin — Taxonomy
   description: Manage vendor categories and verticals
 - name: Payments — webhook
   description: Gateway payment callbacks
-- name: Admin — Flats & Invites
-  description: Community flat register and invite codes
 - name: Payments
   description: "Service charge, cash-with-OTP, online payment, receipt"
 - name: Membership
   description: Joining a community
 - name: Categories
   description: Ticket + vendor category lists
-- name: Admin — Join Requests
-  description: Approve or reject residents joining the community
-- name: Super Admin — Offer approval
-  description: Validate every offer + assign its audience
 paths:
   /api/v1/tickets/{ticketId}/payment/charge:
     put:
@@ -903,6 +907,37 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/TicketView'
+  /api/v1/tickets/{id}/rebook:
+    post:
+      tags:
+      - Tickets
+      summary: Pick a new provider after a direct booking was declined
+      operationId: rebook
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/RebookRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TicketView'
   /api/v1/tickets/{id}/close:
     post:
       tags:
@@ -1646,7 +1681,7 @@ paths:
       tags:
       - Provider — KYC
       summary: List my KYC documents and their review status
-      operationId: list_3
+      operationId: list_4
       parameters:
       - name: p
         in: query
@@ -1902,6 +1937,89 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/SessionResponse'
+  /api/v1/me/memberships/{tenantId}/leave:
+    post:
+      tags:
+      - Me
+      summary: Leave a community; returns a session scoped to the next one (or onboarding)
+      operationId: leaveCommunity
+      parameters:
+      - name: tenantId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+  /api/v1/me/household/{flatId}/members/{userId}/remove:
+    post:
+      tags:
+      - Me — Household
+      summary: "Primary member: remove a family member from a flat"
+      operationId: remove
+      parameters:
+      - name: flatId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HouseholdMember'
+  /api/v1/me/household/invites:
+    post:
+      tags:
+      - Me — Household
+      summary: "Primary member: generate a code that adds a family member to a flat\
+        \ as SECONDARY"
+      operationId: createInvite
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/HouseholdInviteRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/InviteCodeView'
   /api/v1/me/devices:
     post:
       tags:
@@ -1971,6 +2089,49 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/PayLinkResponse'
+  /api/v1/me/active-community:
+    post:
+      tags:
+      - Me
+      summary: Switch the active community; returns a session scoped to it
+      operationId: switchCommunity
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                principal:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/ActiveCommunityRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+  /api/v1/auth/refresh:
+    post:
+      tags:
+      - Auth
+      summary: Re-mint the caller's session (picks up an approved membership / a community
+        switch)
+      operationId: refresh
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
   /api/v1/auth/profile:
     post:
       tags:
@@ -2037,7 +2198,7 @@ paths:
     get:
       tags:
       - Admin — Ticket categories
-      operationId: list_4
+      operationId: list_5
       parameters:
       - name: p
         in: query
@@ -2363,7 +2524,7 @@ paths:
     post:
       tags:
       - Admin — Flats & Invites
-      operationId: createInvite
+      operationId: createInvite_1
       requestBody:
         content:
           application/json:
@@ -2679,6 +2840,27 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/InvoiceView'
+  /api/v1/providers:
+    get:
+      tags:
+      - Providers
+      summary: Verified providers in my community I can book directly (rating-sorted)
+      operationId: list_3
+      parameters:
+      - name: principal
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PublicProviderView'
   /api/v1/provider/kyc/{docId}/file:
     get:
       tags:
@@ -2758,6 +2940,54 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/MeResponse'
+  /api/v1/me/household/{flatId}/members:
+    get:
+      tags:
+      - Me — Household
+      summary: Everyone in a flat (primary first)
+      operationId: members
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      - name: flatId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HouseholdMember'
+  /api/v1/me/flats:
+    get:
+      tags:
+      - Me — Household
+      summary: The flats I belong to in my active community
+      operationId: myFlats
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MyFlat'
   /api/v1/me/billing:
     get:
       tags:
@@ -2823,7 +3053,7 @@ paths:
       tags:
       - Admin — KYC review
       summary: List a provider's KYC documents
-      operationId: list_5
+      operationId: list_6
       parameters:
       - name: p
         in: query
@@ -2941,13 +3171,13 @@ components:
           format: uuid
         name:
           type: string
-        superAdmin:
-          type: boolean
-        admin:
+        resident:
           type: boolean
         provider:
           type: boolean
-        resident:
+        admin:
+          type: boolean
+        superAdmin:
           type: boolean
     ChargeRequest:
       required:
@@ -3072,6 +3302,8 @@ components:
           type: boolean
         categoryAdmin:
           type: string
+        directServiceEnabled:
+          type: boolean
     TenantSettingsView:
       type: object
       properties:
@@ -3095,6 +3327,8 @@ components:
           type: boolean
         categoryAdmin:
           type: string
+        directServiceEnabled:
+          type: boolean
     UpdatePlanRequest:
       type: object
       properties:
@@ -3399,6 +3633,8 @@ components:
           format: int32
         requireAllocationApproval:
           type: boolean
+        directServiceEnabled:
+          type: boolean
     RaiseRequest:
       required:
       - categoryId
@@ -3426,6 +3662,8 @@ components:
         preferredTimeWindow:
           type: string
         flatId:
+          type: string
+        providerId:
           type: string
     PartyView:
       type: object
@@ -3586,6 +3824,13 @@ components:
       type: object
       properties:
         reason:
+          type: string
+    RebookRequest:
+      required:
+      - providerId
+      type: object
+      properties:
+        providerId:
           type: string
     CloseRequest:
       type: object
@@ -3966,6 +4211,45 @@ components:
         activeTenantId:
           type: string
           format: uuid
+    HouseholdMember:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        phoneMasked:
+          type: string
+        householdRole:
+          type: string
+        status:
+          type: string
+        joinedAt:
+          type: string
+          format: date-time
+    HouseholdInviteRequest:
+      type: object
+      properties:
+        flatId:
+          type: string
+        maxUses:
+          type: integer
+          format: int32
+        validDays:
+          type: integer
+          format: int32
+    InviteCodeView:
+      type: object
+      properties:
+        code:
+          type: string
+        maxUses:
+          type: integer
+          format: int32
+        expiresAt:
+          type: string
+          format: date-time
     DeviceRequest:
       required:
       - platform
@@ -3989,6 +4273,13 @@ components:
       type: object
       properties:
         paymentLink:
+          type: string
+    ActiveCommunityRequest:
+      required:
+      - tenantId
+      type: object
+      properties:
+        tenantId:
           type: string
     ProfileRequest:
       required:
@@ -4246,6 +4537,32 @@ components:
         ratingCount:
           type: integer
           format: int32
+    PublicProviderView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        vendorCategoryId:
+          type: string
+          format: uuid
+        vendorCategoryLabel:
+          type: string
+        ratingAvg:
+          type: number
+        ratingCount:
+          type: integer
+          format: int32
+        tier:
+          type: string
+        availability:
+          type: string
+        availabilityNote:
+          type: string
+        assignable:
+          type: boolean
     MeResponse:
       type: object
       properties:
@@ -4276,6 +4593,8 @@ components:
         awayUntil:
           type: string
           format: date-time
+        directServiceEnabled:
+          type: boolean
     MembershipView:
       type: object
       properties:
@@ -4293,6 +4612,8 @@ components:
           format: uuid
         flatLabel:
           type: string
+        householdRole:
+          type: string
     TenantBranding:
       type: object
       properties:
@@ -4306,6 +4627,16 @@ components:
         defaultTheme:
           type: string
         brandPrimaryColor:
+          type: string
+    MyFlat:
+      type: object
+      properties:
+        flatId:
+          type: string
+          format: uuid
+        label:
+          type: string
+        householdRole:
           type: string
     MyBillingView:
       type: object
