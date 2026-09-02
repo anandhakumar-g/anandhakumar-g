@@ -9,7 +9,7 @@ public final class MeDtos {
     private MeDtos() { }
 
     public record MembershipView(UUID tenantId, String tenantName, String status, String relation,
-                                 UUID flatId, String flatLabel) { }
+                                 UUID flatId, String flatLabel, String householdRole) { }
 
     public record TenantBranding(UUID tenantId, String name, String logoUrl,
                                  String defaultTheme, String brandPrimaryColor) { }

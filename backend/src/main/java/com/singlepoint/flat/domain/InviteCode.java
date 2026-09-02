@@ -21,8 +21,15 @@ public class InviteCode extends BaseEntity {
 
     public enum Status { ACTIVE, REVOKED, EXHAUSTED, EXPIRED }
 
+    /** ADMIN = issued by a community admin; HOUSEHOLD = issued by a flat's PRIMARY member. */
+    public enum Kind { ADMIN, HOUSEHOLD }
+
     @Column(name = "tenant_id", nullable = false)
     private UUID tenantId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "kind", nullable = false, length = 12)
+    private Kind kind = Kind.ADMIN;
 
     @Column(name = "flat_id")
     private UUID flatId;

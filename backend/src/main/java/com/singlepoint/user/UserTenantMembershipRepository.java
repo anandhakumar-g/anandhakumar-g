@@ -27,4 +27,12 @@ public interface UserTenantMembershipRepository extends JpaRepository<UserTenant
     List<UserTenantMembership> findByTenantIdAndStatusOrderByCreatedAtAsc(UUID tenantId, MembershipStatus status);
 
     List<UserTenantMembership> findByTenantIdAndStatus(UUID tenantId, MembershipStatus status);
+
+    // ---- household (MVP-6) ------------------------------------------------
+
+    List<UserTenantMembership> findByUserIdAndFlatIdAndStatusIn(UUID userId, UUID flatId,
+                                                               java.util.Collection<MembershipStatus> statuses);
+
+    List<UserTenantMembership> findByFlatIdAndStatusIn(UUID flatId,
+                                                      java.util.Collection<MembershipStatus> statuses);
 }

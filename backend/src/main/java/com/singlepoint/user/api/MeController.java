@@ -83,7 +83,8 @@ public class MeController {
         List<MeDtos.MembershipView> views = memberships.stream().map(m -> {
             Tenant t = tenants.get(m.getTenantId());
             return new MeDtos.MembershipView(m.getTenantId(), t != null ? t.getName() : null,
-                    m.getStatus().name(), m.getRelation().name(), m.getFlatId(), m.getRequestedFlatLabel());
+                    m.getStatus().name(), m.getRelation().name(), m.getFlatId(), m.getRequestedFlatLabel(),
+                    m.getHouseholdRole().name());
         }).collect(Collectors.toList());
 
         return ResponseEntity.ok(new MeDtos.MeResponse(u.getId(), u.getRole().name(), u.getName(),

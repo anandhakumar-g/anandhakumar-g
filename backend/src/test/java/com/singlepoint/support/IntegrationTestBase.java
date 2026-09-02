@@ -184,6 +184,17 @@ public abstract class IntegrationTestBase {
         return c.get("code").asText();
     }
 
+    protected UUID createFlat(String adminToken, String block, String number) {
+        return UUID.fromString(post("/api/v1/admin/flats", adminToken,
+                Map.of("block", block, "flatNumber", number)).get("id").asText());
+    }
+
+    /** Admin invite code bound to a specific flat — its first redeemer becomes the flat's PRIMARY. */
+    protected String createFlatInvite(String adminToken, UUID flatId) {
+        return post("/api/v1/admin/invite-codes", adminToken,
+                Map.of("flatId", flatId.toString(), "maxUses", 20, "validDays", 30)).get("code").asText();
+    }
+
     protected UUID createVerifiedProvider(String adminToken, String superOrAdminToken, String name, String phone) {
         JsonNode p = post("/api/v1/admin/providers", adminToken,
                 Map.of("name", name, "vendorCategoryId", VENDOR_CAT_ELECTRICAL, "company", true, "contactPhone", phone));

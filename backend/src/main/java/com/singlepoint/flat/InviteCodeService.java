@@ -29,6 +29,12 @@ public class InviteCodeService {
     @Transactional
     public InviteCode create(UUID tenantId, UUID createdByUserId, UUID flatId, MembershipRelation relation,
                              Integer validDays, Integer maxUses) {
+        return create(tenantId, createdByUserId, flatId, relation, validDays, maxUses, InviteCode.Kind.ADMIN);
+    }
+
+    @Transactional
+    public InviteCode create(UUID tenantId, UUID createdByUserId, UUID flatId, MembershipRelation relation,
+                             Integer validDays, Integer maxUses, InviteCode.Kind kind) {
         if (flatId != null) {
             flatRepository.findByIdAndTenantId(flatId, tenantId)
                     .orElseThrow(() -> AppException.notFound("Flat"));
@@ -36,6 +42,7 @@ public class InviteCodeService {
         InviteCode c = new InviteCode();
         c.setTenantId(tenantId);
         c.setFlatId(flatId);
+        c.setKind(kind != null ? kind : InviteCode.Kind.ADMIN);
         c.setCreatedByUserId(createdByUserId);
         c.setRelation(relation != null ? relation : MembershipRelation.OCCUPANT);
         c.setCode(uniqueCode());

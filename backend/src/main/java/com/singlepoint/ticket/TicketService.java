@@ -49,13 +49,15 @@ public class TicketService {
     private final DomainEventPublisher events;
     private final StorageService storageService;
     private final com.singlepoint.entitlement.EntitlementService entitlements;
+    private final com.singlepoint.user.UserTenantMembershipRepository membershipRepository;
 
     public TicketService(TicketRepository ticketRepository, TicketStatusHistoryRepository historyRepository,
                          TicketAttachmentRepository attachmentRepository, CategoryRepository categoryRepository,
                          FlatRepository flatRepository, ServiceProviderRepository providerRepository,
                          TenantServiceProviderRepository tenantProviderRepository, AppUserRepository userRepository,
                          TenantRepository tenantRepository, DomainEventPublisher events, StorageService storageService,
-                         com.singlepoint.entitlement.EntitlementService entitlements) {
+                         com.singlepoint.entitlement.EntitlementService entitlements,
+                         com.singlepoint.user.UserTenantMembershipRepository membershipRepository) {
         this.ticketRepository = ticketRepository;
         this.historyRepository = historyRepository;
         this.attachmentRepository = attachmentRepository;
@@ -68,6 +70,7 @@ public class TicketService {
         this.events = events;
         this.storageService = storageService;
         this.entitlements = entitlements;
+        this.membershipRepository = membershipRepository;
     }
 
     public static java.time.Instant monthStart() {
@@ -102,6 +105,11 @@ public class TicketService {
         if (cmd.flatId() != null) {
             flat = flatRepository.findByIdAndTenantId(cmd.flatId(), tenantId)
                     .orElseThrow(() -> AppException.notFound("Flat"));
+            boolean mine = !membershipRepository.findByUserIdAndFlatIdAndStatusIn(principal.getUserId(),
+                    cmd.flatId(), java.util.List.of(com.singlepoint.user.domain.MembershipStatus.ACTIVE)).isEmpty();
+            if (!mine) throw new AppException(ErrorCode.FORBIDDEN, "That flat isn't one of yours");
+        } else if (hasAnyFlatMembership(principal.getUserId(), tenantId)) {
+            throw new AppException(ErrorCode.VALIDATION_FAILED, "Choose which flat this request is for");
         }
 
         String address = cmd.serviceAddressText();
@@ -162,6 +170,12 @@ public class TicketService {
                     category.getName() + ": " + shorten(t.getDescription()));
         }
         return t;
+    }
+
+    private boolean hasAnyFlatMembership(UUID userId, UUID tenantId) {
+        return membershipRepository.findByUserId(userId).stream().anyMatch(m ->
+                m.getStatus() == com.singlepoint.user.domain.MembershipStatus.ACTIVE
+                        && m.getFlatId() != null && tenantId.equals(m.getTenantId()));
     }
 
     /** Resident picks a new provider after a direct booking was rejected. */

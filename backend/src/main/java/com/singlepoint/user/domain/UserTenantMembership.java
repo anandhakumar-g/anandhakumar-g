@@ -36,6 +36,13 @@ public class UserTenantMembership extends BaseEntity {
     @Column(name = "status", nullable = false, length = 20)
     private MembershipStatus status = MembershipStatus.PENDING_APPROVAL;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "household_role", nullable = false, length = 12)
+    private HouseholdRole householdRole = HouseholdRole.PRIMARY;
+
+    @Column(name = "invited_by_user_id")
+    private UUID invitedByUserId;
+
     @Column(name = "requested_flat_label", length = 120)
     private String requestedFlatLabel;
 

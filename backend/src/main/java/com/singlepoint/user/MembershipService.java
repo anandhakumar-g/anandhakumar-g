@@ -4,6 +4,7 @@ import com.singlepoint.common.error.AppException;
 import com.singlepoint.common.error.ErrorCode;
 import com.singlepoint.flat.FlatRepository;
 import com.singlepoint.flat.InviteCodeRepository;
+import com.singlepoint.flat.InviteCodeService;
 import com.singlepoint.flat.domain.Flat;
 import com.singlepoint.flat.domain.InviteCode;
 import com.singlepoint.security.TenantScopedExecutor;
@@ -11,6 +12,7 @@ import com.singlepoint.tenant.TenantRepository;
 import com.singlepoint.tenant.domain.Tenant;
 import com.singlepoint.tenant.domain.TenantStatus;
 import com.singlepoint.user.domain.AppUser;
+import com.singlepoint.user.domain.HouseholdRole;
 import com.singlepoint.user.domain.MembershipRelation;
 import com.singlepoint.user.domain.MembershipStatus;
 import com.singlepoint.user.domain.Role;
@@ -29,6 +31,7 @@ public class MembershipService {
     private final AppUserRepository userRepository;
     private final TenantRepository tenantRepository;
     private final InviteCodeRepository inviteCodeRepository;
+    private final InviteCodeService inviteCodeService;
     private final FlatRepository flatRepository;
     private final TenantScopedExecutor tenantScoped;
 
@@ -36,14 +39,81 @@ public class MembershipService {
                              AppUserRepository userRepository,
                              TenantRepository tenantRepository,
                              InviteCodeRepository inviteCodeRepository,
+                             InviteCodeService inviteCodeService,
                              FlatRepository flatRepository,
                              TenantScopedExecutor tenantScoped) {
         this.membershipRepository = membershipRepository;
         this.userRepository = userRepository;
         this.tenantRepository = tenantRepository;
         this.inviteCodeRepository = inviteCodeRepository;
+        this.inviteCodeService = inviteCodeService;
         this.flatRepository = flatRepository;
         this.tenantScoped = tenantScoped;
+    }
+
+    // ---- household (MVP-6) ------------------------------------------------
+
+    private static final List<MembershipStatus> LIVE = List.of(MembershipStatus.ACTIVE,
+            MembershipStatus.PENDING_APPROVAL);
+
+    private UserTenantMembership requireFlatMembership(UUID userId, UUID flatId) {
+        return membershipRepository.findByUserIdAndFlatIdAndStatusIn(userId, flatId, List.of(MembershipStatus.ACTIVE))
+                .stream().findFirst()
+                .orElseThrow(() -> new AppException(ErrorCode.FORBIDDEN, "That flat isn't one of yours"));
+    }
+
+    private UserTenantMembership requirePrimary(UUID userId, UUID flatId) {
+        UserTenantMembership m = requireFlatMembership(userId, flatId);
+        if (m.getHouseholdRole() != HouseholdRole.PRIMARY) {
+            throw new AppException(ErrorCode.FORBIDDEN, "Only the primary member can manage this household");
+        }
+        return m;
+    }
+
+    /** The flats the caller is an ACTIVE member of in a given community. */
+    @Transactional(readOnly = true)
+    public List<UserTenantMembership> flatsForUserInTenant(UUID userId, UUID tenantId) {
+        return membershipRepository.findByUserId(userId).stream()
+                .filter(m -> m.getStatus() == MembershipStatus.ACTIVE
+                        && m.getFlatId() != null && tenantId.equals(m.getTenantId()))
+                .toList();
+    }
+
+    /** Roster of a flat — PRIMARY first. Caller must be a member of the flat. */
+    @Transactional(readOnly = true)
+    public List<UserTenantMembership> flatMembers(UUID callerUserId, UUID flatId) {
+        requireFlatMembership(callerUserId, flatId);
+        return membershipRepository.findByFlatIdAndStatusIn(flatId, LIVE).stream()
+                .sorted((a, b) -> Boolean.compare(b.getHouseholdRole() == HouseholdRole.PRIMARY,
+                        a.getHouseholdRole() == HouseholdRole.PRIMARY))
+                .toList();
+    }
+
+    /** PRIMARY issues a household invite code for their flat. */
+    @Transactional
+    public InviteCode createHouseholdInvite(UUID primaryUserId, UUID flatId, Integer maxUses, Integer validDays) {
+        UserTenantMembership m = requirePrimary(primaryUserId, flatId);
+        return inviteCodeService.create(m.getTenantId(), primaryUserId, flatId,
+                MembershipRelation.OCCUPANT, validDays, maxUses, InviteCode.Kind.HOUSEHOLD);
+    }
+
+    /** PRIMARY removes a SECONDARY member from their flat. */
+    @Transactional
+    public void removeFromFlat(UUID primaryUserId, UUID flatId, UUID targetUserId) {
+        requirePrimary(primaryUserId, flatId);
+        if (primaryUserId.equals(targetUserId)) {
+            throw new AppException(ErrorCode.CONFLICT, "Use 'leave community' to remove yourself");
+        }
+        UserTenantMembership target = membershipRepository
+                .findByUserIdAndFlatIdAndStatusIn(targetUserId, flatId, List.of(MembershipStatus.ACTIVE))
+                .stream().findFirst()
+                .orElseThrow(() -> AppException.notFound("Household member"));
+        if (target.getHouseholdRole() == HouseholdRole.PRIMARY) {
+            throw new AppException(ErrorCode.CONFLICT, "Can't remove another primary member");
+        }
+        target.setStatus(MembershipStatus.EXITED);
+        target.setExitedAt(Instant.now());
+        membershipRepository.save(target);
     }
 
     /** Resident joins a community — via invite code (auto-active) or as a pending approval request. */
@@ -52,10 +122,6 @@ public class MembershipService {
                 .orElseThrow(() -> AppException.notFound("Community"));
         if (tenant.getStatus() != TenantStatus.ACTIVE) {
             throw new AppException(ErrorCode.CONFLICT, "This community is not accepting members right now");
-        }
-        if (membershipRepository.existsByUserIdAndTenantIdAndStatusIn(userId, tenantId,
-                List.of(MembershipStatus.ACTIVE, MembershipStatus.PENDING_APPROVAL))) {
-            throw new AppException(ErrorCode.CONFLICT, "You already have a membership or pending request here");
         }
 
         return tenantScoped.inTenant(tenantId, () -> {
@@ -72,9 +138,22 @@ public class MembershipService {
                 if (!code.isRedeemable()) {
                     throw new AppException(ErrorCode.BAD_REQUEST, "This invite code is no longer valid");
                 }
+                // A flat code can be redeemed once per flat; a flat-less community code once per community.
+                boolean dup = code.getFlatId() != null
+                        ? !membershipRepository.findByUserIdAndFlatIdAndStatusIn(userId, code.getFlatId(),
+                                List.of(MembershipStatus.ACTIVE, MembershipStatus.PENDING_APPROVAL)).isEmpty()
+                        : membershipRepository.existsByUserIdAndTenantIdAndStatusIn(userId, tenantId,
+                                List.of(MembershipStatus.ACTIVE, MembershipStatus.PENDING_APPROVAL));
+                if (dup) {
+                    throw new AppException(ErrorCode.CONFLICT, "You already have a membership here");
+                }
                 m.setRelation(code.getRelation());
                 m.setStatus(MembershipStatus.ACTIVE);
                 m.setJoinedAt(Instant.now());
+                if (code.getKind() == InviteCode.Kind.HOUSEHOLD) {
+                    m.setHouseholdRole(HouseholdRole.SECONDARY);
+                    m.setInvitedByUserId(code.getCreatedByUserId());
+                }
                 if (code.getFlatId() != null) {
                     m.setFlatId(code.getFlatId());
                     linkOccupant(code.getFlatId(), userId, code.getRelation());
@@ -91,6 +170,10 @@ public class MembershipService {
                     userRepository.save(u);
                 }
             } else {
+                if (membershipRepository.existsByUserIdAndTenantIdAndStatusIn(userId, tenantId,
+                        List.of(MembershipStatus.ACTIVE, MembershipStatus.PENDING_APPROVAL))) {
+                    throw new AppException(ErrorCode.CONFLICT, "You already have a membership or pending request here");
+                }
                 m.setRelation(MembershipRelation.OCCUPANT);
                 m.setStatus(MembershipStatus.PENDING_APPROVAL);
                 m.setRequestedFlatLabel(requestedFlatLabel);
