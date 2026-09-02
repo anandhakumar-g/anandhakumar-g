@@ -92,6 +92,8 @@ export interface PartyView {
   phone: string | null;
   verificationStatus: string | null;
   tier: string | null;
+  ratingAvg: number | null;
+  ratingCount: number | null;
 }
 
 export interface TicketView {
@@ -174,6 +176,8 @@ export interface ProviderView {
   tier: string;
   active: boolean;
   assignable: boolean;
+  ratingAvg: number | null;
+  ratingCount: number;
 }
 
 export interface JoinRequestView {

@@ -354,7 +354,23 @@ public class TicketService {
             t.setRatingComment(remarks);
         }
         ticketRepository.save(t);
+        if (rating != null && t.getAssignedProviderId() != null) {
+            recomputeProviderRating(t.getAssignedProviderId());
+        }
         return t;
+    }
+
+    /** Refresh a provider's denormalised rating_avg / rating_count from its rated tickets. */
+    private void recomputeProviderRating(UUID providerId) {
+        Object[] row = ticketRepository.ratingAggregate(providerId).get(0);
+        Double avg = row[0] == null ? null : ((Number) row[0]).doubleValue();
+        long count = row[1] == null ? 0 : ((Number) row[1]).longValue();
+        providerRepository.findById(providerId).ifPresent(p -> {
+            p.setRatingAvg(avg == null ? null
+                    : java.math.BigDecimal.valueOf(avg).setScale(2, java.math.RoundingMode.HALF_UP));
+            p.setRatingCount((int) count);
+            providerRepository.save(p);
+        });
     }
 
     // ---- reads --------------------------------------------------------------

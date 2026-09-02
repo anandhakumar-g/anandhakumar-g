@@ -43,17 +43,20 @@ public class AdminProviderController {
     public record VerifyRequest(@NotBlank String status) { }
     public record ProviderView(UUID id, String name, String vendorCategoryId, boolean company,
                                String contactPhoneMasked, String verificationStatus, String tier,
-                               boolean active, boolean assignable) {
+                               boolean active, boolean assignable,
+                               java.math.BigDecimal ratingAvg, int ratingCount) {
         static ProviderView of(ServiceProvider p) {
             return new ProviderView(p.getId(), p.getName(), p.getVendorCategoryId().toString(), p.isCompany(),
                     PhoneNumbers.mask(p.getContactPhone()), p.getVerificationStatus().name(),
-                    p.getTier().name(), p.isActive(), p.isAssignable());
+                    p.getTier().name(), p.isActive(), p.isAssignable(),
+                    p.getRatingAvg(), p.getRatingCount());
         }
     }
 
     @GetMapping
-    public ResponseEntity<List<ProviderView>> directory(@AuthenticationPrincipal AppPrincipal p) {
-        return ResponseEntity.ok(providerService.directoryForTenant(tenant(p)).stream()
+    public ResponseEntity<List<ProviderView>> directory(@AuthenticationPrincipal AppPrincipal p,
+                                                        @RequestParam(required = false) String sort) {
+        return ResponseEntity.ok(providerService.directoryForTenant(tenant(p), sort).stream()
                 .map(ProviderView::of).toList());
     }
 

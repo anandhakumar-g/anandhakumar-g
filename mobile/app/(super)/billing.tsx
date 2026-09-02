@@ -4,6 +4,7 @@ import { superBilling } from "@/api/endpoints";
 import {
   InvoiceView, money, PlanView, SubjectType, SubscriptionStatus, SubscriptionView, subscriptionTone,
 } from "@/api/types";
+import { ratingText } from "@/lib/format";
 import { Divider, EmptyState, Pill, Segmented } from "@/components/Bits";
 import { Button } from "@/components/Button";
 import { Field } from "@/components/Field";
@@ -206,7 +207,10 @@ export default function SuperBilling() {
             <View key={p.id} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: theme.space(2) }}>
               <View style={{ flexShrink: 1 }}>
                 <AppText size="sm" weight="600">{p.name}</AppText>
-                <AppText size="xs" tone="faint">{p.verificationStatus.replace(/_/g, " ")}</AppText>
+                <AppText size="xs" tone="faint">
+                  {p.verificationStatus.replace(/_/g, " ")}
+                  {ratingText(p.ratingAvg, p.ratingCount) ? ` · ${ratingText(p.ratingAvg, p.ratingCount)}` : ""}
+                </AppText>
               </View>
               <Button
                 label={p.tier === "FEATURED" ? "★ Featured" : "Make featured"}

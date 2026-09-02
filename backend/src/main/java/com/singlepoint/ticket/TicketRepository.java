@@ -30,6 +30,10 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
             + "and t.slaDueAt < :now and t.status not in :closedStates")
     List<Ticket> findSlaBreachCandidates(Instant now, java.util.Collection<TicketStatus> closedStates);
 
+    @Query("select avg(t.rating), count(t.rating) from Ticket t "
+            + "where t.assignedProviderId = :providerId and t.rating is not null")
+    List<Object[]> ratingAggregate(UUID providerId);
+
     @Query(value = "select nextval('ticket_ref_seq')", nativeQuery = true)
     long nextReferenceSequence();
 

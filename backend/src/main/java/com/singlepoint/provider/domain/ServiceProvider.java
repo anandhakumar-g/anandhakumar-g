@@ -68,6 +68,13 @@ public class ServiceProvider extends BaseEntity {
     @Column(name = "active", nullable = false)
     private boolean active = true;
 
+    /** Mean of resident ratings across this provider's closed tickets; null until the first rating. */
+    @Column(name = "rating_avg", precision = 3, scale = 2)
+    private java.math.BigDecimal ratingAvg;
+
+    @Column(name = "rating_count", nullable = false)
+    private int ratingCount = 0;
+
     public boolean isAssignable() {
         return active && verificationStatus == VerificationStatus.VERIFIED;
     }

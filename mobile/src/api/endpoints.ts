@@ -122,9 +122,10 @@ export const superBilling = {
     api.get<InvoiceView[]>("/superadmin/invoices", { query: { status } }),
   markPaid: (id: string) => api.post<InvoiceView>(`/superadmin/invoices/${id}/mark-paid`, {}),
   providers: () =>
-    api.get<{ id: string; name: string; tier: ProviderTier; verificationStatus: string }[]>(
-      "/superadmin/providers"
-    ),
+    api.get<{
+      id: string; name: string; tier: ProviderTier; verificationStatus: string;
+      ratingAvg: number | null; ratingCount: number;
+    }[]>("/superadmin/providers"),
   setTier: (providerId: string, tier: ProviderTier) =>
     api.post<void>(`/superadmin/providers/${providerId}/tier`, { tier }),
 };
@@ -210,7 +211,7 @@ export const admin = {
   communitySettings: () => api.get<CommunitySettings>("/admin/community-settings"),
   updateCommunitySettings: (body: Partial<{ reopenWindowHours: number; requireAllocationApproval: boolean }>) =>
     api.put<CommunitySettings>("/admin/community-settings", body),
-  providers: () => api.get<ProviderView[]>("/admin/providers"),
+  providers: (sort?: "rating") => api.get<ProviderView[]>("/admin/providers", { query: { sort } }),
   addProvider: (body: {
     name: string; vendorCategoryId: string; company: boolean; contactPhone: string;
     contactEmail?: string; serviceArea?: string;

@@ -3,6 +3,7 @@ import React, { useCallback, useState } from "react";
 import { View } from "react-native";
 import { admin, catalog, kyc as kycApi } from "@/api/endpoints";
 import { groupVendorCategories, KycDocView, ProviderView } from "@/api/types";
+import { ratingText } from "@/lib/format";
 import { Button } from "@/components/Button";
 import { Divider, EmptyState, Pill } from "@/components/Bits";
 import { Field } from "@/components/Field";
@@ -114,6 +115,7 @@ export default function Providers() {
               <AppText weight="700" style={{ flexShrink: 1 }}>{p.name}</AppText>
               <View style={{ flexDirection: "row", gap: theme.space(1.5), alignItems: "center" }}>
                 {p.tier === "FEATURED" ? <Pill text="★ Featured" tone="primary" /> : null}
+                {ratingText(p.ratingAvg, p.ratingCount) ? <Pill text={ratingText(p.ratingAvg, p.ratingCount)!} /> : null}
                 <Pill
                   text={p.verificationStatus.replace(/_/g, " ")}
                   tone={p.verificationStatus === "VERIFIED" ? "success" : p.verificationStatus === "REJECTED" ? "danger" : "muted"}

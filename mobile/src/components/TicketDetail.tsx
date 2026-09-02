@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { Image, Linking, Platform, Pressable, View } from "react-native";
 import { admin, catalog, tickets } from "@/api/endpoints";
 import { ProviderView, Role, TicketView } from "@/api/types";
+import { ratingText } from "@/lib/format";
 import { slaBadge } from "@/lib/sla";
 import { useAsync } from "@/hooks/useAsync";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -113,6 +114,9 @@ export function TicketDetail({ ticketId, role }: { ticketId: string; role: Role 
               />
             ) : null}
             {tk.assignedProvider.tier === "FEATURED" ? <Pill text="★ Featured" tone="primary" /> : null}
+            {ratingText(tk.assignedProvider.ratingAvg, tk.assignedProvider.ratingCount) ? (
+              <Pill text={ratingText(tk.assignedProvider.ratingAvg, tk.assignedProvider.ratingCount)!} />
+            ) : null}
           </View>
           <KeyValue k="Contact" v={tk.assignedProvider.phone} />
         </Card>
@@ -338,7 +342,8 @@ function ActionArea(props: any) {
 
 function ProviderPicker({ onPick, onCancel }: { onPick: (p: ProviderView) => void; onCancel: () => void }) {
   const { theme } = useTheme();
-  const list = useAsync(() => admin.providers(), []);
+  const [sort, setSort] = useState<"rating" | undefined>(undefined);
+  const list = useAsync(() => admin.providers(sort), [sort]);
   return (
     <Card style={{ gap: theme.space(2), borderColor: theme.color.primary }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
@@ -347,6 +352,13 @@ function ProviderPicker({ onPick, onCancel }: { onPick: (p: ProviderView) => voi
           Cancel
         </AppText>
       </View>
+      <AppText
+        size="xs"
+        tone="primary"
+        onPress={() => setSort((s) => (s === "rating" ? undefined : "rating"))}
+      >
+        {sort === "rating" ? "✓ Sorted by rating" : "Sort by rating"}
+      </AppText>
       {list.loading ? <Loading /> : null}
       {(list.data ?? []).map((p) => {
         const disabled = !p.assignable;
@@ -365,7 +377,7 @@ function ProviderPicker({ onPick, onCancel }: { onPick: (p: ProviderView) => voi
           >
             <AppText weight="600">{p.name}</AppText>
             <AppText size="xs" tone="faint">
-              {p.verificationStatus}
+              {ratingText(p.ratingAvg, p.ratingCount) ?? p.verificationStatus}
               {disabled ? " · not assignable" : ""}
             </AppText>
           </Pressable>

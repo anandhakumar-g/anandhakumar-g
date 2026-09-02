@@ -98,16 +98,33 @@ public class ProviderService {
     /** Featured providers first, then by name. Lapsed / unlisted providers are excluded. */
     @Transactional(readOnly = true)
     public List<ServiceProvider> directoryForTenant(UUID tenantId) {
+        return directoryForTenant(tenantId, null);
+    }
+
+    /**
+     * Featured providers first; then either by rating (desc, unrated last) when
+     * {@code sort} is {@code "rating"}, or by name. Lapsed / unlisted providers are excluded.
+     */
+    @Transactional(readOnly = true)
+    public List<ServiceProvider> directoryForTenant(UUID tenantId, String sort) {
         List<UUID> ids = tenantProviderRepository.findByTenantIdAndActiveTrue(tenantId)
                 .stream().map(TenantServiceProvider::getServiceProviderId).toList();
         var pSubject = com.singlepoint.billing.domain.SubjectType.PROVIDER;
+        boolean byRating = "rating".equalsIgnoreCase(sort);
         return providerRepository.findAllById(ids).stream()
                 .filter(p -> entitlements.isEntitled(pSubject, p.getId(), "DIRECTORY_LISTING")
                         && !entitlements.isLapsed(pSubject, p.getId()))
                 .sorted((a, b) -> {
                     int t = Boolean.compare(b.getTier() == com.singlepoint.provider.domain.ProviderTier.FEATURED,
                             a.getTier() == com.singlepoint.provider.domain.ProviderTier.FEATURED);
-                    return t != 0 ? t : a.getName().compareToIgnoreCase(b.getName());
+                    if (t != 0) return t;
+                    if (byRating) {
+                        double ra = a.getRatingAvg() == null ? -1 : a.getRatingAvg().doubleValue();
+                        double rb = b.getRatingAvg() == null ? -1 : b.getRatingAvg().doubleValue();
+                        int r = Double.compare(rb, ra);
+                        if (r != 0) return r;
+                    }
+                    return a.getName().compareToIgnoreCase(b.getName());
                 })
                 .toList();
     }

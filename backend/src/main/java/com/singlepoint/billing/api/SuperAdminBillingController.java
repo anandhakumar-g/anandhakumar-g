@@ -36,10 +36,11 @@ public class SuperAdminBillingController {
         this.providerRepository = providerRepository;
     }
 
-    public record ProviderTierView(UUID id, String name, String tier, String verificationStatus) {
+    public record ProviderTierView(UUID id, String name, String tier, String verificationStatus,
+                                   java.math.BigDecimal ratingAvg, int ratingCount) {
         static ProviderTierView of(ServiceProvider p) {
             return new ProviderTierView(p.getId(), p.getName(), p.getTier().name(),
-                    p.getVerificationStatus().name());
+                    p.getVerificationStatus().name(), p.getRatingAvg(), p.getRatingCount());
         }
     }
 

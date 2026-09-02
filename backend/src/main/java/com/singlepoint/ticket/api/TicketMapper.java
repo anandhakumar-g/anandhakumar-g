@@ -43,7 +43,7 @@ public class TicketMapper {
         TicketDtos.PartyView raisedBy = raiser == null ? null : new TicketDtos.PartyView(
                 raiser.getName(),
                 revealRaiserPhone ? raiser.getPhone() : PhoneNumbers.mask(raiser.getPhone()),
-                null, null);
+                null, null, null, null);
 
         TicketDtos.PartyView provider = null;
         if (t.getAssignedProviderId() != null) {
@@ -55,7 +55,8 @@ public class TicketMapper {
                 provider = new TicketDtos.PartyView(
                         p.getName(),
                         revealProviderPhone ? p.getContactPhone() : PhoneNumbers.mask(p.getContactPhone()),
-                        p.getVerificationStatus().name(), p.getTier().name());
+                        p.getVerificationStatus().name(), p.getTier().name(),
+                        p.getRatingAvg(), p.getRatingCount());
             }
         }
 
