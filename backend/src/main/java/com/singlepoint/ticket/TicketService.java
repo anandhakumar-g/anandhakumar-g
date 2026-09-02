@@ -188,23 +188,81 @@ public class TicketService {
         requireRole(principal, Role.ADMIN);
         Ticket t = loadForActor(principal, ticketId);
         ServiceProvider provider = requireAssignableProvider(t.getTenantId(), providerId);
-        stateMachine.assertTransition(t.getStatus(), TicketStatus.ASSIGNED, Role.ADMIN);
         TicketStatus from = t.getStatus();
+        boolean reroute = from != TicketStatus.NEW && from != TicketStatus.ACKNOWLEDGED;
+        if (reroute && (remarks == null || remarks.isBlank())) {
+            throw new AppException(ErrorCode.VALIDATION_FAILED, "A reason is required when rerouting a ticket");
+        }
+
+        boolean gate = tenantRepository.findById(t.getTenantId())
+                .map(com.singlepoint.tenant.domain.Tenant::isRequireAllocationApproval).orElse(false);
+        TicketStatus target = gate ? TicketStatus.PENDING_RESIDENT_APPROVAL : TicketStatus.ASSIGNED;
+        stateMachine.assertTransition(from, target, Role.ADMIN);
+
         t.setAssignedProviderId(provider.getId());
         t.setAllocationApprovedByResident(false);
-        t.setStatus(TicketStatus.ASSIGNED);
+        t.setStatus(target);
+        if (target == TicketStatus.ASSIGNED) t.setAssignedAt(Instant.now());
+        ticketRepository.save(t);
+
+        String suffix = (remarks != null && !remarks.isBlank()) ? " — " + remarks : "";
+        recordHistory(t, from, target, principal.getUserId(), Role.ADMIN,
+                (reroute ? "Rerouted to " : "Assigned to ") + provider.getName() + suffix);
+
+        if (target == TicketStatus.ASSIGNED) {
+            notifyAssignedProvider(t, provider);
+            notifyUser(t, t.getRaisedByUserId(), "Ticket " + t.getReferenceCode() + " assigned",
+                    provider.getName() + " has been assigned to your request.");
+        } else {
+            notifyUser(t, t.getRaisedByUserId(), "Approve the helper for ticket " + t.getReferenceCode(),
+                    provider.getName() + " has been proposed for your request. Approve or decline it in the app.");
+        }
+        return t;
+    }
+
+    /** Resident accepts the proposed helper; the provider is engaged only now. */
+    @Transactional
+    public Ticket approveAllocation(AppPrincipal principal, UUID ticketId) {
+        Ticket t = loadForActor(principal, ticketId);
+        requireRaiser(principal, t);
+        if (t.getStatus() != TicketStatus.PENDING_RESIDENT_APPROVAL) {
+            throw new AppException(ErrorCode.CONFLICT, "This ticket is not waiting for your approval");
+        }
+        transition(t, TicketStatus.ASSIGNED, principal, Role.RESIDENT, "Allocation approved by resident");
+        t.setAllocationApprovedByResident(true);
         t.setAssignedAt(Instant.now());
         ticketRepository.save(t);
-        recordHistory(t, from, TicketStatus.ASSIGNED, principal.getUserId(), Role.ADMIN,
-                (from == TicketStatus.ASSIGNED || from == TicketStatus.REJECTED ? "Rerouted to " : "Assigned to ")
-                        + provider.getName() + (remarks != null ? " — " + remarks : ""));
+        providerRepository.findById(t.getAssignedProviderId())
+                .ifPresent(p -> notifyAssignedProvider(t, p));
+        return t;
+    }
+
+    /** Resident declines the proposed helper; the ticket returns to the admin queue. */
+    @Transactional
+    public Ticket rejectAllocation(AppPrincipal principal, UUID ticketId, String reason) {
+        if (reason == null || reason.isBlank()) {
+            throw new AppException(ErrorCode.VALIDATION_FAILED, "Please say why you're declining this helper");
+        }
+        Ticket t = loadForActor(principal, ticketId);
+        requireRaiser(principal, t);
+        if (t.getStatus() != TicketStatus.PENDING_RESIDENT_APPROVAL) {
+            throw new AppException(ErrorCode.CONFLICT, "This ticket is not waiting for your approval");
+        }
+        transition(t, TicketStatus.ACKNOWLEDGED, principal, Role.RESIDENT, "Allocation declined: " + reason);
+        t.setAssignedProviderId(null);
+        t.setAllocationApprovedByResident(false);
+        if (t.getAcknowledgedAt() == null) t.setAcknowledgedAt(Instant.now());
+        ticketRepository.save(t);
+        notifyAdmins(t, "Ticket " + t.getReferenceCode() + " — helper declined",
+                "The resident declined the proposed helper: " + reason);
+        return t;
+    }
+
+    private void notifyAssignedProvider(Ticket t, ServiceProvider provider) {
         if (provider.getUserId() != null) {
             notifyUser(t, provider.getUserId(), "New job " + t.getReferenceCode(),
                     shorten(t.getDescription()) + " at " + t.getServiceAddressText());
         }
-        notifyUser(t, t.getRaisedByUserId(), "Ticket " + t.getReferenceCode() + " assigned",
-                provider.getName() + " has been assigned to your request.");
-        return t;
     }
 
     // ---- provider actions ----------------------------------------------------
@@ -214,6 +272,10 @@ public class TicketService {
         ServiceProvider provider = requireProvider(principal);
         Ticket t = loadForActor(principal, ticketId);
         ensureAssignedTo(t, provider);
+        if (!accept && (reason == null || reason.isBlank())) {
+            throw new AppException(ErrorCode.VALIDATION_FAILED,
+                    "A reason is required when a provider can't take a job");
+        }
         TicketStatus to = accept ? TicketStatus.ACCEPTED : TicketStatus.REJECTED;
         transition(t, to, principal, Role.PROVIDER, reason);
         ticketRepository.save(t);
@@ -231,6 +293,9 @@ public class TicketService {
         Ticket t = loadForActor(principal, ticketId);
         ensureAssignedTo(t, provider);
         TicketStatus to = TicketStatus.valueOf(toStatusRaw.toUpperCase());
+        if (to == TicketStatus.ON_HOLD && (reason == null || reason.isBlank())) {
+            throw new AppException(ErrorCode.VALIDATION_FAILED, "A reason is required to put a job on hold");
+        }
         transition(t, to, principal, Role.PROVIDER, reason != null ? reason : resolutionNotes);
         if (to == TicketStatus.ON_HOLD) t.setHoldReason(reason);
         if (to == TicketStatus.RESOLVED) {

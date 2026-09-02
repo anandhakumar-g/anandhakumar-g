@@ -51,6 +51,10 @@ public class Tenant extends BaseEntity {
     @Column(name = "require_allocation_approval", nullable = false)
     private boolean requireAllocationApproval = false;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category_admin", nullable = false, length = 20)
+    private CategoryAdmin categoryAdmin = CategoryAdmin.SUPER_ADMIN;
+
     @Column(name = "default_theme", length = 40)
     private String defaultTheme;
 

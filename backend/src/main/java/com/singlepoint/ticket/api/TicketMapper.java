@@ -77,9 +77,11 @@ public class TicketMapper {
     }
 
     public TicketDtos.TimelineEntry toTimeline(TicketStatusHistory h) {
+        String actorName = h.getChangedByUserId() == null ? null
+                : userRepository.findById(h.getChangedByUserId()).map(AppUser::getName).orElse(null);
         return new TicketDtos.TimelineEntry(
                 h.getFromStatus() != null ? h.getFromStatus().name() : null,
-                h.getToStatus().name(), h.getActorRole(), h.getRemarks(), h.getCreatedAt());
+                h.getToStatus().name(), h.getActorRole(), actorName, h.getRemarks(), h.getCreatedAt());
     }
 
     public TicketDtos.AttachmentView toAttachment(TicketAttachment a) {

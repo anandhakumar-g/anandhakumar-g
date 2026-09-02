@@ -54,6 +54,17 @@ public class SuperAdminController {
         return ResponseEntity.status(HttpStatus.CREATED).body(TenantDtos.TenantCard.from(t));
     }
 
+    @PutMapping("/tenants/{tenantId}")
+    @Operation(summary = "Update a community's settings (sparse — only the fields sent are changed)")
+    public ResponseEntity<TenantDtos.TenantSettingsView> updateTenant(
+            @PathVariable String tenantId, @Valid @RequestBody TenantDtos.UpdateTenantRequest body) {
+        Tenant t = tenantService.update(java.util.UUID.fromString(tenantId),
+                body.name(), body.city(), body.locality(), body.address(), body.pincode(),
+                body.logoUrl(), body.defaultTheme(), body.brandPrimaryColor(),
+                body.reopenWindowHours(), body.requireAllocationApproval(), body.categoryAdmin());
+        return ResponseEntity.ok(TenantDtos.TenantSettingsView.from(t));
+    }
+
     @PostMapping("/tenants/{tenantId}/admins")
     @Operation(summary = "Provision an admin account for a community")
     @Transactional

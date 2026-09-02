@@ -157,6 +157,23 @@ public class TicketController {
 
     // ---- resident transitions ----
 
+    @PostMapping("/{id}/allocation/approve")
+    @PreAuthorize("hasRole('RESIDENT')")
+    @Operation(summary = "Resident approves the proposed helper (communities with the approval gate on)")
+    public ResponseEntity<TicketDtos.TicketView> approveAllocation(@AuthenticationPrincipal AppPrincipal p,
+            @PathVariable UUID id) {
+        return ResponseEntity.ok(mapper.toView(ticketService.approveAllocation(p, id), p));
+    }
+
+    @PostMapping("/{id}/allocation/reject")
+    @PreAuthorize("hasRole('RESIDENT')")
+    @Operation(summary = "Resident declines the proposed helper (a reason is required)")
+    public ResponseEntity<TicketDtos.TicketView> rejectAllocation(@AuthenticationPrincipal AppPrincipal p,
+            @PathVariable UUID id, @RequestBody(required = false) TicketDtos.RejectRequest body) {
+        return ResponseEntity.ok(mapper.toView(
+                ticketService.rejectAllocation(p, id, body != null ? body.reason() : null), p));
+    }
+
     @PostMapping("/{id}/reopen")
     @PreAuthorize("hasRole('RESIDENT')")
     public ResponseEntity<TicketDtos.TicketView> reopen(@AuthenticationPrincipal AppPrincipal p,

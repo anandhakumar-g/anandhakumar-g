@@ -44,6 +44,22 @@ class TicketStateMachineTest {
     }
 
     @Test
+    void allocationApprovalGate() {
+        // Admin parks a ticket for the resident to approve the proposed helper.
+        assertTrue(sm.isLegal(NEW, PENDING_RESIDENT_APPROVAL, Role.ADMIN));
+        assertTrue(sm.isLegal(ACKNOWLEDGED, PENDING_RESIDENT_APPROVAL, Role.ADMIN));
+        assertTrue(sm.isLegal(ASSIGNED, PENDING_RESIDENT_APPROVAL, Role.ADMIN)); // re-pick before answer
+        // Resident answers.
+        assertTrue(sm.isLegal(PENDING_RESIDENT_APPROVAL, ASSIGNED, Role.RESIDENT));       // approve
+        assertTrue(sm.isLegal(PENDING_RESIDENT_APPROVAL, ACKNOWLEDGED, Role.RESIDENT));   // decline
+        // Admin override once the gate is off.
+        assertTrue(sm.isLegal(PENDING_RESIDENT_APPROVAL, ASSIGNED, Role.ADMIN));
+        // The provider stays locked out while parked.
+        assertFalse(sm.isLegal(PENDING_RESIDENT_APPROVAL, ACCEPTED, Role.PROVIDER));
+        assertFalse(sm.isLegal(PENDING_RESIDENT_APPROVAL, ASSIGNED, Role.PROVIDER));
+    }
+
+    @Test
     void illegalTransitionsRejected() {
         assertFalse(sm.isLegal(NEW, IN_PROGRESS, Role.PROVIDER));
         assertFalse(sm.isLegal(RESOLVED, NEW, Role.PROVIDER));

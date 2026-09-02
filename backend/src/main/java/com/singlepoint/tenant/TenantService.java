@@ -1,6 +1,8 @@
 package com.singlepoint.tenant;
 
 import com.singlepoint.common.error.AppException;
+import com.singlepoint.common.error.ErrorCode;
+import com.singlepoint.tenant.domain.CategoryAdmin;
 import com.singlepoint.tenant.domain.Tenant;
 import com.singlepoint.tenant.domain.TenantStatus;
 import org.springframework.data.domain.Page;
@@ -44,5 +46,37 @@ public class TenantService {
         t.setBrandPrimaryColor(brandPrimaryColor);
         if (reopenWindowHours != null && reopenWindowHours > 0) t.setReopenWindowHours(reopenWindowHours);
         return repository.save(t);
+    }
+
+    /**
+     * Sparse update. Any null argument is left untouched. {@code categoryAdmin} is Super-Admin
+     * territory — pass null from the community-admin path.
+     */
+    @Transactional
+    public Tenant update(UUID id, String name, String city, String locality, String address, String pincode,
+                         String logoUrl, String defaultTheme, String brandPrimaryColor,
+                         Integer reopenWindowHours, Boolean requireAllocationApproval, String categoryAdmin) {
+        Tenant t = require(id);
+        if (name != null) t.setName(name);
+        if (city != null) t.setCity(city);
+        if (locality != null) t.setLocality(locality);
+        if (address != null) t.setAddress(address);
+        if (pincode != null) t.setPincode(pincode);
+        if (logoUrl != null) t.setLogoUrl(logoUrl);
+        if (defaultTheme != null) t.setDefaultTheme(defaultTheme);
+        if (brandPrimaryColor != null) t.setBrandPrimaryColor(brandPrimaryColor);
+        if (reopenWindowHours != null && reopenWindowHours > 0) t.setReopenWindowHours(reopenWindowHours);
+        if (requireAllocationApproval != null) t.setRequireAllocationApproval(requireAllocationApproval);
+        if (categoryAdmin != null) t.setCategoryAdmin(parseCategoryAdmin(categoryAdmin));
+        return repository.save(t);
+    }
+
+    private static CategoryAdmin parseCategoryAdmin(String raw) {
+        try {
+            return CategoryAdmin.valueOf(raw.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new AppException(ErrorCode.VALIDATION_FAILED,
+                    "categoryAdmin must be SUPER_ADMIN or COMMUNITY");
+        }
     }
 }

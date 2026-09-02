@@ -35,7 +35,7 @@ public final class TicketDtos {
 
     public record PartyView(String name, String phone, String verificationStatus, String tier) { }
 
-    public record TimelineEntry(String fromStatus, String toStatus, String actorRole,
+    public record TimelineEntry(String fromStatus, String toStatus, String actorRole, String actorName,
                                 String remarks, Instant at) { }
 
     public record AttachmentView(UUID id, String url, String contentType, long sizeBytes,

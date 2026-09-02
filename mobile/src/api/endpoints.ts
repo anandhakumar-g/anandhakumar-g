@@ -1,8 +1,8 @@
 import { api, uploadFile } from "./client";
 import {
-  AdminVendorCategory, AttachmentView, Category, FlatView, InvoiceView, InviteView, JoinRequestView,
-  KycDocView, MeResponse, MyBillingView, NotificationPreferences, OfferStatus, OfferView, Page,
-  PaymentView, PlanView, ProviderTier, ProviderView, ReceiptView, RedemptionView, SessionResponse,
+  AdminVendorCategory, AttachmentView, Category, CommunitySettings, FlatView, InvoiceView, InviteView,
+  JoinRequestView, KycDocView, MeResponse, MyBillingView, NotificationPreferences, OfferStatus, OfferView,
+  Page, PaymentView, PlanView, ProviderTier, ProviderView, ReceiptView, RedemptionView, SessionResponse,
   SubscriptionStatus, SubscriptionView, SubjectType, TenantCard, TicketView, TimelineEntry,
   VendorCategory, VendorCategoryKind,
 } from "./types";
@@ -164,6 +164,9 @@ export const tickets = {
   providerStatus: (id: string, toStatus: string, reason?: string, resolutionNotes?: string) =>
     api.post<TicketView>(`/tickets/${id}/status`, { toStatus, reason, resolutionNotes }),
   // resident
+  approveAllocation: (id: string) => api.post<TicketView>(`/tickets/${id}/allocation/approve`, {}),
+  rejectAllocation: (id: string, reason: string) =>
+    api.post<TicketView>(`/tickets/${id}/allocation/reject`, { reason }),
   reopen: (id: string, remarks?: string) => api.post<TicketView>(`/tickets/${id}/reopen`, { remarks }),
   close: (id: string, rating?: number, remarks?: string) => api.post<TicketView>(`/tickets/${id}/close`, { rating, remarks }),
 };
@@ -182,6 +185,15 @@ export const superadmin = {
       `/superadmin/tenants/${tenantId}/admins`,
       { phone, name }
     ),
+  updateTenant: (
+    tenantId: string,
+    body: Partial<{
+      name: string; city: string; locality: string; address: string; pincode: string;
+      logoUrl: string; defaultTheme: string; brandPrimaryColor: string;
+      reopenWindowHours: number; requireAllocationApproval: boolean;
+      categoryAdmin: "SUPER_ADMIN" | "COMMUNITY";
+    }>
+  ) => api.put<CommunitySettings>(`/superadmin/tenants/${tenantId}`, body),
 };
 
 export const admin = {
@@ -195,6 +207,9 @@ export const admin = {
   joinRequests: () => api.get<JoinRequestView[]>("/admin/join-requests"),
   approveJoin: (id: string, flatId?: string) => api.post<void>(`/admin/join-requests/${id}/approve`, { flatId }),
   rejectJoin: (id: string) => api.post<void>(`/admin/join-requests/${id}/reject`),
+  communitySettings: () => api.get<CommunitySettings>("/admin/community-settings"),
+  updateCommunitySettings: (body: Partial<{ reopenWindowHours: number; requireAllocationApproval: boolean }>) =>
+    api.put<CommunitySettings>("/admin/community-settings", body),
   providers: () => api.get<ProviderView[]>("/admin/providers"),
   addProvider: (body: {
     name: string; vendorCategoryId: string; company: boolean; contactPhone: string;

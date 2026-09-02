@@ -126,6 +126,12 @@ public abstract class IntegrationTestBase {
         return r.getBody();
     }
 
+    protected JsonNode put(String path, String token, Object body) {
+        ResponseEntity<JsonNode> r = http(HttpMethod.PUT, path, token, body);
+        assertTrue(r.getStatusCode().is2xxSuccessful(), path + " -> " + r.getStatusCode() + " " + r.getBody());
+        return r.getBody();
+    }
+
     protected ResponseEntity<JsonNode> multipart(String path, String token, Map<String, String> parts,
                                                  String fileField, String filename, byte[] bytes) {
         HttpHeaders h = new HttpHeaders();
@@ -192,6 +198,12 @@ public abstract class IntegrationTestBase {
         JsonNode v = post("/api/v1/admin/providers/" + id + "/verify", adminToken, Map.of("status", "VERIFIED"));
         assertEquals("VERIFIED", v.get("verificationStatus").asText());
         return id;
+    }
+
+    /** Toggle a community's resident approval-of-allocation gate (Super Admin). */
+    protected void setAllocationApproval(String superToken, UUID tenantId, boolean on) {
+        put("/api/v1/superadmin/tenants/" + tenantId, superToken,
+                Map.of("requireAllocationApproval", on));
     }
 
     protected String firstCategoryId(String token, String name) {

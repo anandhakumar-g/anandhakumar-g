@@ -1,6 +1,6 @@
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
-import { Pressable, View } from "react-native";
+import { Pressable, Switch, View } from "react-native";
 import { admin } from "@/api/endpoints";
 import { FlatView, InviteView, JoinRequestView } from "@/api/types";
 import { Button } from "@/components/Button";
@@ -10,7 +10,7 @@ import { AppText, Card, Loading, Screen } from "@/components/Themed";
 import { useAsync } from "@/hooks/useAsync";
 import { useTheme } from "@/theme/ThemeProvider";
 
-type Tab = "requests" | "invites" | "flats";
+type Tab = "requests" | "invites" | "flats" | "settings";
 
 export default function Community() {
   const { theme } = useTheme();
@@ -18,16 +18,33 @@ export default function Community() {
   const requests = useAsync(() => admin.joinRequests(), []);
   const invites = useAsync(() => admin.invites(), []);
   const flats = useAsync(() => admin.flats(), []);
+  const settings = useAsync(() => admin.communitySettings(), []);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [newFlat, setNewFlat] = useState("");
   const [newBlock, setNewBlock] = useState("");
+  const [reopenHrs, setReopenHrs] = useState("");
+  const [savingGate, setSavingGate] = useState(false);
+
+  async function saveSettings(body: { reopenWindowHours?: number; requireAllocationApproval?: boolean }) {
+    setSavingGate(true);
+    setErr(null);
+    try {
+      await admin.updateCommunitySettings(body);
+      settings.reload();
+    } catch (e: any) {
+      setErr(e.message ?? "Failed");
+    } finally {
+      setSavingGate(false);
+    }
+  }
 
   useFocusEffect(
     useCallback(() => {
       requests.refresh();
       invites.refresh();
       flats.refresh();
+      settings.refresh();
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
   );
@@ -87,6 +104,7 @@ export default function Community() {
           { value: "requests", label: `Requests${(requests.data?.length ?? 0) ? ` (${requests.data!.length})` : ""}` },
           { value: "invites", label: "Invites" },
           { value: "flats", label: "Flats" },
+          { value: "settings", label: "Settings" },
         ]}
       />
       {err ? (
@@ -141,6 +159,69 @@ export default function Community() {
           )}
         </>
       )}
+
+      {tab === "settings" &&
+        (settings.loading || !settings.data ? (
+          <Loading />
+        ) : (
+          <>
+            <Card style={{ gap: theme.space(2) }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <View style={{ flex: 1, paddingRight: theme.space(3) }}>
+                  <AppText weight="700">Resident approves the helper</AppText>
+                  <AppText size="xs" tone="faint">
+                    When on, an assigned ticket waits for the resident to approve the helper before that
+                    helper is notified.
+                  </AppText>
+                </View>
+                <Switch
+                  value={settings.data.requireAllocationApproval}
+                  disabled={savingGate}
+                  onValueChange={(v) => saveSettings({ requireAllocationApproval: v })}
+                />
+              </View>
+            </Card>
+
+            <Card style={{ gap: theme.space(2) }}>
+              <AppText weight="700">Reopen window</AppText>
+              <AppText size="xs" tone="faint">
+                Residents can reopen a resolved ticket for this many hours. Currently{" "}
+                {settings.data.reopenWindowHours}h.
+              </AppText>
+              <View style={{ flexDirection: "row", gap: theme.space(2), alignItems: "center" }}>
+                <View style={{ flex: 1 }}>
+                  <Field
+                    placeholder={`${settings.data.reopenWindowHours}`}
+                    keyboardType="number-pad"
+                    value={reopenHrs}
+                    onChangeText={setReopenHrs}
+                  />
+                </View>
+                <Button
+                  label="Save"
+                  fullWidth={false}
+                  loading={savingGate}
+                  disabled={!(Number(reopenHrs) > 0)}
+                  onPress={() => {
+                    saveSettings({ reopenWindowHours: Number(reopenHrs) });
+                    setReopenHrs("");
+                  }}
+                />
+              </View>
+            </Card>
+
+            <Card style={{ gap: theme.space(1) }}>
+              <AppText weight="700">Ticket categories</AppText>
+              <Pill
+                text={settings.data.categoryAdmin === "COMMUNITY" ? "Managed by this community" : "Managed by the platform"}
+                tone={settings.data.categoryAdmin === "COMMUNITY" ? "primary" : "muted"}
+              />
+              <AppText size="xs" tone="faint">
+                The platform team decides who manages this community's ticket categories.
+              </AppText>
+            </Card>
+          </>
+        ))}
 
       {tab === "flats" && (
         <>

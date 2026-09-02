@@ -159,6 +159,8 @@ export function TicketDetail({ ticketId, role }: { ticketId: string; role: Role 
         onProviderResolve={() => act(() => tickets.providerStatus(tk.id, "RESOLVED", undefined, notes.trim() || undefined))}
         onReopen={() => act(() => tickets.reopen(tk.id, reason.trim() || undefined))}
         onClose={() => act(() => tickets.close(tk.id, rating || undefined, notes.trim() || undefined))}
+        onApproveAllocation={() => act(() => tickets.approveAllocation(tk.id))}
+        onRejectAllocation={() => act(() => tickets.rejectAllocation(tk.id, reason.trim()))}
         onPickProvider={(mode: "assign" | "reroute") => setPicker(mode)}
       />
 
@@ -166,8 +168,13 @@ export function TicketDetail({ ticketId, role }: { ticketId: string; role: Role 
         <ProviderPicker
           onCancel={() => setPicker(null)}
           onPick={(p) => {
+            const mode = picker;
             setPicker(null);
-            act(() => (picker === "assign" ? tickets.assign(tk.id, p.id) : tickets.reroute(tk.id, p.id)));
+            act(() =>
+              mode === "assign"
+                ? tickets.assign(tk.id, p.id)
+                : tickets.reroute(tk.id, p.id, reason.trim() || "Rerouted by admin")
+            );
           }}
         />
       ) : null}
@@ -181,7 +188,7 @@ export function TicketDetail({ ticketId, role }: { ticketId: string; role: Role 
             <AppText size="sm" weight="600">
               {e.toStatus.replace(/_/g, " ")}
               <AppText size="xs" tone="faint">
-                {"  "}· {e.actorRole?.toLowerCase()}
+                {"  "}· {e.actorName ?? e.actorRole?.toLowerCase()}
               </AppText>
             </AppText>
             {e.remarks ? (
@@ -205,6 +212,26 @@ function ActionArea(props: any) {
   const s = tk.status as string;
 
   if (role === "RESIDENT") {
+    if (s === "PENDING_RESIDENT_APPROVAL") {
+      return (
+        <Card style={{ gap: theme.space(2) }}>
+          <AppText weight="700">Approve the assigned helper?</AppText>
+          <AppText size="sm" tone="muted">
+            {tk.assignedProvider?.name ?? "A helper"} has been proposed for your request. They'll be
+            notified only once you approve.
+          </AppText>
+          <Button label="Approve" onPress={props.onApproveAllocation} loading={busy} />
+          <Field placeholder="Reason for declining" value={props.reason} onChangeText={props.setReason} />
+          <Button
+            label="Decline"
+            variant="danger"
+            onPress={props.onRejectAllocation}
+            loading={busy}
+            disabled={props.reason.trim().length < 3}
+          />
+        </Card>
+      );
+    }
     if (s === "RESOLVED") {
       return (
         <Card style={{ gap: theme.space(2) }}>
@@ -221,7 +248,7 @@ function ActionArea(props: any) {
   }
 
   if (role === "ADMIN") {
-    const canReroute = ["ASSIGNED", "ACCEPTED", "IN_PROGRESS", "ON_HOLD", "REJECTED", "REOPENED"].includes(s);
+    const canReroute = ["PENDING_RESIDENT_APPROVAL", "ASSIGNED", "ACCEPTED", "IN_PROGRESS", "ON_HOLD", "REJECTED", "REOPENED"].includes(s);
     return (
       <Card style={{ gap: theme.space(2) }}>
         {s === "NEW" ? <Button label="Acknowledge" variant="secondary" onPress={props.onAck} loading={busy} /> : null}
@@ -232,8 +259,20 @@ function ActionArea(props: any) {
             <Button label="Assign to a provider" onPress={() => props.onPickProvider("assign")} loading={busy} />
           </>
         ) : null}
+        {s === "PENDING_RESIDENT_APPROVAL" ? (
+          <AppText size="sm" tone="muted">Waiting for the resident to approve the assigned helper.</AppText>
+        ) : null}
         {canReroute ? (
-          <Button label="Reroute to another provider" variant="secondary" onPress={() => props.onPickProvider("reroute")} loading={busy} />
+          <>
+            <Field placeholder="Reason for rerouting (required)" value={props.reason} onChangeText={props.setReason} />
+            <Button
+              label="Reroute to another provider"
+              variant="secondary"
+              onPress={() => props.onPickProvider("reroute")}
+              loading={busy}
+              disabled={props.reason.trim().length < 3}
+            />
+          </>
         ) : null}
         {s === "CLOSED" || s === "RESOLVED" ? <AppText tone="muted" size="sm">No admin actions available.</AppText> : null}
       </Card>

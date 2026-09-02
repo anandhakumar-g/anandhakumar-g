@@ -129,8 +129,21 @@ export interface TimelineEntry {
   fromStatus: string | null;
   toStatus: string;
   actorRole: string | null;
+  actorName: string | null;
   remarks: string | null;
   at: string;
+}
+
+export interface CommunitySettings {
+  id: string;
+  name: string;
+  city: string | null;
+  locality: string | null;
+  defaultTheme: string | null;
+  brandPrimaryColor: string | null;
+  reopenWindowHours: number;
+  requireAllocationApproval: boolean;
+  categoryAdmin: "SUPER_ADMIN" | "COMMUNITY";
 }
 
 export interface AttachmentView {
