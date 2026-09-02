@@ -53,8 +53,9 @@ public final class BillingDtos {
 
     public record UsageView(String feature, long limit, long used) { }
 
-    public record MyBillingView(String subjectType, UUID subjectId, PlanView plan, SubscriptionView subscription,
-                                List<UsageView> usage, List<InvoiceView> dueInvoices, List<PlanView> upgradeOptions) { }
+    public record MyBillingView(String subjectType, UUID subjectId, String providerTier, PlanView plan,
+                                SubscriptionView subscription, List<UsageView> usage,
+                                List<InvoiceView> dueInvoices, List<PlanView> upgradeOptions) { }
 
     // ---- requests ---------------------------------------------------
 

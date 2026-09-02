@@ -110,12 +110,15 @@ export default function Providers() {
       ) : (
         list.data!.map((p) => (
           <Card key={p.id} style={{ gap: theme.space(2) }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-              <AppText weight="700">{p.name}</AppText>
-              <Pill
-                text={p.verificationStatus.replace(/_/g, " ")}
-                tone={p.verificationStatus === "VERIFIED" ? "success" : p.verificationStatus === "REJECTED" ? "danger" : "muted"}
-              />
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: theme.space(2) }}>
+              <AppText weight="700" style={{ flexShrink: 1 }}>{p.name}</AppText>
+              <View style={{ flexDirection: "row", gap: theme.space(1.5), alignItems: "center" }}>
+                {p.tier === "FEATURED" ? <Pill text="★ Featured" tone="primary" /> : null}
+                <Pill
+                  text={p.verificationStatus.replace(/_/g, " ")}
+                  tone={p.verificationStatus === "VERIFIED" ? "success" : p.verificationStatus === "REJECTED" ? "danger" : "muted"}
+                />
+              </View>
             </View>
             <AppText size="xs" tone="faint">
               {p.contactPhoneMasked} · {p.assignable ? "assignable" : "not assignable"}

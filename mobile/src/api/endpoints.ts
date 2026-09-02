@@ -1,8 +1,9 @@
 import { api, uploadFile } from "./client";
 import {
-  AdminVendorCategory, AttachmentView, Category, FlatView, InviteView, JoinRequestView, KycDocView,
-  MeResponse, NotificationPreferences, OfferStatus, OfferView, Page, PaymentView, ProviderView,
-  ReceiptView, RedemptionView, SessionResponse, TenantCard, TicketView, TimelineEntry,
+  AdminVendorCategory, AttachmentView, Category, FlatView, InvoiceView, InviteView, JoinRequestView,
+  KycDocView, MeResponse, MyBillingView, NotificationPreferences, OfferStatus, OfferView, Page,
+  PaymentView, PlanView, ProviderTier, ProviderView, ReceiptView, RedemptionView, SessionResponse,
+  SubscriptionStatus, SubscriptionView, SubjectType, TenantCard, TicketView, TimelineEntry,
   VendorCategory, VendorCategoryKind,
 } from "./types";
 
@@ -91,6 +92,41 @@ export const taxonomy = {
     api.post<AdminVendorCategory>(`/superadmin/vendor-categories/${id}/deactivate`),
   reactivateCategory: (id: string) =>
     api.post<AdminVendorCategory>(`/superadmin/vendor-categories/${id}/reactivate`),
+};
+
+export const billing = {
+  mine: () => api.get<MyBillingView>("/me/billing"),
+  selfUpgrade: (planCode: string) => api.post<SubscriptionView>("/me/billing/plan", { planCode }),
+  payInvoice: (invoiceId: string) =>
+    api.post<{ paymentLink: string }>(`/me/billing/invoices/${invoiceId}/pay`, {}),
+};
+
+export const superBilling = {
+  plans: (activeOnly = false) =>
+    api.get<PlanView[]>("/superadmin/plans", { query: { activeOnly } }),
+  createPlan: (body: {
+    target: SubjectType; code: string; name: string; description?: string;
+    billingCycle?: string; price?: number; entitlements?: Record<string, number>; sortOrder?: number;
+  }) => api.post<PlanView>("/superadmin/plans", body),
+  updatePlan: (id: string, body: {
+    name?: string; description?: string; price?: number;
+    entitlements?: Record<string, number>; active?: boolean; sortOrder?: number;
+  }) => api.put<PlanView>(`/superadmin/plans/${id}`, body),
+  subscriptions: (subjectType?: SubjectType, status?: SubscriptionStatus) =>
+    api.get<SubscriptionView[]>("/superadmin/subscriptions", { query: { subjectType, status } }),
+  assign: (body: { subjectType: SubjectType; subjectId: string; planCode: string; comp?: boolean }) =>
+    api.post<SubscriptionView>("/superadmin/subscriptions", body),
+  cancel: (id: string) => api.post<SubscriptionView>(`/superadmin/subscriptions/${id}/cancel`, {}),
+  comp: (id: string) => api.post<SubscriptionView>(`/superadmin/subscriptions/${id}/comp`, {}),
+  invoices: (status?: InvoiceView["status"]) =>
+    api.get<InvoiceView[]>("/superadmin/invoices", { query: { status } }),
+  markPaid: (id: string) => api.post<InvoiceView>(`/superadmin/invoices/${id}/mark-paid`, {}),
+  providers: () =>
+    api.get<{ id: string; name: string; tier: ProviderTier; verificationStatus: string }[]>(
+      "/superadmin/providers"
+    ),
+  setTier: (providerId: string, tier: ProviderTier) =>
+    api.post<void>(`/superadmin/providers/${providerId}/tier`, { tier }),
 };
 
 export const communities = {

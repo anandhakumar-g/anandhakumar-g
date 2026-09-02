@@ -5,7 +5,9 @@ import com.singlepoint.billing.domain.SubjectType;
 import com.singlepoint.billing.domain.Subscription;
 import com.singlepoint.billing.domain.SubscriptionInvoice;
 import com.singlepoint.provider.ProviderService;
+import com.singlepoint.provider.ServiceProviderRepository;
 import com.singlepoint.provider.domain.ProviderTier;
+import com.singlepoint.provider.domain.ServiceProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
@@ -25,10 +27,20 @@ public class SuperAdminBillingController {
 
     private final BillingService billing;
     private final ProviderService providerService;
+    private final ServiceProviderRepository providerRepository;
 
-    public SuperAdminBillingController(BillingService billing, ProviderService providerService) {
+    public SuperAdminBillingController(BillingService billing, ProviderService providerService,
+                                      ServiceProviderRepository providerRepository) {
         this.billing = billing;
         this.providerService = providerService;
+        this.providerRepository = providerRepository;
+    }
+
+    public record ProviderTierView(UUID id, String name, String tier, String verificationStatus) {
+        static ProviderTierView of(ServiceProvider p) {
+            return new ProviderTierView(p.getId(), p.getName(), p.getTier().name(),
+                    p.getVerificationStatus().name());
+        }
     }
 
     private BillingDtos.SubscriptionView view(Subscription s) {
@@ -106,6 +118,14 @@ public class SuperAdminBillingController {
     }
 
     // ---- featured tier ----------------------------------------
+
+    @GetMapping("/providers")
+    @Operation(summary = "Every provider with its current directory tier")
+    public ResponseEntity<List<ProviderTierView>> providers() {
+        return ResponseEntity.ok(providerRepository.findAll().stream()
+                .sorted(java.util.Comparator.comparing(ServiceProvider::getName, String.CASE_INSENSITIVE_ORDER))
+                .map(ProviderTierView::of).toList());
+    }
 
     @PostMapping("/providers/{id}/tier")
     @Operation(summary = "Set a provider's directory tier (STANDARD / FEATURED)")

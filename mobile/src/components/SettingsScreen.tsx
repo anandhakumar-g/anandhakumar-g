@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Platform, Pressable, Switch, View } from "react-native";
 import { catalog, me as meApi } from "@/api/endpoints";
 import { groupVendorCategories, NotificationPreferences, VendorCategory } from "@/api/types";
+import { BillingCard } from "@/components/BillingCard";
 import { Button } from "@/components/Button";
 import { Divider, KeyValue, Segmented } from "@/components/Bits";
 import { AppText, Card, Screen } from "@/components/Themed";
@@ -11,7 +12,13 @@ import { useSession } from "@/store/SessionProvider";
 import { useTheme } from "@/theme/ThemeProvider";
 import { THEMES, THEME_LABELS, ThemeName } from "@/theme/tokens";
 
-export function SettingsScreen({ showOfferPrefs = false }: { showOfferPrefs?: boolean }) {
+export function SettingsScreen({
+  showOfferPrefs = false,
+  showBilling = false,
+}: {
+  showOfferPrefs?: boolean;
+  showBilling?: boolean;
+}) {
   const { theme, themeName, isExplicit, setTheme } = useTheme();
   const { me, user, signOut, refreshMe } = useSession();
   const [pushMsg, setPushMsg] = useState<string | null>(null);
@@ -94,6 +101,8 @@ export function SettingsScreen({ showOfferPrefs = false }: { showOfferPrefs?: bo
         })}
         <Button label="Use community default" variant="ghost" onPress={() => choose(null)} />
       </Card>
+
+      {showBilling ? <BillingCard /> : null}
 
       {showOfferPrefs ? <OfferNotificationPrefs /> : null}
 

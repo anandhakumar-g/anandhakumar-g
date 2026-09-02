@@ -94,7 +94,9 @@ public class MeBillingController {
                 .map(BillingDtos.PlanView::of).toList();
 
         var subView = sub != null ? BillingDtos.SubscriptionView.of(sub, billing.planById(sub.getPlanId())) : null;
-        return ResponseEntity.ok(new BillingDtos.MyBillingView(ref.type().name(), ref.id(),
+        String tier = ref.type() == SubjectType.PROVIDER
+                ? providers.findById(ref.id()).map(sp -> sp.getTier().name()).orElse(null) : null;
+        return ResponseEntity.ok(new BillingDtos.MyBillingView(ref.type().name(), ref.id(), tier,
                 BillingDtos.PlanView.of(plan), subView, usage, due, upgrades));
     }
 

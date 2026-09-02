@@ -320,3 +320,86 @@ export function money(amount: number, currency = "INR"): string {
   const sym = currency === "INR" ? "₹" : currency + " ";
   return sym + Number(amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
+
+// ---- MVP-4: billing / subscriptions ---------------------------------
+
+export type SubjectType = "TENANT" | "PROVIDER";
+export type SubscriptionStatus =
+  | "TRIAL" | "ACTIVE" | "PAST_DUE" | "EXPIRED" | "CANCELLED" | "COMPED";
+export type InvoiceStatus = "DUE" | "PAID" | "VOID";
+export type ProviderTier = "STANDARD" | "FEATURED";
+
+export interface PlanView {
+  id: string;
+  target: SubjectType;
+  code: string;
+  name: string;
+  description: string | null;
+  billingCycle: string;
+  price: number;
+  currency: string;
+  entitlements: Record<string, number>;
+  active: boolean;
+  isDefault: boolean;
+  sortOrder: number;
+}
+
+export interface SubscriptionView {
+  id: string;
+  subjectType: SubjectType;
+  subjectId: string;
+  planId: string;
+  planCode: string | null;
+  planName: string | null;
+  status: SubscriptionStatus;
+  currentPeriodStart: string | null;
+  currentPeriodEnd: string | null;
+  graceUntil: string | null;
+  autoRenew: boolean;
+}
+
+export interface InvoiceView {
+  id: string;
+  subscriptionId: string;
+  subjectType: SubjectType;
+  subjectId: string;
+  amount: number;
+  currency: string;
+  periodStart: string;
+  periodEnd: string;
+  status: InvoiceStatus;
+  paymentLink: string | null;
+  paidAt: string | null;
+  createdAt: string;
+}
+
+export interface UsageView {
+  feature: string;
+  limit: number; // -1 unlimited, 0 disabled, positive cap
+  used: number;
+}
+
+export interface MyBillingView {
+  subjectType: SubjectType;
+  subjectId: string;
+  providerTier: ProviderTier | null;
+  plan: PlanView;
+  subscription: SubscriptionView | null;
+  usage: UsageView[];
+  dueInvoices: InvoiceView[];
+  upgradeOptions: PlanView[];
+}
+
+export function featureLabel(feature: string): string {
+  const s = feature.toLowerCase().replace(/_/g, " ");
+  return s.replace(/ per month$/, " / month");
+}
+
+export function subscriptionTone(
+  status: SubscriptionStatus
+): "success" | "primary" | "danger" | "muted" {
+  if (status === "ACTIVE" || status === "COMPED" || status === "TRIAL") return "success";
+  if (status === "PAST_DUE") return "primary";
+  if (status === "EXPIRED") return "danger";
+  return "muted";
+}
