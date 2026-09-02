@@ -3,9 +3,14 @@ import {
   AdminVendorCategory, AttachmentView, Category, CommunitySettings, FlatView, InvoiceView, InviteView,
   JoinRequestView, KycDocView, MeResponse, MyBillingView, NotificationPreferences, OfferStatus, OfferView,
   Page, PaymentView, PlanView, ProviderTier, ProviderView, ReceiptView, RedemptionView, SessionResponse,
-  SubscriptionStatus, SubscriptionView, SubjectType, TenantCard, TicketView, TimelineEntry,
+  SubscriptionStatus, SubscriptionView, SubjectType, TenantCard, TicketCategory, TicketView, TimelineEntry,
   VendorCategory, VendorCategoryKind,
 } from "./types";
+
+type TicketCategoryBody = Partial<{
+  name: string; requestType: string; parentCategoryId: string;
+  slaHours: number; defaultProviderKind: string; sortOrder: number;
+}>;
 
 export const auth = {
   requestOtp: (phone: string) =>
@@ -139,6 +144,27 @@ export const communities = {
 export const catalog = {
   categories: () => api.get<Category[]>("/categories"),
   vendorCategories: () => api.get<VendorCategory[]>("/vendor-categories"),
+};
+
+export const superCategories = {
+  list: (tenantId?: string) =>
+    api.get<TicketCategory[]>("/superadmin/ticket-categories", { query: { tenantId } }),
+  create: (body: TicketCategoryBody, tenantId?: string) =>
+    api.post<TicketCategory>("/superadmin/ticket-categories", body, { query: { tenantId } }),
+  update: (id: string, body: TicketCategoryBody, tenantId?: string) =>
+    api.put<TicketCategory>(`/superadmin/ticket-categories/${id}`, body, { query: { tenantId } }),
+  deactivate: (id: string, tenantId?: string) =>
+    api.post<TicketCategory>(`/superadmin/ticket-categories/${id}/deactivate`, {}, { query: { tenantId } }),
+  reactivate: (id: string, tenantId?: string) =>
+    api.post<TicketCategory>(`/superadmin/ticket-categories/${id}/reactivate`, {}, { query: { tenantId } }),
+};
+
+export const adminCategories = {
+  list: () => api.get<TicketCategory[]>("/admin/ticket-categories"),
+  create: (body: TicketCategoryBody) => api.post<TicketCategory>("/admin/ticket-categories", body),
+  update: (id: string, body: TicketCategoryBody) => api.put<TicketCategory>(`/admin/ticket-categories/${id}`, body),
+  deactivate: (id: string) => api.post<TicketCategory>(`/admin/ticket-categories/${id}/deactivate`, {}),
+  reactivate: (id: string) => api.post<TicketCategory>(`/admin/ticket-categories/${id}/reactivate`, {}),
 };
 
 export const tickets = {

@@ -91,8 +91,12 @@ public class TicketService {
         UUID tenantId = requireTenant(principal);
         entitlements.requireWithinQuota(com.singlepoint.billing.domain.SubjectType.TENANT, tenantId,
                 "TICKETS_PER_MONTH", ticketRepository.countByTenantIdAndCreatedAtAfter(tenantId, monthStart()));
-        Category category = categoryRepository.findById(cmd.categoryId())
+        Category category = categoryRepository.findActiveForTenantScope(cmd.categoryId(), tenantId)
                 .orElseThrow(() -> AppException.notFound("Category"));
+        if (cmd.subcategoryId() != null
+                && categoryRepository.findActiveForTenantScope(cmd.subcategoryId(), tenantId).isEmpty()) {
+            throw AppException.notFound("Subcategory");
+        }
 
         Flat flat = null;
         if (cmd.flatId() != null) {

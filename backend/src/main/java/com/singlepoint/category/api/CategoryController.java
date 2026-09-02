@@ -4,9 +4,11 @@ import com.singlepoint.category.CategoryRepository;
 import com.singlepoint.category.VendorCategoryKindRepository;
 import com.singlepoint.category.VendorCategoryRepository;
 import com.singlepoint.category.domain.VendorCategoryKind;
+import com.singlepoint.security.AppPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,16 +35,20 @@ public class CategoryController {
         this.vendorCategoryKindRepository = vendorCategoryKindRepository;
     }
 
-    public record CategoryView(UUID id, String name, String requestType, Integer slaHours, int sortOrder) { }
+    public record CategoryView(UUID id, String name, String requestType, Integer slaHours, int sortOrder,
+                               UUID parentCategoryId, UUID tenantId) { }
     public record VendorCategoryView(UUID id, String name, String kind, String kindLabel,
                                      UUID parentCategoryId, int sortOrder) { }
 
     @GetMapping("/categories")
-    @Operation(summary = "Ticket categories for the raise-ticket picker")
-    public ResponseEntity<List<CategoryView>> categories() {
-        List<CategoryView> out = categoryRepository.findByTenantIdIsNullAndActiveTrueOrderBySortOrderAsc().stream()
+    @Operation(summary = "Ticket categories for the raise-ticket picker (global + this community's own)")
+    public ResponseEntity<List<CategoryView>> categories(@AuthenticationPrincipal AppPrincipal principal) {
+        var rows = principal != null && principal.getTenantId() != null
+                ? categoryRepository.findVisibleForTenant(principal.getTenantId())
+                : categoryRepository.findByTenantIdIsNullAndActiveTrueOrderBySortOrderAsc();
+        List<CategoryView> out = rows.stream()
                 .map(c -> new CategoryView(c.getId(), c.getName(), c.getRequestType().name(),
-                        c.getSlaHours(), c.getSortOrder()))
+                        c.getSlaHours(), c.getSortOrder(), c.getParentCategoryId(), c.getTenantId()))
                 .toList();
         return ResponseEntity.ok(out);
     }

@@ -1,8 +1,8 @@
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { Pressable, Switch, View } from "react-native";
-import { admin } from "@/api/endpoints";
-import { FlatView, InviteView, JoinRequestView } from "@/api/types";
+import { admin, adminCategories } from "@/api/endpoints";
+import { FlatView, InviteView, JoinRequestView, TicketCategory } from "@/api/types";
 import { Button } from "@/components/Button";
 import { Divider, EmptyState, Pill, Segmented } from "@/components/Bits";
 import { Field } from "@/components/Field";
@@ -210,15 +210,19 @@ export default function Community() {
               </View>
             </Card>
 
-            <Card style={{ gap: theme.space(1) }}>
+            <Card style={{ gap: theme.space(2) }}>
               <AppText weight="700">Ticket categories</AppText>
               <Pill
                 text={settings.data.categoryAdmin === "COMMUNITY" ? "Managed by this community" : "Managed by the platform"}
                 tone={settings.data.categoryAdmin === "COMMUNITY" ? "primary" : "muted"}
               />
-              <AppText size="xs" tone="faint">
-                The platform team decides who manages this community's ticket categories.
-              </AppText>
+              {settings.data.categoryAdmin === "COMMUNITY" ? (
+                <CommunityCategoryEditor theme={theme} onError={setErr} />
+              ) : (
+                <AppText size="xs" tone="faint">
+                  The platform team manages this community's ticket categories.
+                </AppText>
+              )}
             </Card>
           </>
         ))}
@@ -261,5 +265,67 @@ export default function Community() {
         </>
       )}
     </Screen>
+  );
+}
+
+const REQ_TYPES = ["ISSUE", "FEEDBACK", "ENQUIRY"] as const;
+
+function CommunityCategoryEditor({ theme, onError }: { theme: any; onError: (m: string | null) => void }) {
+  const cats = useAsync(() => adminCategories.list(), []);
+  const [name, setName] = useState("");
+  const [reqType, setReqType] = useState<(typeof REQ_TYPES)[number]>("ISSUE");
+  const [busy, setBusy] = useState(false);
+
+  async function run(fn: () => Promise<any>) {
+    setBusy(true);
+    onError(null);
+    try {
+      await fn();
+      cats.reload();
+    } catch (e: any) {
+      onError(e.message ?? "Failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <View style={{ gap: theme.space(2) }}>
+      <Field placeholder="New category name" value={name} onChangeText={setName} />
+      <View style={{ flexDirection: "row", gap: theme.space(2) }}>
+        {REQ_TYPES.map((rt) => (
+          <Button
+            key={rt}
+            label={rt}
+            fullWidth={false}
+            variant={reqType === rt ? "primary" : "secondary"}
+            onPress={() => setReqType(rt)}
+          />
+        ))}
+      </View>
+      <Button
+        label="Add category"
+        loading={busy}
+        disabled={!name.trim()}
+        onPress={() => run(async () => {
+          await adminCategories.create({ name: name.trim(), requestType: reqType });
+          setName("");
+        })}
+      />
+      {(cats.data ?? []).map((c: TicketCategory) => (
+        <View key={c.id} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <AppText size="sm" style={{ opacity: c.active ? 1 : 0.5 }}>
+            {c.name} · {c.requestType}
+          </AppText>
+          <AppText
+            size="xs"
+            tone={c.active ? "danger" : "primary"}
+            onPress={() => run(() => (c.active ? adminCategories.deactivate(c.id) : adminCategories.reactivate(c.id)))}
+          >
+            {c.active ? "Deactivate" : "Reactivate"}
+          </AppText>
+        </View>
+      ))}
+    </View>
   );
 }

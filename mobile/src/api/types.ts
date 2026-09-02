@@ -137,6 +137,18 @@ export interface TimelineEntry {
   at: string;
 }
 
+export interface TicketCategory {
+  id: string;
+  tenantId: string | null;
+  name: string;
+  requestType: "ISSUE" | "FEEDBACK" | "ENQUIRY";
+  parentCategoryId: string | null;
+  slaHours: number | null;
+  defaultProviderKind: string | null;
+  sortOrder: number;
+  active: boolean;
+}
+
 export interface CommunitySettings {
   id: string;
   name: string;
