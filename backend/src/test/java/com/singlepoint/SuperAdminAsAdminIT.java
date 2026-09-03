@@ -35,8 +35,9 @@ class SuperAdminAsAdminIT extends IntegrationTestBase {
         assertEquals(tenant.toString(), s.get("user").get("activeTenantId").asText());
 
         // admin work now succeeds, scoped to the assumed community
-        String flatId = post("/api/v1/admin/flats", acting, Map.of("block", "A", "flatNumber", "1"))
-                .get("id").asText();
+        String locId = post("/api/v1/admin/locations", acting, Map.of("label", "Main")).get("id").asText();
+        String flatId = post("/api/v1/admin/flats", acting,
+                Map.of("locationId", locId, "block", "A", "flatNumber", "1")).get("id").asText();
         assertEquals(1, get("/api/v1/admin/flats", acting).size());
         assertEquals(tenant.toString(), get("/api/v1/me", acting).get("activeTenantId").asText());
 

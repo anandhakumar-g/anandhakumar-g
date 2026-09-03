@@ -25,19 +25,22 @@ public class ProviderService {
     private final TenantServiceProviderRepository tenantProviderRepository;
     private final VendorCategoryRepository vendorCategoryRepository;
     private final AppUserRepository userRepository;
+    private final com.singlepoint.tenant.TenantRepository tenantRepository;
     private final CryptoService crypto;
     private final com.singlepoint.entitlement.EntitlementService entitlements;
 
     public ProviderService(ServiceProviderRepository providerRepository,
                            TenantServiceProviderRepository tenantProviderRepository,
                            VendorCategoryRepository vendorCategoryRepository,
-                           AppUserRepository userRepository, CryptoService crypto,
+                           AppUserRepository userRepository,
+                           com.singlepoint.tenant.TenantRepository tenantRepository, CryptoService crypto,
                            com.singlepoint.provider.kyc.KycService kycService,
                            com.singlepoint.entitlement.EntitlementService entitlements) {
         this.providerRepository = providerRepository;
         this.tenantProviderRepository = tenantProviderRepository;
         this.vendorCategoryRepository = vendorCategoryRepository;
         this.userRepository = userRepository;
+        this.tenantRepository = tenantRepository;
         this.crypto = crypto;
         this.kycService = kycService;
         this.entitlements = entitlements;
@@ -45,15 +48,13 @@ public class ProviderService {
 
     private final com.singlepoint.provider.kyc.KycService kycService;
 
-    /** Admin adds a provider to their community's directory. Providers are never self-approved. */
-    @Transactional
-    public ServiceProvider createForTenant(UUID tenantId, String name, UUID vendorCategoryId, boolean company,
-                                           String contactPhone, String contactEmail, String serviceArea) {
+    /** Upsert the global service_provider row, deduped by phone hash. No enrolment. */
+    private ServiceProvider upsertGlobal(String name, UUID vendorCategoryId, boolean company,
+                                         String contactPhone, String contactEmail, String serviceArea) {
         vendorCategoryRepository.findById(vendorCategoryId)
                 .orElseThrow(() -> AppException.notFound("Vendor category"));
         String phone = PhoneNumbers.normalize(contactPhone);
         String phoneHash = crypto.lookupHash(phone);
-
         ServiceProvider provider = providerRepository.findByContactPhoneHash(phoneHash).orElseGet(ServiceProvider::new);
         provider.setName(name);
         provider.setVendorCategoryId(vendorCategoryId);
@@ -65,8 +66,21 @@ public class ProviderService {
         if (provider.getVerificationStatus() == null) {
             provider.setVerificationStatus(VerificationStatus.PENDING_VERIFICATION);
         }
-        provider = providerRepository.save(provider);
+        return providerRepository.save(provider);
+    }
 
+    /** MVP-7: the Super Admin creates a global provider. Verification + KYC review follow. */
+    @Transactional
+    public ServiceProvider createGlobal(String name, UUID vendorCategoryId, boolean company,
+                                        String contactPhone, String contactEmail, String serviceArea) {
+        return upsertGlobal(name, vendorCategoryId, company, contactPhone, contactEmail, serviceArea);
+    }
+
+    /** Seed/bootstrap path only: create the global row and enrol it in one community. */
+    @Transactional
+    public ServiceProvider createForTenant(UUID tenantId, String name, UUID vendorCategoryId, boolean company,
+                                           String contactPhone, String contactEmail, String serviceArea) {
+        ServiceProvider provider = upsertGlobal(name, vendorCategoryId, company, contactPhone, contactEmail, serviceArea);
         if (!tenantProviderRepository.existsByTenantIdAndServiceProviderId(tenantId, provider.getId())) {
             TenantServiceProvider tsp = new TenantServiceProvider();
             tsp.setTenantId(tenantId);
@@ -75,6 +89,54 @@ public class ProviderService {
             tenantProviderRepository.save(tsp);
         }
         return provider;
+    }
+
+    /**
+     * MVP-7: a community admin enrols an already-verified provider from the global directory.
+     * Requires the community's {@code provider_onboarding_allowed} flag and a VERIFIED provider.
+     */
+    @Transactional
+    public ServiceProvider enrol(UUID tenantId, UUID providerId) {
+        boolean allowed = tenantRepository.findById(tenantId)
+                .map(com.singlepoint.tenant.domain.Tenant::isProviderOnboardingAllowed).orElse(false);
+        if (!allowed) {
+            throw new AppException(ErrorCode.FORBIDDEN,
+                    "This community is not permitted to enrol providers");
+        }
+        ServiceProvider p = require(providerId);
+        if (p.getVerificationStatus() != VerificationStatus.VERIFIED) {
+            throw new AppException(ErrorCode.PROVIDER_NOT_ASSIGNABLE,
+                    "Only a verified provider can be enrolled");
+        }
+        TenantServiceProvider tsp = tenantProviderRepository
+                .findByTenantIdAndServiceProviderId(tenantId, providerId).orElse(null);
+        if (tsp == null) {
+            tsp = new TenantServiceProvider();
+            tsp.setTenantId(tenantId);
+            tsp.setServiceProviderId(providerId);
+            tsp.setServiceArea(p.getServiceArea());
+        }
+        tsp.setActive(true);
+        tenantProviderRepository.save(tsp);
+        return p;
+    }
+
+    /** MVP-7: the global verified directory an admin picks from. Optional vendor-category filter. */
+    @Transactional(readOnly = true)
+    public List<ServiceProvider> verifiedGlobal(UUID vendorCategoryId) {
+        return providerRepository.findAll().stream()
+                .filter(p -> p.getVerificationStatus() == VerificationStatus.VERIFIED)
+                .filter(p -> vendorCategoryId == null || vendorCategoryId.equals(p.getVendorCategoryId()))
+                .sorted((a, b) -> a.getName().compareToIgnoreCase(b.getName()))
+                .toList();
+    }
+
+    /** Every global provider (Super Admin console). */
+    @Transactional(readOnly = true)
+    public List<ServiceProvider> allGlobal() {
+        return providerRepository.findAll().stream()
+                .sorted((a, b) -> a.getName().compareToIgnoreCase(b.getName()))
+                .toList();
     }
 
     /**
@@ -153,11 +215,10 @@ public class ProviderService {
         return providerRepository.save(p);
     }
 
-    /** Admin edits a provider enrolled in their community. Any null argument is left unchanged. */
+    /** MVP-7: the Super Admin edits a global provider. Any null argument is left unchanged. */
     @Transactional
-    public ServiceProvider updateForTenant(UUID tenantId, UUID providerId, String name, String contactPhone,
-                                           String contactEmail, String serviceArea, UUID vendorCategoryId) {
-        requireEnrolled(tenantId, providerId);
+    public ServiceProvider updateGlobal(UUID providerId, String name, String contactPhone,
+                                        String contactEmail, String serviceArea, UUID vendorCategoryId) {
         ServiceProvider p = require(providerId);
         if (name != null && !name.isBlank()) p.setName(name.trim());
         if (contactEmail != null) p.setContactEmail(contactEmail.isBlank() ? null : contactEmail.trim());
@@ -213,12 +274,6 @@ public class ProviderService {
     public ServiceProvider requireOwn(UUID userId) {
         return providerRepository.findByUserId(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.FORBIDDEN, "No provider profile for this account"));
-    }
-
-    private void requireEnrolled(UUID tenantId, UUID providerId) {
-        if (!tenantProviderRepository.existsByTenantIdAndServiceProviderId(tenantId, providerId)) {
-            throw AppException.notFound("Service provider");
-        }
     }
 
     @Transactional(readOnly = true)

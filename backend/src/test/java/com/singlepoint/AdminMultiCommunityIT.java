@@ -48,8 +48,9 @@ class AdminMultiCommunityIT extends IntegrationTestBase {
                 get("/api/v1/me", bToken).get("activeTenantId").asText());
 
         // a flat created while scoped to B is not visible from A
-        String flatB = post("/api/v1/admin/flats", bToken, Map.of("block", "B", "flatNumber", "1"))
-                .get("id").asText();
+        String locB = post("/api/v1/admin/locations", bToken, Map.of("label", "Main")).get("id").asText();
+        String flatB = post("/api/v1/admin/flats", bToken,
+                Map.of("locationId", locB, "block", "B", "flatNumber", "1")).get("id").asText();
         String aToken = post("/api/v1/me/active-community", adminToken, Map.of("tenantId", tenantA.toString()))
                 .get("token").asText();
         for (JsonNode f : get("/api/v1/admin/flats", aToken)) {

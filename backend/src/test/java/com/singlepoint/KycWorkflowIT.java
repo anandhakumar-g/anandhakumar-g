@@ -11,6 +11,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/** MVP-7: provider KYC review + verification is Super-Admin territory. */
 class KycWorkflowIT extends IntegrationTestBase {
 
     private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4};
@@ -22,18 +23,14 @@ class KycWorkflowIT extends IntegrationTestBase {
         createAdmin(su, tenant, "+919000000101", "GM Admin");
         String admin = login("+919000000101").token();
 
-        UUID otherTenant = createTenant(su, "Lakeview", "#1565C0");
-        createAdmin(su, otherTenant, "+919000000201", "LV Admin");
-        String otherAdmin = login("+919000000201").token();
-
-        JsonNode prov = post("/api/v1/admin/providers", admin, Map.of(
+        JsonNode prov = post("/api/v1/superadmin/providers", su, Map.of(
                 "name", "Sparky Electricals", "vendorCategoryId", VENDOR_CAT_ELECTRICAL,
                 "company", true, "contactPhone", "+919000000301"));
         UUID providerId = UUID.fromString(prov.get("id").asText());
         String providerToken = login("+919000000301").token();
 
         // verify with no accepted docs -> 422 SP-422-KYC
-        var early = http(HttpMethod.POST, "/api/v1/admin/providers/" + providerId + "/verify", admin,
+        var early = http(HttpMethod.POST, "/api/v1/superadmin/providers/" + providerId + "/verify", su,
                 Map.of("status", "VERIFIED"));
         assertEquals(422, early.getStatusCode().value());
         assertEquals("SP-422-KYC", early.getBody().get("errorCode").asText());
@@ -46,26 +43,28 @@ class KycWorkflowIT extends IntegrationTestBase {
             assertEquals("PENDING", up.getBody().get("status").asText());
         }
 
-        JsonNode docs = get("/api/v1/admin/providers/" + providerId + "/kyc", admin);
+        // a community admin cannot review KYC or verify — that authority moved to the Super Admin
+        assertEquals(403, http(HttpMethod.GET,
+                "/api/v1/superadmin/providers/" + providerId + "/kyc", admin, null).getStatusCode().value());
+        assertEquals(403, http(HttpMethod.POST,
+                "/api/v1/superadmin/providers/" + providerId + "/verify", admin,
+                Map.of("status", "VERIFIED")).getStatusCode().value());
+
+        JsonNode docs = get("/api/v1/superadmin/providers/" + providerId + "/kyc", su);
         assertEquals(3, docs.size());
 
-        // admin of the enrolled tenant can download; another tenant's admin cannot
         String firstDocId = docs.get(0).get("id").asText();
         ResponseEntity<byte[]> file = rest.exchange(
-                "/api/v1/admin/providers/" + providerId + "/kyc/" + firstDocId + "/file",
-                HttpMethod.GET, authGet(admin), byte[].class);
+                "/api/v1/superadmin/providers/" + providerId + "/kyc/" + firstDocId + "/file",
+                HttpMethod.GET, authGet(su), byte[].class);
         assertEquals(200, file.getStatusCode().value());
-
-        var forbidden = http(HttpMethod.GET,
-                "/api/v1/admin/providers/" + providerId + "/kyc/" + firstDocId + "/file", otherAdmin, null);
-        assertEquals(404, forbidden.getStatusCode().value());
 
         // accept all three, then verification succeeds
         for (JsonNode d : docs) {
-            post("/api/v1/admin/providers/" + providerId + "/kyc/" + d.get("id").asText() + "/review",
-                    admin, Map.of("status", "ACCEPTED", "note", "looks good"));
+            post("/api/v1/superadmin/providers/" + providerId + "/kyc/" + d.get("id").asText() + "/review",
+                    su, Map.of("status", "ACCEPTED", "note", "looks good"));
         }
-        JsonNode verified = post("/api/v1/admin/providers/" + providerId + "/verify", admin,
+        JsonNode verified = post("/api/v1/superadmin/providers/" + providerId + "/verify", su,
                 Map.of("status", "VERIFIED"));
         assertEquals("VERIFIED", verified.get("verificationStatus").asText());
         assertTrue(verified.get("assignable").asBoolean());

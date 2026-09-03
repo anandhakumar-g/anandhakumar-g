@@ -31,15 +31,15 @@ class TaxonomyAdminIT extends IntegrationTestBase {
         JsonNode listed = get("/api/v1/vendor-categories", admin);
         assertTrue(anyMatch(listed, catId, "Pet Care"));
 
-        // and a provider can be created under it
-        JsonNode p = post("/api/v1/admin/providers", admin, Map.of(
+        // and a provider can be created under it (Super Admin owns provider onboarding)
+        JsonNode p = post("/api/v1/superadmin/providers", su, Map.of(
                 "name", "Happy Paws", "vendorCategoryId", catId, "company", true, "contactPhone", "+919000000901"));
         assertEquals(catId, p.get("vendorCategoryId").asText());
 
         // deactivating removes it from the picker but not from the provider row
         post("/api/v1/superadmin/vendor-categories/" + catId + "/deactivate", su, Map.of());
         assertFalse(anyMatch(get("/api/v1/vendor-categories", admin), catId, null));
-        assertEquals(catId, get("/api/v1/admin/providers", admin).get(0).get("vendorCategoryId").asText());
+        assertEquals(catId, get("/api/v1/superadmin/providers", su).get(0).get("vendorCategoryId").asText());
     }
 
     @Test

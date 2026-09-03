@@ -5,8 +5,8 @@ import com.singlepoint.common.error.ErrorCode;
 import com.singlepoint.common.util.PhoneNumbers;
 import com.singlepoint.provider.ProviderService;
 import com.singlepoint.provider.domain.ServiceProvider;
-import com.singlepoint.provider.domain.VerificationStatus;
 import com.singlepoint.security.AppPrincipal;
+import com.singlepoint.tenant.TenantService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
@@ -15,21 +15,25 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotBlank;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * MVP-7: a community admin manages which verified providers are enrolled in their community.
+ * Creating and verifying providers is Super-Admin territory (see {@code SuperAdminProviderController}).
+ */
 @RestController
 @RequestMapping("/api/v1/admin/providers")
-@PreAuthorize("hasRole('ADMIN')")
-@Tag(name = "Admin — Providers", description = "Community provider directory + manual verification")
+@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+@Tag(name = "Admin — Providers", description = "Enrol verified providers into this community")
 public class AdminProviderController {
 
     private final ProviderService providerService;
+    private final TenantService tenantService;
 
-    public AdminProviderController(ProviderService providerService) {
+    public AdminProviderController(ProviderService providerService, TenantService tenantService) {
         this.providerService = providerService;
+        this.tenantService = tenantService;
     }
 
     private UUID tenant(AppPrincipal p) {
@@ -37,12 +41,13 @@ public class AdminProviderController {
         return p.getTenantId();
     }
 
-    public record CreateProviderRequest(@NotBlank String name, @NotBlank String vendorCategoryId,
-                                        boolean company, @NotBlank String contactPhone,
-                                        String contactEmail, String serviceArea) { }
-    public record VerifyRequest(@NotBlank String status) { }
-    public record UpdateProviderRequest(String name, String vendorCategoryId, String contactPhone,
-                                        String contactEmail, String serviceArea) { }
+    private void requireOnboardingAllowed(UUID tenantId) {
+        if (!tenantService.require(tenantId).isProviderOnboardingAllowed()) {
+            throw new AppException(ErrorCode.FORBIDDEN,
+                    "The platform has not enabled provider enrolment for this community");
+        }
+    }
+
     public record ProviderView(UUID id, String name, String vendorCategoryId, boolean company,
                                String contactPhoneMasked, String verificationStatus, String tier,
                                boolean active, boolean assignable, String availability, String availabilityNote,
@@ -57,7 +62,7 @@ public class AdminProviderController {
     }
 
     @GetMapping
-    @Operation(summary = "This community's providers. ?includeInactive=true also lists deactivated enrolments")
+    @Operation(summary = "This community's enrolled providers. ?includeInactive=true also lists deactivated enrolments")
     public ResponseEntity<List<ProviderView>> directory(@AuthenticationPrincipal AppPrincipal p,
                                                         @RequestParam(required = false) String sort,
                                                         @RequestParam(defaultValue = "false") boolean includeInactive) {
@@ -67,24 +72,22 @@ public class AdminProviderController {
         return ResponseEntity.ok(providers.stream().map(ProviderView::of).toList());
     }
 
-    @PostMapping
-    public ResponseEntity<ProviderView> create(@AuthenticationPrincipal AppPrincipal p,
-                                               @Valid @RequestBody CreateProviderRequest body) {
-        ServiceProvider sp = providerService.createForTenant(tenant(p), body.name(),
-                UUID.fromString(body.vendorCategoryId()), body.company(), body.contactPhone(),
-                body.contactEmail(), body.serviceArea());
-        return ResponseEntity.status(HttpStatus.CREATED).body(ProviderView.of(sp));
+    @GetMapping("/catalog")
+    @Operation(summary = "The global verified-provider directory to enrol from (?vendorCategoryId= to filter)")
+    public ResponseEntity<List<ProviderView>> catalog(@AuthenticationPrincipal AppPrincipal p,
+                                                      @RequestParam(required = false) String vendorCategoryId) {
+        requireOnboardingAllowed(tenant(p));
+        UUID vcat = vendorCategoryId != null ? UUID.fromString(vendorCategoryId) : null;
+        return ResponseEntity.ok(providerService.verifiedGlobal(vcat).stream().map(ProviderView::of).toList());
     }
 
-    @PutMapping("/{providerId}")
-    @Operation(summary = "Edit a provider enrolled in this community")
-    public ResponseEntity<ProviderView> update(@AuthenticationPrincipal AppPrincipal p,
-                                               @PathVariable UUID providerId,
-                                               @RequestBody UpdateProviderRequest body) {
-        return ResponseEntity.ok(ProviderView.of(providerService.updateForTenant(
-                tenant(p), providerId, body.name(), body.contactPhone(), body.contactEmail(),
-                body.serviceArea(),
-                body.vendorCategoryId() != null ? UUID.fromString(body.vendorCategoryId()) : null)));
+    @PostMapping("/{providerId}/enrol")
+    @Operation(summary = "Enrol a verified provider into this community")
+    public ResponseEntity<ProviderView> enrol(@AuthenticationPrincipal AppPrincipal p,
+                                              @PathVariable UUID providerId) {
+        requireOnboardingAllowed(tenant(p));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ProviderView.of(providerService.enrol(tenant(p), providerId)));
     }
 
     @PostMapping("/{providerId}/deactivate")
@@ -100,19 +103,5 @@ public class AdminProviderController {
                                                    @PathVariable UUID providerId) {
         return ResponseEntity.ok(ProviderView.of(
                 providerService.setEnrolmentActive(tenant(p), providerId, true)));
-    }
-
-    @PostMapping("/{providerId}/verify")
-    @Operation(summary = "Set verification status (VERIFIED / REJECTED / SUSPENDED / PENDING_VERIFICATION)")
-    public ResponseEntity<ProviderView> verify(@AuthenticationPrincipal AppPrincipal p,
-                                               @PathVariable UUID providerId,
-                                               @Valid @RequestBody VerifyRequest body) {
-        // ensure the provider is enrolled in this admin's tenant before touching global verification
-        if (!providerService.isEnrolledAndActive(tenant(p), providerId)) {
-            throw AppException.notFound("Service provider");
-        }
-        VerificationStatus status = VerificationStatus.valueOf(body.status().toUpperCase());
-        return ResponseEntity.ok(ProviderView.of(
-                providerService.setVerification(providerId, status, p.getUserId())));
     }
 }

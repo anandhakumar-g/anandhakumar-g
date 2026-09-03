@@ -6,6 +6,8 @@ import com.singlepoint.flat.FlatService;
 import com.singlepoint.flat.InviteCodeService;
 import com.singlepoint.flat.domain.Flat;
 import com.singlepoint.flat.domain.InviteCode;
+import com.singlepoint.location.LocationRepository;
+import com.singlepoint.location.domain.Location;
 import com.singlepoint.security.AppPrincipal;
 import com.singlepoint.user.domain.MembershipRelation;
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,10 +33,13 @@ public class AdminFlatController {
 
     private final FlatService flatService;
     private final InviteCodeService inviteCodeService;
+    private final LocationRepository locationRepository;
 
-    public AdminFlatController(FlatService flatService, InviteCodeService inviteCodeService) {
+    public AdminFlatController(FlatService flatService, InviteCodeService inviteCodeService,
+                              LocationRepository locationRepository) {
         this.flatService = flatService;
         this.inviteCodeService = inviteCodeService;
+        this.locationRepository = locationRepository;
     }
 
     private UUID tenant(AppPrincipal p) {
@@ -42,19 +47,26 @@ public class AdminFlatController {
         return p.getTenantId();
     }
 
-    public record FlatView(UUID id, String block, String flatNumber, String label, String occupancyType,
-                           String addressText, BigDecimal geoLat, BigDecimal geoLng,
+    public record FlatView(UUID id, UUID locationId, String locationLabel, String block, String flatNumber,
+                           String label, String occupancyType, String addressText,
+                           BigDecimal geoLat, BigDecimal geoLng,
                            UUID currentOccupantUserId, UUID ownerUserId) {
-        static FlatView of(Flat f) {
-            return new FlatView(f.getId(), f.getBlock(), f.getFlatNumber(), f.label(),
-                    f.getOccupancyType().name(), f.getAddressText(), f.getGeoLat(), f.getGeoLng(),
+        static FlatView of(Flat f, String locationLabel) {
+            return new FlatView(f.getId(), f.getLocationId(), locationLabel, f.getBlock(), f.getFlatNumber(),
+                    f.label(), f.getOccupancyType().name(), f.getAddressText(), f.getGeoLat(), f.getGeoLng(),
                     f.getCurrentOccupantUserId(), f.getOwnerUserId());
         }
     }
 
-    public record CreateFlatRequest(String block, @NotBlank String flatNumber, String addressText,
-                                    BigDecimal geoLat, BigDecimal geoLng) { }
-    public record UpdateFlatRequest(String addressText, BigDecimal geoLat, BigDecimal geoLng) { }
+    private FlatView view(Flat f) {
+        String label = f.getLocationId() == null ? null
+                : locationRepository.findById(f.getLocationId()).map(Location::getLabel).orElse(null);
+        return FlatView.of(f, label);
+    }
+
+    public record CreateFlatRequest(String locationId, String block, @NotBlank String flatNumber,
+                                    String addressText, BigDecimal geoLat, BigDecimal geoLng) { }
+    public record UpdateFlatRequest(String locationId, String addressText, BigDecimal geoLat, BigDecimal geoLng) { }
     public record CreateInviteRequest(String flatId, String relation, Integer validDays, Integer maxUses) { }
     public record InviteView(UUID id, String code, String relation, String status, UUID flatId,
                              int maxUses, int useCount, Instant expiresAt, Instant createdAt) {
@@ -66,23 +78,26 @@ public class AdminFlatController {
 
     @GetMapping("/flats")
     public ResponseEntity<List<FlatView>> flats(@AuthenticationPrincipal AppPrincipal p) {
-        return ResponseEntity.ok(flatService.listForTenant(tenant(p)).stream().map(FlatView::of).toList());
+        return ResponseEntity.ok(flatService.listForTenant(tenant(p)).stream().map(this::view).toList());
     }
 
     @PostMapping("/flats")
     public ResponseEntity<FlatView> createFlat(@AuthenticationPrincipal AppPrincipal p,
                                                @Valid @RequestBody CreateFlatRequest body) {
-        Flat f = flatService.create(tenant(p), body.block(), body.flatNumber(), body.addressText(),
-                body.geoLat(), body.geoLng());
-        return ResponseEntity.status(HttpStatus.CREATED).body(FlatView.of(f));
+        Flat f = flatService.create(tenant(p),
+                body.locationId() != null ? UUID.fromString(body.locationId()) : null,
+                body.block(), body.flatNumber(), body.addressText(), body.geoLat(), body.geoLng());
+        return ResponseEntity.status(HttpStatus.CREATED).body(view(f));
     }
 
     @PutMapping("/flats/{flatId}")
     public ResponseEntity<FlatView> updateFlat(@AuthenticationPrincipal AppPrincipal p,
                                                @PathVariable UUID flatId,
                                                @Valid @RequestBody UpdateFlatRequest body) {
-        Flat f = flatService.update(tenant(p), flatId, body.addressText(), body.geoLat(), body.geoLng());
-        return ResponseEntity.ok(FlatView.of(f));
+        Flat f = flatService.update(tenant(p), flatId,
+                body.locationId() != null ? UUID.fromString(body.locationId()) : null,
+                body.addressText(), body.geoLat(), body.geoLng());
+        return ResponseEntity.ok(view(f));
     }
 
     @GetMapping("/invite-codes")

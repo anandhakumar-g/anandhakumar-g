@@ -56,7 +56,7 @@ public class TenantService {
     public Tenant update(UUID id, String name, String city, String locality, String address, String pincode,
                          String logoUrl, String defaultTheme, String brandPrimaryColor,
                          Integer reopenWindowHours, Boolean requireAllocationApproval, String categoryAdmin,
-                         Boolean directServiceEnabled) {
+                         Boolean directServiceEnabled, Boolean providerOnboardingAllowed) {
         Tenant t = require(id);
         if (name != null) t.setName(name);
         if (city != null) t.setCity(city);
@@ -70,6 +70,7 @@ public class TenantService {
         if (requireAllocationApproval != null) t.setRequireAllocationApproval(requireAllocationApproval);
         if (categoryAdmin != null) t.setCategoryAdmin(parseCategoryAdmin(categoryAdmin));
         if (directServiceEnabled != null) t.setDirectServiceEnabled(directServiceEnabled);
+        if (providerOnboardingAllowed != null) t.setProviderOnboardingAllowed(providerOnboardingAllowed);
         return repository.save(t);
     }
 

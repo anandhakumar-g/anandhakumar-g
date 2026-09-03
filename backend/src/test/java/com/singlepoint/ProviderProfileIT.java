@@ -32,8 +32,8 @@ class ProviderProfileIT extends IntegrationTestBase {
     }
 
     @Test
-    void adminEditsAProviderProfile() {
-        put("/api/v1/admin/providers/" + mk.providerId(), mk.adminToken(),
+    void superAdminEditsAProviderProfile() {
+        put("/api/v1/superadmin/providers/" + mk.providerId(), mk.superToken(),
                 Map.of("contactEmail", "ops@sparky.example", "serviceArea", "Whitefield & HSR"));
         JsonNode profile = get("/api/v1/provider/profile", mk.providerToken());
         assertEquals("ops@sparky.example", profile.get("contactEmail").asText());
@@ -43,7 +43,7 @@ class ProviderProfileIT extends IntegrationTestBase {
     @Test
     void phoneChangeRehashesAndBlocksCollisions() {
         String oldHash = phoneHash();
-        put("/api/v1/admin/providers/" + mk.providerId(), mk.adminToken(),
+        put("/api/v1/superadmin/providers/" + mk.providerId(), mk.superToken(),
                 Map.of("contactPhone", "+919000000399"));
         assertNotEquals(oldHash, phoneHash());
     }

@@ -26,7 +26,9 @@ class TicketLifecycleIT extends IntegrationTestBase {
         UUID tenant = createTenant(su, "Green Meadows", "#2E7D32");
         createAdmin(su, tenant, "+919000000101", "GM Admin");
         adminToken = login("+919000000101").token();
-        createVerifiedProvider(adminToken, su, "Sparky Electricals", "+919000000301");
+        UUID sparky = createVerifiedProvider(su, "Sparky Electricals", "+919000000301");
+        enableProviderOnboarding(su, tenant);
+        enrolProvider(adminToken, sparky);
         providerToken = login("+919000000301").token();
 
         String code = createInvite(adminToken);
@@ -97,7 +99,8 @@ class TicketLifecycleIT extends IntegrationTestBase {
 
     @Test
     void cannotAssignUnverifiedProvider() {
-        JsonNode dodgy = post("/api/v1/admin/providers", adminToken, Map.of(
+        String su = login(SUPER_ADMIN_PHONE).token();
+        JsonNode dodgy = post("/api/v1/superadmin/providers", su, Map.of(
                 "name", "Dodgy Co", "vendorCategoryId", VENDOR_CAT_ELECTRICAL, "company", false,
                 "contactPhone", "+919777700009"));
         String id = post("/api/v1/tickets", residentToken, Map.of(

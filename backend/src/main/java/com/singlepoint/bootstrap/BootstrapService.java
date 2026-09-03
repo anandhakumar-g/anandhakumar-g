@@ -5,6 +5,8 @@ import com.singlepoint.flat.InviteCodeService;
 import com.singlepoint.flat.domain.Flat;
 import com.singlepoint.flat.FlatRepository;
 import com.singlepoint.flat.domain.InviteCode;
+import com.singlepoint.location.LocationRepository;
+import com.singlepoint.location.domain.Location;
 import com.singlepoint.provider.ProviderService;
 import com.singlepoint.provider.ServiceProviderRepository;
 import com.singlepoint.provider.domain.ServiceProvider;
@@ -40,6 +42,7 @@ public class BootstrapService implements ApplicationRunner {
     private final AppUserRepository userRepository;
     private final TenantService tenantService;
     private final FlatRepository flatRepository;
+    private final LocationRepository locationRepository;
     private final InviteCodeService inviteCodeService;
     private final ProviderService providerService;
     private final ServiceProviderRepository providerRepository;
@@ -48,13 +51,15 @@ public class BootstrapService implements ApplicationRunner {
     private final TenantScopedExecutor tenantScoped;
 
     public BootstrapService(AppUserRepository userRepository, TenantService tenantService,
-                            FlatRepository flatRepository, InviteCodeService inviteCodeService,
+                            FlatRepository flatRepository, LocationRepository locationRepository,
+                            InviteCodeService inviteCodeService,
                             ProviderService providerService, ServiceProviderRepository providerRepository,
                             ProviderKycDocumentRepository kycRepository,
                             CryptoService crypto, TenantScopedExecutor tenantScoped) {
         this.userRepository = userRepository;
         this.tenantService = tenantService;
         this.flatRepository = flatRepository;
+        this.locationRepository = locationRepository;
         this.inviteCodeService = inviteCodeService;
         this.providerService = providerService;
         this.providerRepository = providerRepository;
@@ -96,6 +101,9 @@ public class BootstrapService implements ApplicationRunner {
                 "12 Whitefield Main Rd", "560066", null, "light", "#2E7D32", 72);
         Tenant lake = tenantService.create("Lakeview Residency", "Bengaluru", "Hebbal",
                 "5 Outer Ring Rd", "560024", null, "dark", "#1565C0", 48);
+        // let the Green Meadows admin enrol verified providers in dev
+        tenantService.update(green.getId(), null, null, null, null, null, null, null, null,
+                null, null, null, null, true);
 
         AppUser greenAdmin = createUser(Role.ADMIN, "Green Meadows Admin", "+919000000101", green.getId());
         AppUser lakeAdmin = createUser(Role.ADMIN, "Lakeview Admin", "+919000000201", lake.getId());
@@ -143,12 +151,20 @@ public class BootstrapService implements ApplicationRunner {
 
     private String seedFlatsAndInvite(UUID tenantId, UUID adminId) {
         return tenantScoped.inTenant(tenantId, () -> {
+            Location loc = new Location();
+            loc.setTenantId(tenantId);
+            loc.setLabel("Main");
+            loc.setGeoLat(new BigDecimal("12.9698"));
+            loc.setGeoLng(new BigDecimal("77.7499"));
+            loc = locationRepository.save(loc);
+
             String[] blocks = {"A", "B"};
             Flat firstFlat = null;
             for (String block : blocks) {
                 for (int n = 101; n <= 104; n++) {
                     Flat f = new Flat();
                     f.setTenantId(tenantId);
+                    f.setLocationId(loc.getId());
                     f.setBlock(block);
                     f.setFlatNumber(String.valueOf(n));
                     f.setAddressText(block + "-" + n);

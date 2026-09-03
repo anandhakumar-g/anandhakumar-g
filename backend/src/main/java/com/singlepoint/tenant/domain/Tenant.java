@@ -62,6 +62,10 @@ public class Tenant extends BaseEntity {
     @Column(name = "direct_service_enabled", nullable = false)
     private boolean directServiceEnabled = false;
 
+    /** MVP-7: this community's admin may enrol verified providers from the global directory. */
+    @Column(name = "provider_onboarding_allowed", nullable = false)
+    private boolean providerOnboardingAllowed = false;
+
     @Column(name = "default_theme", length = 40)
     private String defaultTheme;
 

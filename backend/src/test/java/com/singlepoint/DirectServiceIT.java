@@ -31,7 +31,8 @@ class DirectServiceIT extends IntegrationTestBase {
         residentUserId = get("/api/v1/me", residentToken).get("userId").asText();
         providerUserId = get("/api/v1/me", mk.providerToken()).get("userId").asText();
         adminUserId = get("/api/v1/me", mk.adminToken()).get("userId").asText();
-        provider2 = createVerifiedProvider(mk.adminToken(), mk.superToken(), "Bolt Electric", "+919000000401");
+        provider2 = createVerifiedProvider(mk.superToken(), "Bolt Electric", "+919000000401");
+        enrolProvider(mk.adminToken(), provider2);
         provider2Token = login("+919000000401").token();
         for (String tok : new String[]{residentToken, mk.adminToken(), mk.providerToken(), provider2Token}) {
             post("/api/v1/me/devices", tok, Map.of("token", "ExponentPushToken[" + tok.hashCode() + "]",

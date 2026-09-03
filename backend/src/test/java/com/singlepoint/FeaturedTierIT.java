@@ -17,7 +17,8 @@ class FeaturedTierIT extends IntegrationTestBase {
     void featuredProviderSortsFirstRegardlessOfName() {
         var mk = marketplace("+919000000101", "+919000000301"); // provider "Sparky ..."
         // a second provider whose name sorts ahead alphabetically
-        UUID aardvark = createVerifiedProvider(mk.adminToken(), mk.superToken(), "Aardvark Repairs", "+919000000401");
+        UUID aardvark = createVerifiedProvider(mk.superToken(), "Aardvark Repairs", "+919000000401");
+        enrolProvider(mk.adminToken(), aardvark);
 
         JsonNode before = get("/api/v1/admin/providers", mk.adminToken());
         assertEquals(aardvark.toString(), before.get(0).get("id").asText());

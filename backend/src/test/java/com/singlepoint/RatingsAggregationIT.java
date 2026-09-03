@@ -64,7 +64,8 @@ class RatingsAggregationIT extends IntegrationTestBase {
 
     @Test
     void sortByRatingPutsTheHigherRatedProviderFirst() {
-        UUID low = createVerifiedProvider(mk.adminToken(), mk.superToken(), "AAA Sparks", "+919000000401");
+        UUID low = createVerifiedProvider(mk.superToken(), "AAA Sparks", "+919000000401");
+        enrolProvider(mk.adminToken(), low);
         String lowToken = login("+919000000401").token();
 
         resolveAndClose(mk.providerId(), mk.providerToken(), 5);  // "Sparky ..." → 5.0

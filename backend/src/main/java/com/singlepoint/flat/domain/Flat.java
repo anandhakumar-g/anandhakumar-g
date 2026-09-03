@@ -25,6 +25,10 @@ public class Flat extends BaseEntity {
     @Column(name = "tenant_id", nullable = false)
     private UUID tenantId;
 
+    /** MVP-7: the community location this flat sits in. */
+    @Column(name = "location_id")
+    private UUID locationId;
+
     @Column(name = "block", length = 40)
     private String block;
 

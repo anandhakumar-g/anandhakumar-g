@@ -33,7 +33,7 @@ class VendorTaxonomyIT extends IntegrationTestBase {
         createAdmin(su, tenant, "+919000000101", "GM Admin");
         String admin = login("+919000000101").token();
 
-        JsonNode p = post("/api/v1/admin/providers", admin, Map.of(
+        JsonNode p = post("/api/v1/superadmin/providers", su, Map.of(
                 "name", "Spice Route Caterers", "vendorCategoryId", VENDOR_CAT_RESTAURANT,
                 "company", true, "contactPhone", "+919000000701"));
         assertEquals("Spice Route Caterers", p.get("name").asText());

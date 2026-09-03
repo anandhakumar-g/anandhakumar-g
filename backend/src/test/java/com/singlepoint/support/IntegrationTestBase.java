@@ -52,7 +52,7 @@ public abstract class IntegrationTestBase {
               provider_kyc_document,
               ticket_status_history, ticket_attachment, ticket,
               tenant_service_provider, service_provider,
-              invite_code, user_tenant_membership, admin_tenant, flat, app_user, tenant,
+              invite_code, user_tenant_membership, admin_tenant, flat, location, app_user, tenant,
               category, vendor_category, vendor_category_kind
             RESTART IDENTITY CASCADE
             """;
@@ -191,9 +191,26 @@ public abstract class IntegrationTestBase {
         return c.get("code").asText();
     }
 
+    protected UUID createLocation(String adminToken, String label) {
+        return UUID.fromString(post("/api/v1/admin/locations", adminToken,
+                Map.of("label", label)).get("id").asText());
+    }
+
+    /** The admin's first location, creating a default "Main" one if none exists yet. */
+    protected UUID ensureLocation(String adminToken) {
+        JsonNode locs = get("/api/v1/admin/locations", adminToken);
+        if (locs.size() > 0) return UUID.fromString(locs.get(0).get("id").asText());
+        return createLocation(adminToken, "Main");
+    }
+
     protected UUID createFlat(String adminToken, String block, String number) {
+        return createFlatAt(adminToken, ensureLocation(adminToken), block, number);
+    }
+
+    protected UUID createFlatAt(String adminToken, UUID locationId, String block, String number) {
         return UUID.fromString(post("/api/v1/admin/flats", adminToken,
-                Map.of("block", block, "flatNumber", number)).get("id").asText());
+                Map.of("locationId", locationId.toString(), "block", block, "flatNumber", number))
+                .get("id").asText());
     }
 
     /** Admin invite code bound to a specific flat — its first redeemer becomes the flat's PRIMARY. */
@@ -202,8 +219,9 @@ public abstract class IntegrationTestBase {
                 Map.of("flatId", flatId.toString(), "maxUses", 20, "validDays", 30)).get("code").asText();
     }
 
-    protected UUID createVerifiedProvider(String adminToken, String superOrAdminToken, String name, String phone) {
-        JsonNode p = post("/api/v1/admin/providers", adminToken,
+    /** MVP-7: the Super Admin creates + verifies a global provider. Enrol it separately per community. */
+    protected UUID createVerifiedProvider(String superToken, String name, String phone) {
+        JsonNode p = post("/api/v1/superadmin/providers", superToken,
                 Map.of("name", name, "vendorCategoryId", VENDOR_CAT_ELECTRICAL, "company", true, "contactPhone", phone));
         UUID id = UUID.fromString(p.get("id").asText());
         // KYC gate: seed accepted docs directly (KycWorkflowIT exercises the real upload/review path).
@@ -213,9 +231,19 @@ public abstract class IntegrationTestBase {
                     + "size_bytes, status, reviewed_at) values (?::uuid, ?, ?, 'text/plain', 0, 'ACCEPTED', now())",
                     id.toString(), docType, "seed/kyc/" + id + "/" + docType);
         }
-        JsonNode v = post("/api/v1/admin/providers/" + id + "/verify", adminToken, Map.of("status", "VERIFIED"));
+        JsonNode v = post("/api/v1/superadmin/providers/" + id + "/verify", superToken, Map.of("status", "VERIFIED"));
         assertEquals("VERIFIED", v.get("verificationStatus").asText());
         return id;
+    }
+
+    /** Let a community's admin enrol verified providers (Super Admin). */
+    protected void enableProviderOnboarding(String superToken, UUID tenantId) {
+        put("/api/v1/superadmin/tenants/" + tenantId, superToken, Map.of("providerOnboardingAllowed", true));
+    }
+
+    /** Enrol a verified provider into the admin's community. */
+    protected void enrolProvider(String adminToken, UUID providerId) {
+        post("/api/v1/admin/providers/" + providerId + "/enrol", adminToken, Map.of());
     }
 
     /** Toggle a community's resident approval-of-allocation gate (Super Admin). */
@@ -239,13 +267,15 @@ public abstract class IntegrationTestBase {
     protected record Marketplace(String superToken, UUID tenantId, String adminToken,
                                  UUID providerId, String providerToken) { }
 
-    /** One tenant + admin + a VERIFIED provider signed in. */
+    /** One tenant + admin + a VERIFIED provider enrolled in that community and signed in. */
     protected Marketplace marketplace(String adminPhone, String providerPhone) {
         String su = login(SUPER_ADMIN_PHONE).token();
         UUID tenant = createTenant(su, "Green Meadows " + adminPhone, "#2E7D32");
         createAdmin(su, tenant, adminPhone, "Admin " + adminPhone);
         String admin = login(adminPhone).token();
-        UUID providerId = createVerifiedProvider(admin, su, "Sparky " + providerPhone, providerPhone);
+        UUID providerId = createVerifiedProvider(su, "Sparky " + providerPhone, providerPhone);
+        enableProviderOnboarding(su, tenant);
+        enrolProvider(admin, providerId);
         String providerToken = login(providerPhone).token();
         return new Marketplace(su, tenant, admin, providerId, providerToken);
     }
