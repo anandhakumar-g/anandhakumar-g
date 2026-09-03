@@ -2,7 +2,9 @@ package com.singlepoint.payment;
 
 import com.singlepoint.payment.domain.TicketPayment;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -12,4 +14,14 @@ public interface TicketPaymentRepository extends JpaRepository<TicketPayment, UU
     List<TicketPayment> findByTicketId(UUID ticketId);
 
     Optional<TicketPayment> findByGatewayRef(String gatewayRef);
+
+    /**
+     * MVP-7: service charges on tickets a user raised in a community whose status is not in
+     * {@code settledStatuses} — the "pending bills" gate for admin-initiated removal.
+     */
+    @Query("select p from TicketPayment p, com.singlepoint.ticket.domain.Ticket t "
+            + "where p.ticketId = t.id and t.tenantId = :tenantId and t.raisedByUserId = :userId "
+            + "and p.status not in :settledStatuses")
+    List<TicketPayment> findUnsettledForRaiser(UUID tenantId, UUID userId,
+                                               Collection<TicketPayment.Status> settledStatuses);
 }

@@ -33,6 +33,8 @@ public class MembershipService {
     private final InviteCodeRepository inviteCodeRepository;
     private final InviteCodeService inviteCodeService;
     private final FlatRepository flatRepository;
+    private final com.singlepoint.ticket.TicketRepository ticketRepository;
+    private final com.singlepoint.payment.TicketPaymentRepository ticketPaymentRepository;
     private final TenantScopedExecutor tenantScoped;
 
     public MembershipService(UserTenantMembershipRepository membershipRepository,
@@ -41,6 +43,8 @@ public class MembershipService {
                              InviteCodeRepository inviteCodeRepository,
                              InviteCodeService inviteCodeService,
                              FlatRepository flatRepository,
+                             com.singlepoint.ticket.TicketRepository ticketRepository,
+                             com.singlepoint.payment.TicketPaymentRepository ticketPaymentRepository,
                              TenantScopedExecutor tenantScoped) {
         this.membershipRepository = membershipRepository;
         this.userRepository = userRepository;
@@ -48,7 +52,69 @@ public class MembershipService {
         this.inviteCodeRepository = inviteCodeRepository;
         this.inviteCodeService = inviteCodeService;
         this.flatRepository = flatRepository;
+        this.ticketRepository = ticketRepository;
+        this.ticketPaymentRepository = ticketPaymentRepository;
         this.tenantScoped = tenantScoped;
+    }
+
+    // ---- admin-initiated removal (MVP-7) --------------------------------
+
+    public record OpenTicketRef(UUID ticketId, String referenceCode, String status) { }
+    public record UnsettledPaymentRef(UUID ticketId, java.math.BigDecimal amount, String status) { }
+    public record RemovalBlockers(boolean removable, List<OpenTicketRef> openTickets,
+                                  List<UnsettledPaymentRef> unsettledPayments) { }
+
+    /** What (if anything) blocks removing {@code userId} from {@code tenantId}. */
+    @Transactional(readOnly = true)
+    public RemovalBlockers removalBlockers(UUID tenantId, UUID userId) {
+        List<OpenTicketRef> open = ticketRepository
+                .findByTenantIdAndRaisedByUserIdAndStatusNot(tenantId, userId,
+                        com.singlepoint.ticket.domain.TicketStatus.CLOSED)
+                .stream().map(t -> new OpenTicketRef(t.getId(), t.getReferenceCode(), t.getStatus().name()))
+                .toList();
+        List<UnsettledPaymentRef> bills = ticketPaymentRepository.findUnsettledForRaiser(tenantId, userId,
+                        List.of(com.singlepoint.payment.domain.TicketPayment.Status.PAID_ONLINE,
+                                com.singlepoint.payment.domain.TicketPayment.Status.PAID_CASH,
+                                com.singlepoint.payment.domain.TicketPayment.Status.WAIVED,
+                                com.singlepoint.payment.domain.TicketPayment.Status.FAILED))
+                .stream().map(p -> new UnsettledPaymentRef(p.getTicketId(), p.getAmount(), p.getStatus().name()))
+                .toList();
+        return new RemovalBlockers(open.isEmpty() && bills.isEmpty(), open, bills);
+    }
+
+    /** Admin / Super Admin removes a user from a community once the gate is clear. */
+    @Transactional
+    public List<UserTenantMembership> removeFromCommunity(UUID tenantId, UUID userId, UUID actingUserId) {
+        RemovalBlockers blockers = removalBlockers(tenantId, userId);
+        if (!blockers.removable()) {
+            throw new AppException(ErrorCode.CONFLICT,
+                    "This member has open tickets or unsettled bills in the community");
+        }
+        List<UserTenantMembership> active = membershipRepository.findByUserIdAndTenantIdAndStatusIn(
+                userId, tenantId, List.of(MembershipStatus.ACTIVE));
+        if (active.isEmpty()) throw AppException.notFound("Membership");
+        for (UserTenantMembership m : active) {
+            m.setStatus(MembershipStatus.EXITED);
+            m.setExitedAt(Instant.now());
+            m.setApprovedByUserId(actingUserId);
+            if (m.getFlatId() != null) unlinkFromFlat(m.getFlatId(), userId);
+            membershipRepository.save(m);
+        }
+        AppUser u = userRepository.findById(userId).orElse(null);
+        if (u != null && tenantId.equals(u.getCurrentTenantId())) {
+            UUID next = membershipRepository.findByUserIdAndStatusOrderByJoinedAtAscCreatedAtAsc(
+                            userId, MembershipStatus.ACTIVE).stream()
+                    .map(UserTenantMembership::getTenantId).findFirst().orElse(null);
+            u.setCurrentTenantId(next);
+            userRepository.save(u);
+        }
+        return active;
+    }
+
+    /** ACTIVE members of a community (for the admin roster). */
+    @Transactional(readOnly = true)
+    public List<UserTenantMembership> activeMembers(UUID tenantId) {
+        return membershipRepository.findByTenantIdAndStatus(tenantId, MembershipStatus.ACTIVE);
     }
 
     // ---- household (MVP-6) ------------------------------------------------

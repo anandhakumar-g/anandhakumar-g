@@ -6,6 +6,7 @@ import com.singlepoint.common.error.AppException;
 import com.singlepoint.common.error.ErrorCode;
 import com.singlepoint.flat.FlatRepository;
 import com.singlepoint.flat.domain.Flat;
+import com.singlepoint.location.LocationRepository;
 import com.singlepoint.notification.DomainEventPublisher;
 import com.singlepoint.provider.ServiceProviderRepository;
 import com.singlepoint.provider.TenantServiceProviderRepository;
@@ -42,6 +43,7 @@ public class TicketService {
     private final TicketAttachmentRepository attachmentRepository;
     private final CategoryRepository categoryRepository;
     private final FlatRepository flatRepository;
+    private final LocationRepository locationRepository;
     private final ServiceProviderRepository providerRepository;
     private final TenantServiceProviderRepository tenantProviderRepository;
     private final AppUserRepository userRepository;
@@ -54,7 +56,8 @@ public class TicketService {
 
     public TicketService(TicketRepository ticketRepository, TicketStatusHistoryRepository historyRepository,
                          TicketAttachmentRepository attachmentRepository, CategoryRepository categoryRepository,
-                         FlatRepository flatRepository, ServiceProviderRepository providerRepository,
+                         FlatRepository flatRepository, LocationRepository locationRepository,
+                         ServiceProviderRepository providerRepository,
                          TenantServiceProviderRepository tenantProviderRepository, AppUserRepository userRepository,
                          TenantRepository tenantRepository, com.singlepoint.tenant.AdminDirectory adminDirectory,
                          DomainEventPublisher events, StorageService storageService,
@@ -65,6 +68,7 @@ public class TicketService {
         this.attachmentRepository = attachmentRepository;
         this.categoryRepository = categoryRepository;
         this.flatRepository = flatRepository;
+        this.locationRepository = locationRepository;
         this.providerRepository = providerRepository;
         this.tenantProviderRepository = tenantProviderRepository;
         this.userRepository = userRepository;
@@ -91,8 +95,13 @@ public class TicketService {
 
     @Transactional
     public Ticket raise(AppPrincipal principal, RaiseCommand cmd) {
-        if (principal.getRole() != Role.RESIDENT) {
-            throw new AppException(ErrorCode.FORBIDDEN, "Only residents can raise tickets");
+        // MVP-7: RESIDENT always; ADMIN / PROVIDER only for a flat they own (checked below).
+        boolean nonResident = principal.getRole() != Role.RESIDENT;
+        if (nonResident && principal.getRole() != Role.ADMIN && principal.getRole() != Role.PROVIDER) {
+            throw new AppException(ErrorCode.FORBIDDEN, "Only residents or flat owners can raise tickets");
+        }
+        if (nonResident && cmd.flatId() == null) {
+            throw new AppException(ErrorCode.FORBIDDEN, "Raise a request only for a flat you own");
         }
         UUID tenantId = requireTenant(principal);
         entitlements.requireWithinQuota(com.singlepoint.billing.domain.SubjectType.TENANT, tenantId,
@@ -118,6 +127,10 @@ public class TicketService {
         String address = cmd.serviceAddressText();
         if ((address == null || address.isBlank()) && flat != null) {
             address = flat.getAddressText() != null ? flat.getAddressText() : flat.label();
+        }
+        if ((address == null || address.isBlank()) && flat != null && flat.getLocationId() != null) {
+            address = locationRepository.findById(flat.getLocationId())
+                    .map(l -> l.getAddress() != null ? l.getAddress() : l.getLabel()).orElse(null);
         }
         if (address == null || address.isBlank()) {
             throw new AppException(ErrorCode.VALIDATION_FAILED, "A service location is required");
@@ -462,12 +475,11 @@ public class TicketService {
                 ? TicketStatus.valueOf(statusFilter.toUpperCase()) : null;
         return switch (principal.getRole()) {
             case RESIDENT -> ticketRepository.findByRaisedByUserIdOrderByCreatedAtDesc(principal.getUserId(), pageable);
-            case ADMIN -> status != null
+            case ADMIN, SUPER_ADMIN -> status != null
                     ? ticketRepository.findByTenantIdAndStatusOrderByCreatedAtDesc(tenantId, status, pageable)
                     : ticketRepository.findByTenantIdOrderByCreatedAtDesc(tenantId, pageable);
-            case PROVIDER -> ticketRepository.findByAssignedProviderIdOrderByCreatedAtDesc(
-                    requireProvider(principal).getId(), pageable);
-            default -> throw new AppException(ErrorCode.FORBIDDEN, "No ticket access for this role");
+            case PROVIDER -> ticketRepository.findByAssignedProviderIdOrRaisedByUserId(
+                    requireProvider(principal).getId(), principal.getUserId(), pageable);
         };
     }
 
@@ -496,6 +508,8 @@ public class TicketService {
         UUID tenantId = requireTenant(principal);
         Ticket t = ticketRepository.findByIdAndTenantId(ticketId, tenantId)
                 .orElseThrow(() -> AppException.notFound("Ticket"));
+        // MVP-7: whoever raised the ticket can always see it, whatever their role.
+        if (principal.getUserId().equals(t.getRaisedByUserId())) return t;
         switch (principal.getRole()) {
             case RESIDENT -> {
                 if (!t.getRaisedByUserId().equals(principal.getUserId())) {

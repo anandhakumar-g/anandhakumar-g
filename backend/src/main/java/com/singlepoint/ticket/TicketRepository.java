@@ -24,7 +24,16 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
 
     Page<Ticket> findByAssignedProviderIdOrderByCreatedAtDesc(UUID providerId, Pageable pageable);
 
+    /** MVP-7: a provider who owns a flat also sees tickets they raised for it. */
+    @Query("select t from Ticket t where t.assignedProviderId = :providerId or t.raisedByUserId = :userId "
+            + "order by t.createdAt desc")
+    Page<Ticket> findByAssignedProviderIdOrRaisedByUserId(UUID providerId, UUID userId, Pageable pageable);
+
     List<Ticket> findByStatusAndResolvedAtBefore(TicketStatus status, Instant cutoff);
+
+    long countByTenantIdAndRaisedByUserIdAndStatusNot(UUID tenantId, UUID raisedByUserId, TicketStatus status);
+
+    List<Ticket> findByTenantIdAndRaisedByUserIdAndStatusNot(UUID tenantId, UUID raisedByUserId, TicketStatus status);
 
     @Query("select t from Ticket t where t.slaBreachedAt is null and t.slaDueAt is not null "
             + "and t.slaDueAt < :now and t.status not in :closedStates")

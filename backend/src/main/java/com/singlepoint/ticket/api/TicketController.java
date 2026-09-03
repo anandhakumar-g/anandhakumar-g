@@ -37,8 +37,8 @@ public class TicketController {
     // ---- create / read ----
 
     @PostMapping
-    @PreAuthorize("hasRole('RESIDENT')")
-    @Operation(summary = "Raise a ticket")
+    @PreAuthorize("hasAnyRole('RESIDENT','ADMIN','PROVIDER')")
+    @Operation(summary = "Raise a ticket (a non-resident may raise only for a flat they own)")
     public ResponseEntity<TicketDtos.TicketView> raise(@AuthenticationPrincipal AppPrincipal principal,
                                                        @Valid @RequestBody TicketDtos.RaiseRequest body) {
         Ticket t = ticketService.raise(principal, new TicketService.RaiseCommand(
@@ -186,7 +186,7 @@ public class TicketController {
     }
 
     @PostMapping("/{id}/reopen")
-    @PreAuthorize("hasRole('RESIDENT')")
+    @PreAuthorize("hasAnyRole('RESIDENT','ADMIN','PROVIDER')")
     public ResponseEntity<TicketDtos.TicketView> reopen(@AuthenticationPrincipal AppPrincipal p,
             @PathVariable UUID id, @RequestBody(required = false) TicketDtos.RemarksRequest body) {
         return ResponseEntity.ok(mapper.toView(
@@ -194,7 +194,7 @@ public class TicketController {
     }
 
     @PostMapping("/{id}/close")
-    @PreAuthorize("hasRole('RESIDENT')")
+    @PreAuthorize("hasAnyRole('RESIDENT','ADMIN','PROVIDER')")
     public ResponseEntity<TicketDtos.TicketView> close(@AuthenticationPrincipal AppPrincipal p,
             @PathVariable UUID id, @RequestBody(required = false) TicketDtos.CloseRequest body) {
         Integer rating = body != null ? body.rating() : null;
