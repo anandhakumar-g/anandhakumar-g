@@ -15,6 +15,7 @@ export default function SuperLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: "Platform" }} />
+      <Tabs.Screen name="providers" options={{ title: "Providers" }} />
       <Tabs.Screen name="offers" options={{ title: "Offers" }} />
       <Tabs.Screen name="billing" options={{ title: "Billing" }} />
       <Tabs.Screen name="ticket-categories" options={{ title: "Categories" }} />
