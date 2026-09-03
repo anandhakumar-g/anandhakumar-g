@@ -12,14 +12,15 @@ import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-function homeFor(role?: string | null): string {
+function homeFor(role?: string | null, actingTenantId?: string | null): string {
   switch (role) {
     case "ADMIN":
       return "/(admin)";
     case "PROVIDER":
       return "/(provider)";
     case "SUPER_ADMIN":
-      return "/(super)";
+      // A Super Admin who has assumed a community's scope works in the admin UI.
+      return actingTenantId ? "/(admin)" : "/(super)";
     default:
       return "/(resident)";
   }
@@ -42,12 +43,14 @@ function Gate() {
     if (onboardingState === "NEEDS_PROFILE") target = "/(auth)/profile";
     else if (onboardingState === "NEEDS_COMMUNITY") target = "/(auth)/join";
     else if (onboardingState === "PENDING_APPROVAL") target = "/(auth)/pending";
-    else if (onboardingState === "READY") target = homeFor(user?.role);
+    else if (onboardingState === "READY") target = homeFor(user?.role, user?.activeTenantId);
 
     if (!target) return;
     const targetGroup = target.match(/\(([^)]+)\)/)?.[0];
+    // A Super Admin may move freely between (super) and (admin) once past onboarding.
+    if (user?.role === "SUPER_ADMIN" && (group === "(super)" || group === "(admin)")) return;
     if (group !== targetGroup) router.replace(target as any);
-  }, [ready, token, user?.role, onboardingState, segments, router]);
+  }, [ready, token, user?.role, user?.activeTenantId, onboardingState, segments, router]);
 
   if (!ready) return <Loading label="Starting Single Point…" />;
   return (

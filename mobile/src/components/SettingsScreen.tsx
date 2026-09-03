@@ -23,8 +23,18 @@ export function SettingsScreen({
   children?: React.ReactNode;
 }) {
   const { theme, themeName, isExplicit, setTheme } = useTheme();
-  const { me, user, signOut, refreshMe } = useSession();
+  const router = useRouter();
+  const { me, user, signIn, signOut, refreshMe } = useSession();
   const [pushMsg, setPushMsg] = useState<string | null>(null);
+
+  async function backToPlatform() {
+    try {
+      await signIn(await meApi.stopActing());
+      router.replace("/(super)");
+    } catch {
+      /* best effort */
+    }
+  }
 
   async function choose(name: ThemeName | null) {
     setTheme(name);
@@ -63,7 +73,7 @@ export function SettingsScreen({
         <KeyValue k="Phone" v={user?.phoneMasked} />
         <KeyValue k="Email" v={me?.email} />
         <KeyValue k="Role" v={user?.role} />
-        {user?.role === "RESIDENT" ? <CommunityRow /> : (
+        {user?.role === "RESIDENT" || user?.role === "ADMIN" ? <CommunityRow /> : (
           <KeyValue k="Community" v={me?.activeTenantBranding?.name} />
         )}
       </Card>
@@ -109,7 +119,7 @@ export function SettingsScreen({
 
       {children}
 
-      {showBilling ? <BillingCard /> : null}
+      {showBilling && user?.role !== "SUPER_ADMIN" ? <BillingCard /> : null}
 
       {showOfferPrefs ? <OfferNotificationPrefs /> : null}
 
@@ -126,6 +136,9 @@ export function SettingsScreen({
       </Card>
 
       <Divider />
+      {user?.role === "SUPER_ADMIN" ? (
+        <Button label="← Back to platform" variant="secondary" onPress={backToPlatform} />
+      ) : null}
       <Button label="Sign out" variant="danger" onPress={signOut} />
     </Screen>
   );
@@ -290,11 +303,12 @@ function Stepper({ value, onChange }: { value: number; onChange: (n: number) => 
 function CommunityRow() {
   const { theme } = useTheme();
   const router = useRouter();
-  const { me, switchCommunity } = useSession();
+  const { me, user, switchCommunity } = useSession();
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
 
   const active = (me?.memberships ?? []).filter((m) => m.status === "ACTIVE");
+  const isResident = user?.role === "RESIDENT";
 
   async function pick(tenantId: string) {
     if (tenantId === me?.activeTenantId) return setOpen(false);
@@ -338,11 +352,13 @@ function CommunityRow() {
               </AppText>
             </Pressable>
           ))}
-          <Button
-            label="Manage / join communities"
-            variant="ghost"
-            onPress={() => { setOpen(false); router.push("/(resident)/community" as any); }}
-          />
+          {isResident ? (
+            <Button
+              label="Manage / join communities"
+              variant="ghost"
+              onPress={() => { setOpen(false); router.push("/(resident)/community" as any); }}
+            />
+          ) : null}
         </View>
       ) : null}
     </View>

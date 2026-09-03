@@ -1,10 +1,11 @@
 import { api, uploadFile } from "./client";
 import {
-  AdminVendorCategory, AttachmentView, Category, CommunitySettings, FlatView, InvoiceView, InviteView,
-  JoinRequestView, KycDocView, MeResponse, MyBillingView, NotificationPreferences, OfferStatus, OfferView,
-  HouseholdMember, MyFlat, Page, PaymentView, PlanView, ProviderProfile, ProviderTier, ProviderView,
-  PublicProviderView, ReceiptView, RedemptionView, SessionResponse, SubscriptionStatus, SubscriptionView,
-  SubjectType, TenantCard, TicketCategory, TicketView, TimelineEntry, VendorCategory, VendorCategoryKind,
+  AdminAssignment, AdminVendorCategory, AttachmentView, Category, CommunitySettings, FlatView, InvoiceView,
+  InviteView, JoinRequestView, KycDocView, LocationView, MeResponse, MemberView, MyBillingView,
+  NotificationPreferences, OfferStatus, OfferView, HouseholdMember, MyFlat, Page, PaymentView, PlanView,
+  ProviderProfile, ProviderTier, ProviderView, PublicProviderView, ReceiptView, RedemptionView, RemovalCheck,
+  SessionResponse, SubscriptionStatus, SubscriptionView, SubjectType, SuperProviderView, TenantCard,
+  TicketCategory, TicketView, TimelineEntry, VendorCategory, VendorCategoryKind,
 } from "./types";
 
 type TicketCategoryBody = Partial<{
@@ -32,6 +33,7 @@ export const me = {
   updateNotificationPreferences: (body: Partial<NotificationPreferences>) =>
     api.put<NotificationPreferences>("/me/notification-preferences", body),
   switchCommunity: (tenantId: string) => api.post<SessionResponse>("/me/active-community", { tenantId }),
+  stopActing: () => api.post<SessionResponse>("/me/stop-acting", {}),
   leaveCommunity: (tenantId: string) => api.post<SessionResponse>(`/me/memberships/${tenantId}/leave`, {}),
   flats: () => api.get<MyFlat[]>("/me/flats"),
   householdMembers: (flatId: string) => api.get<HouseholdMember[]>(`/me/household/${flatId}/members`),
@@ -71,9 +73,10 @@ export const kyc = {
   mine: () => api.get<KycDocView[]>("/provider/kyc"),
   upload: (docType: string, file: { uri: string; name: string; type: string }) =>
     uploadFile<KycDocView>("/provider/kyc", file, { docType }),
-  forProvider: (providerId: string) => api.get<KycDocView[]>(`/admin/providers/${providerId}/kyc`),
+  // MVP-7: KYC review is Super-Admin only.
+  forProvider: (providerId: string) => api.get<KycDocView[]>(`/superadmin/providers/${providerId}/kyc`),
   review: (providerId: string, docId: string, status: string, note?: string) =>
-    api.post<KycDocView>(`/admin/providers/${providerId}/kyc/${docId}/review`, { status, note }),
+    api.post<KycDocView>(`/superadmin/providers/${providerId}/kyc/${docId}/review`, { status, note }),
 };
 
 export const payments = {
@@ -141,13 +144,25 @@ export const superBilling = {
   invoices: (status?: InvoiceView["status"]) =>
     api.get<InvoiceView[]>("/superadmin/invoices", { query: { status } }),
   markPaid: (id: string) => api.post<InvoiceView>(`/superadmin/invoices/${id}/mark-paid`, {}),
-  providers: () =>
-    api.get<{
-      id: string; name: string; tier: ProviderTier; verificationStatus: string;
-      ratingAvg: number | null; ratingCount: number;
-    }[]>("/superadmin/providers"),
+  providers: () => api.get<SuperProviderView[]>("/superadmin/providers"),
   setTier: (providerId: string, tier: ProviderTier) =>
     api.post<void>(`/superadmin/providers/${providerId}/tier`, { tier }),
+};
+
+/** MVP-7: the Super Admin owns provider onboarding, verification and KYC review. */
+export const superProviders = {
+  list: () => api.get<SuperProviderView[]>("/superadmin/providers"),
+  create: (body: {
+    name: string; vendorCategoryId: string; company: boolean; contactPhone: string;
+    contactEmail?: string; serviceArea?: string;
+  }) => api.post<SuperProviderView>("/superadmin/providers", body),
+  update: (id: string, body: Partial<{
+    name: string; vendorCategoryId: string; contactPhone: string; contactEmail: string; serviceArea: string;
+  }>) => api.put<SuperProviderView>(`/superadmin/providers/${id}`, body),
+  verify: (id: string, status: string) =>
+    api.post<SuperProviderView>(`/superadmin/providers/${id}/verify`, { status }),
+  setTier: (id: string, tier: ProviderTier) =>
+    api.post<void>(`/superadmin/providers/${id}/tier`, { tier }),
 };
 
 export const communities = {
@@ -235,14 +250,40 @@ export const superadmin = {
       logoUrl: string; defaultTheme: string; brandPrimaryColor: string;
       reopenWindowHours: number; requireAllocationApproval: boolean;
       categoryAdmin: "SUPER_ADMIN" | "COMMUNITY"; directServiceEnabled: boolean;
+      providerOnboardingAllowed: boolean;
     }>
   ) => api.put<CommunitySettings>(`/superadmin/tenants/${tenantId}`, body),
+  tenantAdmins: (tenantId: string) =>
+    api.get<AdminAssignment[]>(`/superadmin/tenants/${tenantId}/admins`),
+  attachAdmin: (tenantId: string, adminUserId: string) =>
+    api.post<void>(`/superadmin/tenants/${tenantId}/admins/${adminUserId}`, {}),
+  detachAdmin: (tenantId: string, adminUserId: string) =>
+    api.del<void>(`/superadmin/tenants/${tenantId}/admins/${adminUserId}`),
+  tenantInvites: (tenantId: string) =>
+    api.get<InviteView[]>(`/superadmin/tenants/${tenantId}/invite-codes`),
+  createTenantInvite: (tenantId: string, body?: { flatId?: string; validDays?: number; maxUses?: number }) =>
+    api.post<InviteView>(`/superadmin/tenants/${tenantId}/invite-codes`, body ?? {}),
+  revokeTenantInvite: (tenantId: string, codeId: string) =>
+    api.del<void>(`/superadmin/tenants/${tenantId}/invite-codes/${codeId}`),
 };
 
 export const admin = {
   flats: () => api.get<FlatView[]>("/admin/flats"),
-  createFlat: (body: { block?: string; flatNumber: string; addressText?: string }) =>
+  createFlat: (body: { locationId: string; block?: string; flatNumber: string; addressText?: string }) =>
     api.post<FlatView>("/admin/flats", body),
+  updateFlat: (id: string, body: Partial<{ locationId: string; addressText: string; geoLat: number; geoLng: number }>) =>
+    api.put<FlatView>(`/admin/flats/${id}`, body),
+  locations: (includeInactive = false) =>
+    api.get<LocationView[]>("/admin/locations", { query: { includeInactive } }),
+  createLocation: (body: { label: string; address?: string; geoLat?: number; geoLng?: number; pincode?: string }) =>
+    api.post<LocationView>("/admin/locations", body),
+  updateLocation: (id: string, body: Partial<{ label: string; address: string; pincode: string }>) =>
+    api.put<LocationView>(`/admin/locations/${id}`, body),
+  deactivateLocation: (id: string) => api.post<LocationView>(`/admin/locations/${id}/deactivate`, {}),
+  reactivateLocation: (id: string) => api.post<LocationView>(`/admin/locations/${id}/reactivate`, {}),
+  members: () => api.get<MemberView[]>("/admin/members"),
+  memberRemovalCheck: (userId: string) => api.get<RemovalCheck>(`/admin/members/${userId}/removal-check`),
+  removeMember: (userId: string) => api.post<void>(`/admin/members/${userId}/remove`, {}),
   invites: () => api.get<InviteView[]>("/admin/invite-codes"),
   createInvite: (body: { flatId?: string; relation?: string; validDays?: number; maxUses?: number }) =>
     api.post<InviteView>("/admin/invite-codes", body),
@@ -256,16 +297,12 @@ export const admin = {
   }>) => api.put<CommunitySettings>("/admin/community-settings", body),
   providers: (opts?: { sort?: "rating"; includeInactive?: boolean }) =>
     api.get<ProviderView[]>("/admin/providers", { query: { sort: opts?.sort, includeInactive: opts?.includeInactive } }),
-  addProvider: (body: {
-    name: string; vendorCategoryId: string; company: boolean; contactPhone: string;
-    contactEmail?: string; serviceArea?: string;
-  }) => api.post<ProviderView>("/admin/providers", body),
-  updateProvider: (id: string, body: Partial<{
-    name: string; vendorCategoryId: string; contactPhone: string; contactEmail: string; serviceArea: string;
-  }>) => api.put<ProviderView>(`/admin/providers/${id}`, body),
+  // MVP-7: browse the global verified directory and enrol into this community.
+  providerCatalog: (vendorCategoryId?: string) =>
+    api.get<ProviderView[]>("/admin/providers/catalog", { query: { vendorCategoryId } }),
+  enrolProvider: (id: string) => api.post<ProviderView>(`/admin/providers/${id}/enrol`, {}),
   deactivateProvider: (id: string) => api.post<ProviderView>(`/admin/providers/${id}/deactivate`, {}),
   reactivateProvider: (id: string) => api.post<ProviderView>(`/admin/providers/${id}/reactivate`, {}),
-  verifyProvider: (id: string, status: string) => api.post<ProviderView>(`/admin/providers/${id}/verify`, { status }),
 };
 
 export const providerProfile = {

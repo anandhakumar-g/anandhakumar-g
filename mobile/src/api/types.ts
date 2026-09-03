@@ -33,7 +33,7 @@ export interface MembershipView {
   relation: string;
   flatId: string | null;
   flatLabel: string | null;
-  householdRole: "PRIMARY" | "SECONDARY";
+  householdRole: "PRIMARY" | "SECONDARY" | "ADMIN";
 }
 
 export interface PublicProviderView {
@@ -207,6 +207,53 @@ export interface CommunitySettings {
   requireAllocationApproval: boolean;
   categoryAdmin: "SUPER_ADMIN" | "COMMUNITY";
   directServiceEnabled: boolean;
+  providerOnboardingAllowed: boolean;
+}
+
+export interface LocationView {
+  id: string;
+  label: string;
+  address: string | null;
+  geoLat: number | null;
+  geoLng: number | null;
+  pincode: string | null;
+  active: boolean;
+}
+
+export interface MemberView {
+  userId: string;
+  name: string | null;
+  phoneMasked: string | null;
+  flatId: string | null;
+  householdRole: string;
+  joinedAt: string | null;
+}
+
+export interface RemovalCheck {
+  removable: boolean;
+  openTickets: { ticketId: string; referenceCode: string; status: string }[];
+  unsettledPayments: { ticketId: string; amount: number; status: string }[];
+}
+
+export interface AdminAssignment {
+  userId: string;
+  name: string | null;
+  phoneMasked: string | null;
+  active: boolean;
+}
+
+export interface SuperProviderView {
+  id: string;
+  name: string;
+  vendorCategoryId: string;
+  company: boolean;
+  contactPhoneMasked: string;
+  verificationStatus: string;
+  tier: string;
+  active: boolean;
+  assignable: boolean;
+  ratingAvg: number | null;
+  ratingCount: number;
 }
 
 export interface AttachmentView {
@@ -254,6 +301,8 @@ export interface JoinRequestView {
 
 export interface FlatView {
   id: string;
+  locationId: string | null;
+  locationLabel: string | null;
   block: string | null;
   flatNumber: string;
   label: string;
