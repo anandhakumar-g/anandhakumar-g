@@ -4,6 +4,88 @@ Short ADRs. Newest first.
 
 ---
 
+## ADR-033 — Gated community removal
+**Decision (MVP-7):** an admin (or a Super Admin acting as one) can remove a user from a
+community via `POST /api/v1/admin/members/{userId}/remove`, preceded by
+`GET /api/v1/admin/members/{userId}/removal-check`. `MembershipService.removalBlockers`
+reports every ticket the user **raised** in that community that is not `CLOSED` (`RESOLVED`
+still counts — the reopen window is live) plus every `ticket_payment` on those tickets whose
+status is not in `PAID_ONLINE / PAID_CASH / WAIVED / FAILED`
+(`TicketPaymentRepository.findUnsettledForRaiser`, statuses passed as a bind parameter so the
+JPQL validates). If either list is non-empty the remove is a hard `409` carrying both lists —
+no force-override this MVP. On success every ACTIVE `(user, tenant)` membership goes `EXITED`
+(+ `exited_at` + the acting admin), the flat occupant/owner links are cleared, the `AppUser`
+is retained, and `current_tenant_id` repoints to another active membership or `null`. No
+migration. Mobile: a "Members" tab in `(admin)/community.tsx`.
+
+## ADR-032 — Any flat owner can raise; raiser-aware ticket access
+**Decision (MVP-7):** the RESIDENT-only guard in `TicketService.raise` is lifted. A caller
+whose role is `ADMIN` or `PROVIDER` may raise a ticket **only** with a `flatId` for a flat
+they hold an ACTIVE `user_tenant_membership` in (the pre-existing ownership check enforces
+"one of yours"); a non-resident with no `flatId` gets `403`. `SUPER_ADMIN` still cannot raise
+(no personal flat). `loadForActor` now returns the ticket to whoever raised it, before the
+role switch, so a non-resident raiser sees and can `close` / `reopen` their own ticket (those
+transitions were already recorded as `Role.RESIDENT`); `list()` unions a provider's assigned
+jobs with tickets they raised. `TicketController` `POST /tickets` + `/close` + `/reopen`
+accept `RESIDENT | ADMIN | PROVIDER`. No migration. A mobile raise entry point for
+flat-owning admins / providers is a deferred follow-up (backend + tests ship now).
+
+## ADR-031 — Community spans multiple locations
+**Decision (MVP-7):** a community (`tenant`) is no longer a single place. `V23` adds a
+`location` child table `(tenant_id, label, address_enc, geo_lat/lng, pincode, active)` and
+`flat.location_id` (nullable — the app always sets it), backfilling one default location per
+existing community and pointing every flat at it. **RLS is enabled + forced on `location`
+after the backfill** in the same migration, so the non-superuser Flyway role (no `BYPASSRLS`)
+never runs a statement against the forced policy; the policy itself is the standard
+`current_tenant_id = '*' OR tenant_id::text = current_tenant_id` copied from `V2`.
+`LocationService` + `AdminLocationController` (`/api/v1/admin/locations`, `ADMIN` or a
+tenant-scoped `SUPER_ADMIN`); `FlatService.create` requires a `locationId`; `FlatView` gains
+`locationId` / `locationLabel`; `TicketService.raise` adds a final service-address fallback
+through the flat's location. Invite codes, join, the JWT and RLS scoping stay community-level
+(location is an organizing layer only). `location.address` is encrypted at rest like
+`flat.address_text`.
+
+## ADR-030 — Provider onboarding authority moves to the Super Admin
+**Decision (MVP-7, re-engineers ADR-012/ADR-024):** creating and verifying a provider —
+and reviewing its KYC — is Super-Admin-only. `SuperAdminProviderController`
+(`/api/v1/superadmin/providers`: `GET` / `POST` / `PUT /{id}` / `POST /{id}/verify` /
+`POST /{id}/tier`, the tier route moved off `SuperAdminBillingController`) and
+`SuperAdminKycController` (`/api/v1/superadmin/providers/{id}/kyc`, a copy of the old admin
+KYC controller with **no** per-community enrolment check). `AdminKycController` and the admin
+`POST /providers`, `POST /{id}/verify`, `PUT /{id}` routes are **deleted**. A community admin
+now only browses the global **verified** directory (`GET /api/v1/admin/providers/catalog`)
+and enrols a provider into their community (`POST /api/v1/admin/providers/{id}/enrol`), and
+only when the Super Admin has set `tenant.provider_onboarding_allowed` (`V22`, default off,
+settable via `PUT /api/v1/superadmin/tenants/{id}`). `ProviderService` splits: `createGlobal`
+(upsert by phone hash, no enrolment), `enrol` (requires `VERIFIED` + the flag),
+`verifiedGlobal`, `updateGlobal`; `createForTenant` is kept only for the bootstrap seed.
+`KycService.assertVerifiable` is unchanged. Mobile: a new `(super)/providers.tsx` console;
+`(admin)/providers.tsx` becomes enrol-only.
+
+## ADR-029 — Admin ↔ many communities via `admin_tenant`; Super-Admin-as-admin
+**Decision (MVP-7, re-engineers the single-tenant admin model):** an ADMIN account can
+administer several communities. `V22` adds an app-scoped `admin_tenant`
+`(admin_user_id, tenant_id, added_by_user_id, active)` mapping table (not RLS, like
+`user_tenant_membership`), backfilled from every admin's `current_tenant_id`.
+`AuthService.resolveActiveTenant` is now the single public source of truth (its duplicate in
+`MeController.me` is removed); the ADMIN branch resolves the active tenant from `admin_tenant`
+(the pinned `current_tenant_id` if still assigned, else the oldest). `POST
+/api/v1/me/active-community` is generalised to `RESIDENT | ADMIN | SUPER_ADMIN` — an ADMIN is
+validated against `admin_tenant`, a **SUPER_ADMIN against any ACTIVE tenant**, which mints a
+token that still says `role = SUPER_ADMIN` but carries that `tenantId`; `JwtAuthFilter` then
+scopes such a token to that community instead of the RLS wildcard ("acting as admin"). `POST
+/api/v1/me/stop-acting` (SUPER_ADMIN) clears it back to wildcard. Every `hasRole('ADMIN')`
+controller is widened to `hasAnyRole('ADMIN','SUPER_ADMIN')` (each still 403s when the token
+has no active community). `ADMIN_SEATS` counting and admin notification / billing recipients
+move from `app_user.current_tenant_id` to `admin_tenant` via a small `AdminDirectory` helper
+(`SuperAdminController.createAdmin` quota, `MeBillingController`, `BillingService`,
+`TicketService.notifyAdmins`, `SlaBreachJob`). `SuperAdminController.createAdmin` attaches an
+existing admin instead of 409; new attach/detach/list routes. **Super-Admin-issued invite
+codes**: `POST/GET/DELETE /api/v1/superadmin/tenants/{id}/invite-codes` reuse
+`InviteCodeService` under `tenantScoped.inTenant` — no schema change (`invite_code.kind`
+already exists, its RLS admits the wildcard). `me.memberships` synthesises an `ADMIN` row per
+administered community for the mobile switcher.
+
 ## ADR-028 — Household model: multi-flat membership, PRIMARY / SECONDARY
 **Decision (MVP-6):** a `user_tenant_membership` is now the link between a user and **a flat in
 a community**, not just a community. `V21` swaps the `(user_id, tenant_id)` active-unique index

@@ -2,7 +2,7 @@ openapi: 3.0.1
 info:
   title: Single Point API
   description: Multi-tenant gated-community ticket management platform.
-  version: MVP-6
+  version: MVP-7
 servers:
 - url: http://localhost:18080
   description: Generated server url
@@ -11,7 +11,7 @@ security:
 tags:
 - name: Me
   description: "Signed-in user profile, theme, memberships, devices"
-- name: Admin — KYC review
+- name: Super Admin — KYC review
   description: Review a provider's verification documents
 - name: Me — Notification preferences
   description: Anti-fatigue controls for promotional offers
@@ -33,10 +33,14 @@ tags:
   description: Reopen window and the approval-of-allocation gate
 - name: Offers
   description: "Vendor/admin authoring, resident deals feed, redemption"
+- name: Admin — Locations
+  description: Physical places within a community; flats hang off a location
 - name: Super Admin — Ticket categories
   description: Global catalogue + per-community lists
 - name: Super Admin
   description: Platform-level tenant onboarding (no ticket content access)
+- name: Admin — Members
+  description: Community roster and gated removal
 - name: Provider — KYC
   description: Provider uploads its own verification documents
 - name: Provider — Profile
@@ -44,7 +48,7 @@ tags:
 - name: Tickets
   description: "Raise, triage, resolve — role-aware"
 - name: Admin — Providers
-  description: Community provider directory + manual verification
+  description: Enrol verified providers into this community
 - name: Super Admin — Billing
   description: "Subscription plans, subscriptions, invoices, featured tier"
 - name: Providers
@@ -61,6 +65,8 @@ tags:
   description: Joining a community
 - name: Categories
   description: Ticket + vendor category lists
+- name: Super Admin — Providers
+  description: "Global provider onboarding, verification and tier"
 paths:
   /api/v1/tickets/{ticketId}/payment/charge:
     put:
@@ -229,6 +235,32 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/TenantSettingsView'
+  /api/v1/superadmin/providers/{providerId}:
+    put:
+      tags:
+      - Super Admin — Providers
+      summary: Edit a global provider record
+      operationId: update_1
+      parameters:
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProviderRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ProviderView'
   /api/v1/superadmin/plans/{id}:
     put:
       tags:
@@ -277,7 +309,7 @@ paths:
       tags:
       - Provider — Profile
       summary: "Update contact email, service area, availability"
-      operationId: update_1
+      operationId: update_2
       requestBody:
         content:
           application/json:
@@ -323,7 +355,7 @@ paths:
     put:
       tags:
       - Offers
-      operationId: update_2
+      operationId: update_3
       parameters:
       - name: id
         in: path
@@ -393,7 +425,7 @@ paths:
       tags:
       - Me — Notification preferences
       summary: Update notification preferences
-      operationId: update_3
+      operationId: update_4
       requestBody:
         content:
           application/json:
@@ -436,7 +468,7 @@ paths:
     put:
       tags:
       - Admin — Ticket categories
-      operationId: update_4
+      operationId: update_5
       parameters:
       - name: id
         in: path
@@ -462,14 +494,13 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/CategoryView'
-  /api/v1/admin/providers/{providerId}:
+  /api/v1/admin/locations/{locationId}:
     put:
       tags:
-      - Admin — Providers
-      summary: Edit a provider enrolled in this community
-      operationId: update_5
+      - Admin — Locations
+      operationId: update_6
       parameters:
-      - name: providerId
+      - name: locationId
         in: path
         required: true
         schema:
@@ -484,7 +515,7 @@ paths:
                 p:
                   $ref: '#/components/schemas/AppPrincipal'
                 body:
-                  $ref: '#/components/schemas/UpdateProviderRequest'
+                  $ref: '#/components/schemas/UpdateLocationRequest'
         required: true
       responses:
         "200":
@@ -492,7 +523,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/ProviderView'
+                $ref: '#/components/schemas/LocationView'
   /api/v1/admin/flats/{flatId}:
     put:
       tags:
@@ -546,7 +577,7 @@ paths:
       tags:
       - Admin — Community settings
       summary: Update the reopen window / approval-of-allocation gate
-      operationId: update_6
+      operationId: update_7
       requestBody:
         content:
           application/json:
@@ -620,7 +651,7 @@ paths:
     post:
       tags:
       - Tickets
-      summary: Raise a ticket
+      summary: Raise a ticket (a non-resident may raise only for a flat they own)
       operationId: raise
       requestBody:
         content:
@@ -1424,11 +1455,84 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/TenantCard'
-  /api/v1/superadmin/tenants/{tenantId}/admins:
+  /api/v1/superadmin/tenants/{tenantId}/invite-codes:
+    get:
+      tags:
+      - Super Admin
+      summary: Invite codes for a community
+      operationId: invites
+      parameters:
+      - name: tenantId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InviteCodeView'
     post:
       tags:
       - Super Admin
-      summary: Provision an admin account for a community
+      summary: Issue an invite code for a community (Super Admin acting for an admin-less
+        community)
+      operationId: createInvite
+      parameters:
+      - name: tenantId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                principal:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/SuperInviteRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/InviteCodeView'
+  /api/v1/superadmin/tenants/{tenantId}/admins:
+    get:
+      tags:
+      - Super Admin
+      summary: Admins assigned to a community
+      operationId: admins
+      parameters:
+      - name: tenantId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminAssignment'
+    post:
+      tags:
+      - Super Admin
+      summary: Provision (or attach an existing) admin account for a community
       operationId: createAdmin
       parameters:
       - name: tenantId
@@ -1440,7 +1544,12 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateAdminRequest'
+              type: object
+              properties:
+                principal:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/CreateAdminRequest'
         required: true
       responses:
         "200":
@@ -1449,6 +1558,54 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/AdminCreated'
+  /api/v1/superadmin/tenants/{tenantId}/admins/{adminUserId}:
+    post:
+      tags:
+      - Super Admin
+      summary: Attach an existing admin to another community
+      operationId: attachAdmin
+      parameters:
+      - name: tenantId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: adminUserId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+    delete:
+      tags:
+      - Super Admin
+      summary: Detach an admin from a community
+      operationId: detachAdmin
+      parameters:
+      - name: tenantId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: adminUserId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
   /api/v1/superadmin/subscriptions:
     get:
       tags:
@@ -1534,14 +1691,78 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/SubscriptionView'
-  /api/v1/superadmin/providers/{id}/tier:
+  /api/v1/superadmin/providers:
+    get:
+      tags:
+      - Super Admin — Providers
+      summary: Every provider on the platform
+      operationId: list_2
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProviderView'
     post:
       tags:
-      - Super Admin — Billing
+      - Super Admin — Providers
+      summary: Create a global provider record (PENDING_VERIFICATION)
+      operationId: create_1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProviderRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ProviderView'
+  /api/v1/superadmin/providers/{providerId}/verify:
+    post:
+      tags:
+      - Super Admin — Providers
+      summary: Set verification status (VERIFIED requires the KYC document gate)
+      operationId: verify
+      parameters:
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/VerifyRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ProviderView'
+  /api/v1/superadmin/providers/{providerId}/tier:
+    post:
+      tags:
+      - Super Admin — Providers
       summary: Set a provider's directory tier (STANDARD / FEATURED)
       operationId: setTier
       parameters:
-      - name: id
+      - name: providerId
         in: path
         required: true
         schema:
@@ -1556,6 +1777,43 @@ paths:
       responses:
         "200":
           description: OK
+  /api/v1/superadmin/providers/{providerId}/kyc/{docId}/review:
+    post:
+      tags:
+      - Super Admin — KYC review
+      summary: Accept or reject a KYC document
+      operationId: review
+      parameters:
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: docId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/ReviewRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/DocView'
   /api/v1/superadmin/plans:
     get:
       tags:
@@ -1681,7 +1939,7 @@ paths:
       tags:
       - Provider — KYC
       summary: List my KYC documents and their review status
-      operationId: list_4
+      operationId: list_6
       parameters:
       - name: p
         in: query
@@ -1775,7 +2033,7 @@ paths:
     post:
       tags:
       - Offers
-      operationId: create_1
+      operationId: create_2
       requestBody:
         content:
           application/json:
@@ -1937,6 +2195,24 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/SessionResponse'
+  /api/v1/me/stop-acting:
+    post:
+      tags:
+      - Me
+      summary: Stop acting as admin; returns a platform-wide (cross-tenant) session
+      operationId: stopActing
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
   /api/v1/me/memberships/{tenantId}/leave:
     post:
       tags:
@@ -2001,7 +2277,7 @@ paths:
       - Me — Household
       summary: "Primary member: generate a code that adds a family member to a flat\
         \ as SECONDARY"
-      operationId: createInvite
+      operationId: createInvite_1
       requestBody:
         content:
           application/json:
@@ -2093,7 +2369,8 @@ paths:
     post:
       tags:
       - Me
-      summary: Switch the active community; returns a session scoped to it
+      summary: Switch the active community; returns a session scoped to it. A Super
+        Admin uses this to act as admin for an admin-less community.
       operationId: switchCommunity
       requestBody:
         content:
@@ -2198,7 +2475,7 @@ paths:
     get:
       tags:
       - Admin — Ticket categories
-      operationId: list_5
+      operationId: list_7
       parameters:
       - name: p
         in: query
@@ -2217,7 +2494,7 @@ paths:
     post:
       tags:
       - Admin — Ticket categories
-      operationId: create_2
+      operationId: create_3
       requestBody:
         content:
           application/json:
@@ -2284,92 +2561,6 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/CategoryView'
-  /api/v1/admin/providers:
-    get:
-      tags:
-      - Admin — Providers
-      summary: This community's providers. ?includeInactive=true also lists deactivated
-        enrolments
-      operationId: directory
-      parameters:
-      - name: p
-        in: query
-        required: true
-        schema:
-          $ref: '#/components/schemas/AppPrincipal'
-      - name: sort
-        in: query
-        required: false
-        schema:
-          type: string
-      - name: includeInactive
-        in: query
-        required: false
-        schema:
-          type: boolean
-          default: false
-      responses:
-        "200":
-          description: OK
-          content:
-            '*/*':
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ProviderView'
-    post:
-      tags:
-      - Admin — Providers
-      operationId: create_3
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                p:
-                  $ref: '#/components/schemas/AppPrincipal'
-                body:
-                  $ref: '#/components/schemas/CreateProviderRequest'
-        required: true
-      responses:
-        "200":
-          description: OK
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ProviderView'
-  /api/v1/admin/providers/{providerId}/verify:
-    post:
-      tags:
-      - Admin — Providers
-      summary: Set verification status (VERIFIED / REJECTED / SUSPENDED / PENDING_VERIFICATION)
-      operationId: verify
-      parameters:
-      - name: providerId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                p:
-                  $ref: '#/components/schemas/AppPrincipal'
-                body:
-                  $ref: '#/components/schemas/VerifyRequest'
-        required: true
-      responses:
-        "200":
-          description: OK
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ProviderView'
   /api/v1/admin/providers/{providerId}/reactivate:
     post:
       tags:
@@ -2394,20 +2585,14 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/ProviderView'
-  /api/v1/admin/providers/{providerId}/kyc/{docId}/review:
+  /api/v1/admin/providers/{providerId}/enrol:
     post:
       tags:
-      - Admin — KYC review
-      summary: Accept or reject a KYC document
-      operationId: review
+      - Admin — Providers
+      summary: Enrol a verified provider into this community
+      operationId: enrol
       parameters:
       - name: providerId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      - name: docId
         in: path
         required: true
         schema:
@@ -2417,20 +2602,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                p:
-                  $ref: '#/components/schemas/AppPrincipal'
-                body:
-                  $ref: '#/components/schemas/ReviewRequest'
-        required: true
+              $ref: '#/components/schemas/AppPrincipal'
       responses:
         "200":
           description: OK
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/DocView'
+                $ref: '#/components/schemas/ProviderView'
   /api/v1/admin/providers/{providerId}/deactivate:
     post:
       tags:
@@ -2456,6 +2635,123 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/ProviderView'
+  /api/v1/admin/members/{userId}/remove:
+    post:
+      tags:
+      - Admin — Members
+      summary: Remove a member from this community (409 with the blockers if not clear)
+      operationId: remove_1
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+  /api/v1/admin/locations:
+    get:
+      tags:
+      - Admin — Locations
+      operationId: list_9
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      - name: includeInactive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LocationView'
+    post:
+      tags:
+      - Admin — Locations
+      operationId: create_4
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/CreateLocationRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/LocationView'
+  /api/v1/admin/locations/{locationId}/reactivate:
+    post:
+      tags:
+      - Admin — Locations
+      operationId: reactivate_3
+      parameters:
+      - name: locationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/LocationView'
+  /api/v1/admin/locations/{locationId}/deactivate:
+    post:
+      tags:
+      - Admin — Locations
+      operationId: deactivate_3
+      parameters:
+      - name: locationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/LocationView'
   /api/v1/admin/join-requests/{membershipId}/reject:
     post:
       tags:
@@ -2505,7 +2801,7 @@ paths:
     get:
       tags:
       - Admin — Flats & Invites
-      operationId: invites
+      operationId: invites_1
       parameters:
       - name: p
         in: query
@@ -2524,7 +2820,7 @@ paths:
     post:
       tags:
       - Admin — Flats & Invites
-      operationId: createInvite_1
+      operationId: createInvite_2
       requestBody:
         content:
           application/json:
@@ -2751,12 +3047,19 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/PageResponseTenantCard'
-  /api/v1/superadmin/providers:
+  /api/v1/superadmin/providers/{providerId}/kyc:
     get:
       tags:
-      - Super Admin — Billing
-      summary: Every provider with its current directory tier
-      operationId: providers
+      - Super Admin — KYC review
+      summary: List a provider's KYC documents
+      operationId: list_3
+      parameters:
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
       responses:
         "200":
           description: OK
@@ -2765,13 +3068,40 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ProviderTierView'
+                  $ref: '#/components/schemas/DocView'
+  /api/v1/superadmin/providers/{providerId}/kyc/{docId}/file:
+    get:
+      tags:
+      - Super Admin — KYC review
+      summary: Download a KYC document
+      operationId: file
+      parameters:
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: docId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
   /api/v1/superadmin/offers:
     get:
       tags:
       - Super Admin — Offer approval
       summary: Offers by status (defaults to PENDING_APPROVAL queue)
-      operationId: list_2
+      operationId: list_4
       parameters:
       - name: status
         in: query
@@ -2845,7 +3175,7 @@ paths:
       tags:
       - Providers
       summary: Verified providers in my community I can book directly (rating-sorted)
-      operationId: list_3
+      operationId: list_5
       parameters:
       - name: principal
         in: query
@@ -2866,7 +3196,7 @@ paths:
       tags:
       - Provider — KYC
       summary: Download one of my KYC documents
-      operationId: file
+      operationId: file_1
       parameters:
       - name: p
         in: query
@@ -3048,24 +3378,30 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/CategoryView'
-  /api/v1/admin/providers/{providerId}/kyc:
+  /api/v1/admin/providers:
     get:
       tags:
-      - Admin — KYC review
-      summary: List a provider's KYC documents
-      operationId: list_6
+      - Admin — Providers
+      summary: This community's enrolled providers. ?includeInactive=true also lists
+        deactivated enrolments
+      operationId: directory
       parameters:
       - name: p
         in: query
         required: true
         schema:
           $ref: '#/components/schemas/AppPrincipal'
-      - name: providerId
-        in: path
-        required: true
+      - name: sort
+        in: query
+        required: false
         schema:
           type: string
-          format: uuid
+      - name: includeInactive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
       responses:
         "200":
           description: OK
@@ -3074,26 +3410,68 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/DocView'
-  /api/v1/admin/providers/{providerId}/kyc/{docId}/file:
+                  $ref: '#/components/schemas/ProviderView'
+  /api/v1/admin/providers/catalog:
     get:
       tags:
-      - Admin — KYC review
-      summary: Download a KYC document
-      operationId: file_1
+      - Admin — Providers
+      summary: The global verified-provider directory to enrol from (?vendorCategoryId=
+        to filter)
+      operationId: catalog
       parameters:
       - name: p
         in: query
         required: true
         schema:
           $ref: '#/components/schemas/AppPrincipal'
-      - name: providerId
-        in: path
-        required: true
+      - name: vendorCategoryId
+        in: query
+        required: false
         schema:
           type: string
-          format: uuid
-      - name: docId
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProviderView'
+  /api/v1/admin/members:
+    get:
+      tags:
+      - Admin — Members
+      summary: ACTIVE members of this community
+      operationId: list_8
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MemberView'
+  /api/v1/admin/members/{userId}/removal-check:
+    get:
+      tags:
+      - Admin — Members
+      summary: "Whether the member can be removed, and what blocks it"
+      operationId: removalCheck
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      - name: userId
         in: path
         required: true
         schema:
@@ -3105,8 +3483,7 @@ paths:
           content:
             '*/*':
               schema:
-                type: string
-                format: binary
+                $ref: '#/components/schemas/RemovalBlockers'
   /api/v1/admin/join-requests:
     get:
       tags:
@@ -3127,11 +3504,33 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/JoinRequestView'
+  /api/v1/superadmin/tenants/{tenantId}/invite-codes/{codeId}:
+    delete:
+      tags:
+      - Super Admin
+      summary: Revoke a community invite code
+      operationId: revokeInvite
+      parameters:
+      - name: tenantId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: codeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
   /api/v1/admin/invite-codes/{codeId}:
     delete:
       tags:
       - Admin — Flats & Invites
-      operationId: revokeInvite
+      operationId: revokeInvite_1
       parameters:
       - name: codeId
         in: path
@@ -3304,6 +3703,8 @@ components:
           type: string
         directServiceEnabled:
           type: boolean
+        providerOnboardingAllowed:
+          type: boolean
     TenantSettingsView:
       type: object
       properties:
@@ -3329,6 +3730,48 @@ components:
           type: string
         directServiceEnabled:
           type: boolean
+        providerOnboardingAllowed:
+          type: boolean
+    UpdateProviderRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        vendorCategoryId:
+          type: string
+        contactPhone:
+          type: string
+        contactEmail:
+          type: string
+        serviceArea:
+          type: string
+    ProviderView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        vendorCategoryId:
+          type: string
+        company:
+          type: boolean
+        contactPhoneMasked:
+          type: string
+        verificationStatus:
+          type: string
+        tier:
+          type: string
+        active:
+          type: boolean
+        assignable:
+          type: boolean
+        ratingAvg:
+          type: number
+        ratingCount:
+          type: integer
+          format: int32
     UpdatePlanRequest:
       type: object
       properties:
@@ -3546,53 +3989,42 @@ components:
         awayUntil:
           type: string
           format: date-time
-    UpdateProviderRequest:
+    UpdateLocationRequest:
       type: object
       properties:
-        name:
+        label:
           type: string
-        vendorCategoryId:
+        address:
           type: string
-        contactPhone:
+        geoLat:
+          type: number
+        geoLng:
+          type: number
+        pincode:
           type: string
-        contactEmail:
-          type: string
-        serviceArea:
-          type: string
-    ProviderView:
+    LocationView:
       type: object
       properties:
         id:
           type: string
           format: uuid
-        name:
+        label:
           type: string
-        vendorCategoryId:
+        address:
           type: string
-        company:
-          type: boolean
-        contactPhoneMasked:
-          type: string
-        verificationStatus:
-          type: string
-        tier:
+        geoLat:
+          type: number
+        geoLng:
+          type: number
+        pincode:
           type: string
         active:
           type: boolean
-        assignable:
-          type: boolean
-        availability:
-          type: string
-        availabilityNote:
-          type: string
-        ratingAvg:
-          type: number
-        ratingCount:
-          type: integer
-          format: int32
     UpdateFlatRequest:
       type: object
       properties:
+        locationId:
+          type: string
         addressText:
           type: string
         geoLat:
@@ -3605,6 +4037,11 @@ components:
         id:
           type: string
           format: uuid
+        locationId:
+          type: string
+          format: uuid
+        locationLabel:
+          type: string
         block:
           type: string
         flatNumber:
@@ -3946,6 +4383,46 @@ components:
           type: string
         logoUrl:
           type: string
+    SuperInviteRequest:
+      type: object
+      properties:
+        flatId:
+          type: string
+        validDays:
+          type: integer
+          format: int32
+        maxUses:
+          type: integer
+          format: int32
+    InviteCodeView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        kind:
+          type: string
+        relation:
+          type: string
+        status:
+          type: string
+        flatId:
+          type: string
+          format: uuid
+        maxUses:
+          type: integer
+          format: int32
+        useCount:
+          type: integer
+          format: int32
+        expiresAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
     CreateAdminRequest:
       required:
       - name
@@ -4017,6 +4494,32 @@ components:
           format: date-time
         autoRenew:
           type: boolean
+    CreateProviderRequest:
+      required:
+      - contactPhone
+      - name
+      - vendorCategoryId
+      type: object
+      properties:
+        name:
+          type: string
+        vendorCategoryId:
+          type: string
+        company:
+          type: boolean
+        contactPhone:
+          type: string
+        contactEmail:
+          type: string
+        serviceArea:
+          type: string
+    VerifyRequest:
+      required:
+      - status
+      type: object
+      properties:
+        status:
+          type: string
     TierRequest:
       required:
       - tier
@@ -4024,6 +4527,40 @@ components:
       properties:
         tier:
           type: string
+    ReviewRequest:
+      required:
+      - status
+      type: object
+      properties:
+        status:
+          type: string
+        note:
+          type: string
+    DocView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        docType:
+          type: string
+        status:
+          type: string
+        contentType:
+          type: string
+        sizeBytes:
+          type: integer
+          format: int64
+        originalFilename:
+          type: string
+        reviewNote:
+          type: string
+        reviewedAt:
+          type: string
+          format: date-time
+        uploadedAt:
+          type: string
+          format: date-time
     CreatePlanRequest:
       required:
       - code
@@ -4109,31 +4646,6 @@ components:
           type: string
           format: date-time
         createdAt:
-          type: string
-          format: date-time
-    DocView:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        docType:
-          type: string
-        status:
-          type: string
-        contentType:
-          type: string
-        sizeBytes:
-          type: integer
-          format: int64
-        originalFilename:
-          type: string
-        reviewNote:
-          type: string
-        reviewedAt:
-          type: string
-          format: date-time
-        uploadedAt:
           type: string
           format: date-time
     SubmitRequest:
@@ -4239,17 +4751,6 @@ components:
         validDays:
           type: integer
           format: int32
-    InviteCodeView:
-      type: object
-      properties:
-        code:
-          type: string
-        maxUses:
-          type: integer
-          format: int32
-        expiresAt:
-          type: string
-          format: date-time
     DeviceRequest:
       required:
       - platform
@@ -4320,40 +4821,20 @@ components:
           type: boolean
         devCode:
           type: string
-    CreateProviderRequest:
+    CreateLocationRequest:
       required:
-      - contactPhone
-      - name
-      - vendorCategoryId
+      - label
       type: object
       properties:
-        name:
+        label:
           type: string
-        vendorCategoryId:
+        address:
           type: string
-        company:
-          type: boolean
-        contactPhone:
-          type: string
-        contactEmail:
-          type: string
-        serviceArea:
-          type: string
-    VerifyRequest:
-      required:
-      - status
-      type: object
-      properties:
-        status:
-          type: string
-    ReviewRequest:
-      required:
-      - status
-      type: object
-      properties:
-        status:
-          type: string
-        note:
+        geoLat:
+          type: number
+        geoLng:
+          type: number
+        pincode:
           type: string
     CreateInviteRequest:
       type: object
@@ -4400,6 +4881,8 @@ components:
       - flatNumber
       type: object
       properties:
+        locationId:
+          type: string
         block:
           type: string
         flatNumber:
@@ -4520,23 +5003,18 @@ components:
         totalTickets:
           type: integer
           format: int64
-    ProviderTierView:
+    AdminAssignment:
       type: object
       properties:
-        id:
+        userId:
           type: string
           format: uuid
         name:
           type: string
-        tier:
+        phoneMasked:
           type: string
-        verificationStatus:
-          type: string
-        ratingAvg:
-          type: number
-        ratingCount:
-          type: integer
-          format: int32
+        active:
+          type: boolean
     PublicProviderView:
       type: object
       properties:
@@ -4675,6 +5153,57 @@ components:
         used:
           type: integer
           format: int64
+    MemberView:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        phoneMasked:
+          type: string
+        flatId:
+          type: string
+          format: uuid
+        householdRole:
+          type: string
+        joinedAt:
+          type: string
+          format: date-time
+    OpenTicketRef:
+      type: object
+      properties:
+        ticketId:
+          type: string
+          format: uuid
+        referenceCode:
+          type: string
+        status:
+          type: string
+    RemovalBlockers:
+      type: object
+      properties:
+        removable:
+          type: boolean
+        openTickets:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpenTicketRef'
+        unsettledPayments:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnsettledPaymentRef'
+    UnsettledPaymentRef:
+      type: object
+      properties:
+        ticketId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+        status:
+          type: string
     JoinRequestView:
       type: object
       properties:

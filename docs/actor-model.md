@@ -6,7 +6,9 @@ the **MVP** that closes the gap. State legend — ✅ built · ◐ partial · �
 
 Shipped so far: MVP-1 Foundation · MVP-2 Marketplace & Offers · MVP-3 Payments + taxonomy admin ·
 MVP-4 Monetization · MVP-5 Ticketing depth · MVP-6 Reach expansion (switch-community,
-direct-to-provider, household model). See `roadmap.md` and `decisions.md`.
+direct-to-provider, household model) · MVP-7 Actor authority & multi-community (Super-Admin
+provider onboarding, `admin_tenant` + Super-Admin-as-admin, community locations, flat-owner
+raise, gated user removal). See `roadmap.md` and `decisions.md`.
 
 ---
 
@@ -20,17 +22,17 @@ direct-to-provider, household model). See `roadmap.md` and `decisions.md`.
 | I4 | Use the app and **book a service provider with no community** | ❌ today a community-less user is stuck at onboarding; tickets are `tenant_id`-scoped | **MVP-8** |
 | I5 | Raise **enquiry / feedback** on a service **or on an offer** | ◐ ticket `request_type` ENQUIRY/FEEDBACK exists; offer-feedback is new | MVP-8 |
 | I6 | Receive offers / promo codes — issued **only via the Super Admin** | ✅ Super Admin approves every offer (ADR-014); providers submit drafts | — |
-| I7 | Join community(s) with an **invite code from the admin / Super Admin** — one-time | ✅ admin codes (MVP-1); Super-Admin-issued codes ◐ (small add) | MVP-7 |
-| I8 | Be **removed from a community by the admin / Super Admin**, gated on **pending bills / open tickets**; the person keeps the app but loses apartment features | ❌ MVP-6 added *self*-leave only; admin-initiated unmap + the bill/ticket gate + the app-user-without-community state | **MVP-7** (unmap + gate) · MVP-8 (community-less state) |
+| I7 | Join community(s) with an **invite code from the admin / Super Admin** — one-time | ✅ admin codes (MVP-1) + Super-Admin-issued codes (MVP-7, `/superadmin/tenants/{id}/invite-codes`) | — |
+| I8 | Be **removed from a community by the admin / Super Admin**, gated on **pending bills / open tickets**; the person keeps the app but loses apartment features | ✅ unmap + bill/ticket gate (MVP-7, `AdminMembershipController`); the community-less app-user state is MVP-8 | MVP-7 (unmap + gate) · MVP-8 (community-less state) |
 
 ## Service provider
 
 | # | Responsibility | State | MVP |
 |---|---|---|---|
-| P1 | **Super Admin onboards & verifies** the provider (document verification, risk / user safety) | **RE-ENG** — today the community admin creates the provider (`AdminProviderController.create`) and reviews KYC. Move creation + verification to the Super Admin; a community admin only **enrols** an already-verified provider (or requests one) | **MVP-7** |
+| P1 | **Super Admin onboards & verifies** the provider (document verification, risk / user safety) | ✅ (MVP-7) — `SuperAdminProviderController` create/verify/tier + `SuperAdminKycController`; a community admin only **enrols** a verified provider (`/admin/providers/catalog` + `/enrol`, gated by `tenant.provider_onboarding_allowed`) | — |
 | P2 | Provide promo codes / offers / discounts tagged to a **community**, a **set of communities**, **specific individuals**, or **across all** | ◐ single-tenant + all-tenants + enquiry-based targeting exist (`offer_target`); multi-community and individual targeting are new | MVP-8 |
 | P3 | Specify offer mechanics: **duration** ✅, **global count cap** (e.g. "top 100" redemptions) | ◐ `valid_from`/`valid_to` + `redemption_limit_per_user`; a total-redemptions cap is new (`offer.total_redemption_limit`) | MVP-8 |
-| P4 | A provider may also be a **flat owner** and raise requests for their own flat | ❌ `raise` is RESIDENT-only | **MVP-7** |
+| P4 | A provider may also be a **flat owner** and raise requests for their own flat | ✅ (MVP-7) — `raise` accepts an ADMIN/PROVIDER with an ACTIVE flat membership; `loadForActor`/`list`/`close` are raiser-aware | — |
 
 ## Admin
 
@@ -39,22 +41,22 @@ direct-to-provider, household model). See `roadmap.md` and `decisions.md`.
 | A1 | Issue **invite codes** to tag users under the community | ✅ (MVP-1) | — |
 | A2 | **Resolve tickets** — himself, with a provider, or via in-house basic staff (electricians, plumbers) | ✅ `resolveDirect` + provider assignment; in-house staff can be modelled as providers or just resolved directly | — |
 | A3 | Track a ticket to closure | ✅ (MVP-1 lifecycle + MVP-5 SLA) | — |
-| A4 | **Unmap a user** from the community after verifying pending bills; the person stays an app user, loses apartment features | ❌ (see I8) | **MVP-7** / MVP-8 |
+| A4 | **Unmap a user** from the community after verifying pending bills; the person stays an app user, loses apartment features | ✅ (MVP-7, see I8) | — |
 | A5 | **Broadcast a notification** to all community residents | ❌ new admin endpoint over `DomainEventPublisher` | MVP-8 |
-| A6 | An admin may also be a **flat owner** and raise for their own flat | ❌ `raise` is RESIDENT-only | **MVP-7** |
-| A7 | Manage **one or more communities** (with a switcher) | ❌ admin is single-tenant (`current_tenant_id`) | **MVP-7** |
+| A6 | An admin may also be a **flat owner** and raise for their own flat | ✅ (MVP-7, see P4) | — |
+| A7 | Manage **one or more communities** (with a switcher) | ✅ (MVP-7) — `admin_tenant` mapping; `POST /me/active-community` generalised to ADMIN; `me.memberships` carries admin rows for the switcher | — |
 
 ## Super Admin (platform owner)
 
 | # | Responsibility | State | MVP |
 |---|---|---|---|
-| S1 | Add a **community by location**; **one community may span multiple places**, each labelled | **RE-ENG** — `tenant` is a single place (city/locality/address). Add a `location` child table (label / geo / pincode); flats hang off a location | **MVP-7** |
+| S1 | Add a **community by location**; **one community may span multiple places**, each labelled | ✅ (MVP-7) — `V23` `location` child table + `flat.location_id`; `AdminLocationController` | — |
 | S2 | Add an **admin** for a community | ✅ `createAdmin` | — |
-| S3 | **If a community has no admin, the Super Admin performs the admin activity** and tags users | ❌ Super-Admin-as-admin fallback | **MVP-7** |
-| S4 | **Validate & onboard service providers** after document verification; manage provider maintenance | RE-ENG (see P1) | **MVP-7** |
+| S3 | **If a community has no admin, the Super Admin performs the admin activity** and tags users | ✅ (MVP-7) — `POST /me/active-community` for SUPER_ADMIN mints a tenant-scoped token; `POST /me/stop-acting` returns to platform scope | — |
+| S4 | **Validate & onboard service providers** after document verification; manage provider maintenance | ✅ (MVP-7, see P1) | — |
 | S5 | Validate offers / discounts / promo codes and tag them to communities or **groups of individuals** | ◐ offer approval ✅; group-of-individuals targeting ❌ | MVP-8 |
 | S6 | **Broadcast** to all community admins, or across all users | ❌ | MVP-8 |
-| S7 | Issue invite codes directly (when acting for an admin-less community) | ◐ small add on top of S3 | MVP-7 |
+| S7 | Issue invite codes directly (when acting for an admin-less community) | ✅ (MVP-7) — `/superadmin/tenants/{id}/invite-codes` | — |
 
 ## Platform (Single Point app)
 
@@ -71,24 +73,22 @@ direct-to-provider, household model). See `roadmap.md` and `decisions.md`.
 
 ## Re-engineering items (change existing design)
 
-1. **Provider onboarding authority: community admin → Super Admin.** (P1/S4) Providers become
-   Super-Admin-created + verified global entities. A community admin only enrols a verified
-   provider into their community (or files a request). Touches `AdminProviderController`,
-   `ProviderService.createForTenant`, the KYC review flow, `BootstrapService` seed, and the
-   mobile admin "Add provider" screen.
-2. **`tenant` → community with multiple locations.** (S1) New `location` child table
-   `(id, tenant_id, label, address, geo_lat, geo_lng, pincode, active)`; `flat.location_id`
-   replaces the flat living directly under `tenant`. Onboarding, the flat register, address
-   defaults and the community directory all shift to locations. RLS stays on `tenant_id`.
-3. **Admin ↔ many communities.** (A7/S3) Either a new `admin_tenant` mapping table or reuse
-   `user_tenant_membership` with an ADMIN-flavoured role. An admin's JWT carries one active
-   tenant that they switch with the MVP-6 machinery (`/me/active-community` generalised beyond
-   RESIDENT). Super-Admin-as-admin = the Super Admin can assume any tenant scope on demand
-   (already true for reads via the RLS wildcard; needs write paths + UI).
-4. **Any role that owns a flat can raise a request.** (P4/A6) Lift the RESIDENT-only guard in
-   `TicketService.raise`; a caller with an ACTIVE flat membership may raise regardless of
-   role, and `loadForActor` treats them as the raiser for that ticket (not "admin, full
-   tenant visibility").
+1. ✅ **Provider onboarding authority: community admin → Super Admin.** (P1/S4, MVP-7)
+   `SuperAdminProviderController` + `SuperAdminKycController`; `AdminKycController` and the
+   admin create/verify routes removed; `ProviderService` split into `createGlobal` / `enrol` /
+   `verifiedGlobal` / `updateGlobal`; `tenant.provider_onboarding_allowed` (V22) gates admin
+   enrolment. See ADR-030.
+2. ✅ **`tenant` → community with multiple locations.** (S1, MVP-7) `V23` `location` child
+   table + `flat.location_id` (RLS enabled after the backfill); `AdminLocationController`;
+   `FlatService.create` requires a `locationId`. See ADR-031.
+3. ✅ **Admin ↔ many communities.** (A7/S3, MVP-7) New `admin_tenant` mapping (V22).
+   `AuthService.resolveActiveTenant` is the single source of truth; `POST /me/active-community`
+   generalised to ADMIN + SUPER_ADMIN; a SUPER_ADMIN token with a `tenantId` claim is scoped
+   to that community by `JwtAuthFilter` (acting-as-admin); `POST /me/stop-acting` returns to
+   wildcard. `ADMIN_SEATS` / notify / billing recipients move to `AdminDirectory`. See ADR-029.
+4. ✅ **Any role that owns a flat can raise a request.** (P4/A6, MVP-7) Guard lifted in
+   `TicketService.raise`; `loadForActor` returns the ticket to its raiser before the role
+   switch; `list` / `close` / `reopen` are raiser-aware. See ADR-032.
 5. **Community-less individual user** (I4/I5/I8-b) — the largest: an onboarding path that ends
    `READY` with no community, plus tenant-less service requests (a nullable `ticket.tenant_id`
    with a dedicated RLS policy, or a separate `direct_request` table) and direct provider
@@ -100,7 +100,7 @@ direct-to-provider, household model). See `roadmap.md` and `decisions.md`.
 
 | MVP | Theme | Contents |
 |---|---|---|
-| **MVP-7** | **Actor authority & multi-community** | Super-Admin provider onboarding (re-eng #1) · community → multiple **locations** (re-eng #2) · **admin ↔ many communities** + switcher + Super-Admin-as-admin (re-eng #3) · **admin/provider raise for their own flat** (re-eng #4) · **admin/Super-Admin removes a user** with a pending-bills / open-tickets gate · Super-Admin-issued invite codes. |
+| **MVP-7** ✅ | **Actor authority & multi-community** | Super-Admin provider onboarding (re-eng #1) · community → multiple **locations** (re-eng #2) · **admin ↔ many communities** + switcher + Super-Admin-as-admin (re-eng #3) · **admin/provider raise for their own flat** (re-eng #4) · **admin/Super-Admin removes a user** with a pending-bills / open-tickets gate · Super-Admin-issued invite codes. *Deferred: mobile raise entry for flat-owning admins/providers.* |
 | **MVP-8** | **Community-less users & offers depth** | Individual user with **no community** — onboarding + tenant-less service requests + direct booking + **biometric login / device binding / OTP auto-read** · **offer targeting** to a set of communities or named individuals · offer **global count cap** ("top 100") · **feedback on an offer** · **broadcast notifications** (admin → residents, Super Admin → admins / all). |
 | **MVP-9** | **Visibility** | Per-role **dashboards** (open / in-progress / done, action items) · **audit-log view** for the Super Admin · reporting/exports. |
 | **Continuous** | **UX & Ops** | Icon / loading / imagery polish · safe-area & responsive audit (mobile + web) · Micrometer metrics + APM · scheduled backups + S3 lifecycle. |
