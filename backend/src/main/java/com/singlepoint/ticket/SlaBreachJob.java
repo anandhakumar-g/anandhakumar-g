@@ -5,9 +5,6 @@ import com.singlepoint.provider.ServiceProviderRepository;
 import com.singlepoint.security.TenantScopedExecutor;
 import com.singlepoint.ticket.domain.Ticket;
 import com.singlepoint.ticket.domain.TicketStatus;
-import com.singlepoint.user.AppUserRepository;
-import com.singlepoint.user.domain.AppUser;
-import com.singlepoint.user.domain.Role;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,7 +16,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * MVP-5 (A2): flags an open ticket the first time it is found past its {@code sla_due_at}
@@ -33,18 +29,18 @@ public class SlaBreachJob {
     private static final List<TicketStatus> CLOSED_STATES = List.of(TicketStatus.RESOLVED, TicketStatus.CLOSED);
 
     private final TicketRepository ticketRepository;
-    private final AppUserRepository userRepository;
+    private final com.singlepoint.tenant.AdminDirectory adminDirectory;
     private final ServiceProviderRepository providerRepository;
     private final DomainEventPublisher events;
     private final TenantScopedExecutor tenantScoped;
     private final boolean enabled;
 
-    public SlaBreachJob(TicketRepository ticketRepository, AppUserRepository userRepository,
+    public SlaBreachJob(TicketRepository ticketRepository, com.singlepoint.tenant.AdminDirectory adminDirectory,
                         ServiceProviderRepository providerRepository, DomainEventPublisher events,
                         TenantScopedExecutor tenantScoped,
                         @Value("${sp.ticket.sla.enabled:true}") boolean enabled) {
         this.ticketRepository = ticketRepository;
-        this.userRepository = userRepository;
+        this.adminDirectory = adminDirectory;
         this.providerRepository = providerRepository;
         this.events = events;
         this.tenantScoped = tenantScoped;
@@ -66,9 +62,7 @@ public class SlaBreachJob {
                 t.setSlaBreachedAt(Instant.now());
                 ticketRepository.save(t);
 
-                List<UUID> recipients = new ArrayList<>(
-                        userRepository.findByRoleAndCurrentTenantId(Role.ADMIN, t.getTenantId())
-                                .stream().map(AppUser::getId).collect(Collectors.toList()));
+                List<UUID> recipients = new ArrayList<>(adminDirectory.adminUserIds(t.getTenantId()));
                 if (t.getAssignedProviderId() != null) {
                     providerRepository.findById(t.getAssignedProviderId())
                             .map(p -> p.getUserId())

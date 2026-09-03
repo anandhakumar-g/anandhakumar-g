@@ -11,8 +11,6 @@ import com.singlepoint.payment.gateway.PaymentGateway;
 import com.singlepoint.payment.gateway.WebhookFallback;
 import com.singlepoint.provider.ServiceProviderRepository;
 import com.singlepoint.user.AppUserRepository;
-import com.singlepoint.user.domain.AppUser;
-import com.singlepoint.user.domain.Role;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +32,7 @@ public class BillingService implements WebhookFallback {
     private final DomainEventPublisher events;
     private final AppUserRepository users;
     private final ServiceProviderRepository providers;
+    private final com.singlepoint.tenant.AdminDirectory adminDirectory;
     private final int graceDays;
     private final String currency;
 
@@ -41,6 +40,7 @@ public class BillingService implements WebhookFallback {
                           SubscriptionInvoiceRepository invoices, PaymentGateway gateway,
                           DomainEventPublisher events, AppUserRepository users,
                           ServiceProviderRepository providers,
+                          com.singlepoint.tenant.AdminDirectory adminDirectory,
                           @Value("${sp.billing.grace-days:7}") int graceDays,
                           @Value("${sp.billing.currency:INR}") String currency) {
         this.plans = plans;
@@ -50,6 +50,7 @@ public class BillingService implements WebhookFallback {
         this.events = events;
         this.users = users;
         this.providers = providers;
+        this.adminDirectory = adminDirectory;
         this.graceDays = graceDays;
         this.currency = currency;
     }
@@ -57,7 +58,7 @@ public class BillingService implements WebhookFallback {
     private List<UUID> recipientsFor(SubjectType type, UUID subjectId) {
         List<UUID> out = new ArrayList<>();
         if (type == SubjectType.TENANT) {
-            users.findByRoleAndCurrentTenantId(Role.ADMIN, subjectId).forEach(u -> out.add(u.getId()));
+            out.addAll(adminDirectory.adminUserIds(subjectId));
         } else {
             providers.findById(subjectId).map(sp -> sp.getUserId()).ifPresent(id -> { if (id != null) out.add(id); });
         }

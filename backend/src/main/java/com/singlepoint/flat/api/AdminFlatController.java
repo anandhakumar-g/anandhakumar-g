@@ -25,7 +25,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/admin")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
 @Tag(name = "Admin — Flats & Invites", description = "Community flat register and invite codes")
 public class AdminFlatController {
 

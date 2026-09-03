@@ -21,7 +21,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/admin/join-requests")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
 @Tag(name = "Admin — Join Requests", description = "Approve or reject residents joining the community")
 public class AdminJoinRequestController {
 

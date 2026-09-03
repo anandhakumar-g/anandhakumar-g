@@ -1,14 +1,28 @@
 package com.singlepoint.tenant.api;
 
+import com.singlepoint.flat.domain.InviteCode;
 import com.singlepoint.tenant.domain.Tenant;
 
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Size;
+import java.time.Instant;
 import java.util.UUID;
 
 public final class TenantDtos {
 
     private TenantDtos() { }
+
+    /** Super-Admin-issued invite code for an admin-less community. */
+    public record SuperInviteRequest(String flatId, Integer validDays, Integer maxUses) { }
+
+    public record InviteCodeView(UUID id, String code, String kind, String relation, String status,
+                                 UUID flatId, int maxUses, int useCount, Instant expiresAt, Instant createdAt) {
+        public static InviteCodeView of(InviteCode c) {
+            return new InviteCodeView(c.getId(), c.getCode(), c.getKind().name(), c.getRelation().name(),
+                    c.getStatus().name(), c.getFlatId(), c.getMaxUses(), c.getUseCount(),
+                    c.getExpiresAt(), c.getCreatedAt());
+        }
+    }
 
     public record TenantCard(UUID id, String name, String city, String locality, String logoUrl) {
         public static TenantCard from(Tenant t) {

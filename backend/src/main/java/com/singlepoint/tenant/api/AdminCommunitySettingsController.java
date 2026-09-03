@@ -26,7 +26,7 @@ import java.util.UUID;
  */
 @RestController
 @RequestMapping("/api/v1/admin/community-settings")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
 @Tag(name = "Admin — Community settings", description = "Reopen window and the approval-of-allocation gate")
 public class AdminCommunitySettingsController {
 

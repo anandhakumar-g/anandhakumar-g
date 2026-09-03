@@ -46,6 +46,7 @@ public class TicketService {
     private final TenantServiceProviderRepository tenantProviderRepository;
     private final AppUserRepository userRepository;
     private final TenantRepository tenantRepository;
+    private final com.singlepoint.tenant.AdminDirectory adminDirectory;
     private final DomainEventPublisher events;
     private final StorageService storageService;
     private final com.singlepoint.entitlement.EntitlementService entitlements;
@@ -55,7 +56,8 @@ public class TicketService {
                          TicketAttachmentRepository attachmentRepository, CategoryRepository categoryRepository,
                          FlatRepository flatRepository, ServiceProviderRepository providerRepository,
                          TenantServiceProviderRepository tenantProviderRepository, AppUserRepository userRepository,
-                         TenantRepository tenantRepository, DomainEventPublisher events, StorageService storageService,
+                         TenantRepository tenantRepository, com.singlepoint.tenant.AdminDirectory adminDirectory,
+                         DomainEventPublisher events, StorageService storageService,
                          com.singlepoint.entitlement.EntitlementService entitlements,
                          com.singlepoint.user.UserTenantMembershipRepository membershipRepository) {
         this.ticketRepository = ticketRepository;
@@ -67,6 +69,7 @@ public class TicketService {
         this.tenantProviderRepository = tenantProviderRepository;
         this.userRepository = userRepository;
         this.tenantRepository = tenantRepository;
+        this.adminDirectory = adminDirectory;
         this.events = events;
         this.storageService = storageService;
         this.entitlements = entitlements;
@@ -220,7 +223,7 @@ public class TicketService {
 
     @Transactional
     public Ticket acknowledge(AppPrincipal principal, UUID ticketId, String remarks) {
-        requireRole(principal, Role.ADMIN);
+        requireAdminScope(principal);
         Ticket t = loadForActor(principal, ticketId);
         transition(t, TicketStatus.ACKNOWLEDGED, principal, Role.ADMIN, remarks);
         t.setAcknowledgedAt(Instant.now());
@@ -232,7 +235,7 @@ public class TicketService {
 
     @Transactional
     public Ticket resolveDirect(AppPrincipal principal, UUID ticketId, String resolutionNotes) {
-        requireRole(principal, Role.ADMIN);
+        requireAdminScope(principal);
         Ticket t = loadForActor(principal, ticketId);
         transition(t, TicketStatus.RESOLVED, principal, Role.ADMIN, resolutionNotes);
         t.setResolutionNotes(resolutionNotes);
@@ -245,7 +248,7 @@ public class TicketService {
 
     @Transactional
     public Ticket assign(AppPrincipal principal, UUID ticketId, UUID providerId, String remarks) {
-        requireRole(principal, Role.ADMIN);
+        requireAdminScope(principal);
         Ticket t = loadForActor(principal, ticketId);
         ServiceProvider provider = requireAssignableProvider(t.getTenantId(), providerId);
         TicketStatus from = t.getStatus();
@@ -505,7 +508,7 @@ public class TicketService {
                     throw AppException.notFound("Ticket");
                 }
             }
-            case ADMIN -> { /* full tenant visibility */ }
+            case ADMIN, SUPER_ADMIN -> { /* full tenant visibility (Super Admin acting as admin) */ }
             default -> throw new AppException(ErrorCode.FORBIDDEN, "No ticket access for this role");
         }
         return t;
@@ -520,6 +523,13 @@ public class TicketService {
 
     private void requireRole(AppPrincipal principal, Role role) {
         if (principal.getRole() != role) throw new AppException(ErrorCode.FORBIDDEN, "Requires " + role + " role");
+    }
+
+    /** ADMIN, or a SUPER_ADMIN acting as admin for a community (tenant scope on the token). */
+    private void requireAdminScope(AppPrincipal principal) {
+        boolean ok = principal.getRole() == Role.ADMIN
+                || (principal.getRole() == Role.SUPER_ADMIN && principal.getTenantId() != null);
+        if (!ok) throw new AppException(ErrorCode.FORBIDDEN, "Requires ADMIN role");
     }
 
     private void requireRaiser(AppPrincipal principal, Ticket t) {
@@ -562,8 +572,7 @@ public class TicketService {
     }
 
     private void notifyAdmins(Ticket t, String title, String body) {
-        List<UUID> admins = userRepository.findByRoleAndCurrentTenantId(Role.ADMIN, t.getTenantId())
-                .stream().map(AppUser::getId).collect(Collectors.toList());
+        List<UUID> admins = adminDirectory.adminUserIds(t.getTenantId());
         if (!admins.isEmpty()) {
             events.publish("TICKET_" + t.getStatus(), "ticket", t.getId(), t.getTenantId(),
                     admins, title, body, ticketData(t));

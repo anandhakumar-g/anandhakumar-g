@@ -8,6 +8,8 @@ import com.singlepoint.provider.TenantServiceProviderRepository;
 import com.singlepoint.provider.domain.ServiceProvider;
 import com.singlepoint.provider.domain.TenantServiceProvider;
 import com.singlepoint.security.JwtService;
+import com.singlepoint.tenant.AdminTenantRepository;
+import com.singlepoint.tenant.domain.AdminTenant;
 import com.singlepoint.user.UserService;
 import com.singlepoint.user.UserTenantMembershipRepository;
 import com.singlepoint.user.domain.AppUser;
@@ -31,6 +33,7 @@ public class AuthService {
     private final ServiceProviderRepository providerRepository;
     private final TenantServiceProviderRepository tenantProviderRepository;
     private final UserTenantMembershipRepository membershipRepository;
+    private final AdminTenantRepository adminTenantRepository;
     private final JwtService jwtService;
     private final CryptoService crypto;
 
@@ -38,12 +41,14 @@ public class AuthService {
                        ServiceProviderRepository providerRepository,
                        TenantServiceProviderRepository tenantProviderRepository,
                        UserTenantMembershipRepository membershipRepository,
+                       AdminTenantRepository adminTenantRepository,
                        JwtService jwtService, CryptoService crypto) {
         this.otpService = otpService;
         this.userService = userService;
         this.providerRepository = providerRepository;
         this.tenantProviderRepository = tenantProviderRepository;
         this.membershipRepository = membershipRepository;
+        this.adminTenantRepository = adminTenantRepository;
         this.jwtService = jwtService;
         this.crypto = crypto;
     }
@@ -79,11 +84,27 @@ public class AuthService {
         return new Session(token, jwtService.getTtlSeconds(), state, user, activeTenant);
     }
 
-    /** Active tenant differs by role: residents by membership, admins/providers by assignment. */
-    private UUID resolveActiveTenant(AppUser user) {
+    /**
+     * Active tenant differs by role: residents by membership, admins by {@code admin_tenant}
+     * assignment, providers by enrolment. A Super Admin is normally cross-tenant (null), but
+     * carries a tenant while "acting as admin" for an admin-less community.
+     */
+    public UUID resolveActiveTenant(AppUser user) {
         return switch (user.getRole()) {
-            case SUPER_ADMIN -> null;
-            case ADMIN -> user.getCurrentTenantId();
+            case SUPER_ADMIN -> user.getCurrentTenantId();
+            case ADMIN -> {
+                List<AdminTenant> links = adminTenantRepository
+                        .findByAdminUserIdAndActiveTrueOrderByCreatedAtAsc(user.getId());
+                if (links.isEmpty()) yield null;
+                UUID current = user.getCurrentTenantId();
+                boolean stillAssigned = current != null
+                        && links.stream().anyMatch(l -> l.getTenantId().equals(current));
+                if (stillAssigned) yield current;
+                UUID first = links.get(0).getTenantId();
+                userService.setCurrentTenant(user.getId(), first);
+                user.setCurrentTenantId(first);
+                yield first;
+            }
             case RESIDENT -> userService.resolveActiveTenant(user);
             case PROVIDER -> {
                 if (user.getCurrentTenantId() != null) yield user.getCurrentTenantId();

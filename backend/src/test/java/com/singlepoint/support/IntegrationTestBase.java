@@ -52,7 +52,7 @@ public abstract class IntegrationTestBase {
               provider_kyc_document,
               ticket_status_history, ticket_attachment, ticket,
               tenant_service_provider, service_provider,
-              invite_code, user_tenant_membership, flat, app_user, tenant,
+              invite_code, user_tenant_membership, admin_tenant, flat, app_user, tenant,
               category, vendor_category, vendor_category_kind
             RESTART IDENTITY CASCADE
             """;
@@ -174,9 +174,16 @@ public abstract class IntegrationTestBase {
         return UUID.fromString(t.get("id").asText());
     }
 
-    protected void createAdmin(String superToken, UUID tenantId, String phone, String name) {
-        post("/api/v1/superadmin/tenants/" + tenantId + "/admins", superToken,
-                Map.of("phone", phone, "name", name));
+    protected String createAdmin(String superToken, UUID tenantId, String phone, String name) {
+        return post("/api/v1/superadmin/tenants/" + tenantId + "/admins", superToken,
+                Map.of("phone", phone, "name", name)).get("userId").asText();
+    }
+
+    /** Attach an already-provisioned admin to a second community. */
+    protected void attachAdmin(String superToken, UUID tenantId, String adminUserId) {
+        ResponseEntity<JsonNode> r = http(HttpMethod.POST,
+                "/api/v1/superadmin/tenants/" + tenantId + "/admins/" + adminUserId, superToken, null);
+        assertTrue(r.getStatusCode().is2xxSuccessful(), "attachAdmin -> " + r.getStatusCode() + " " + r.getBody());
     }
 
     protected String createInvite(String adminToken) {

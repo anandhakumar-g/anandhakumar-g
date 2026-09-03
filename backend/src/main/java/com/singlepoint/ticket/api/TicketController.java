@@ -100,7 +100,7 @@ public class TicketController {
     // ---- admin transitions ----
 
     @PostMapping("/{id}/acknowledge")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
     public ResponseEntity<TicketDtos.TicketView> acknowledge(@AuthenticationPrincipal AppPrincipal p,
             @PathVariable UUID id, @RequestBody(required = false) TicketDtos.RemarksRequest body) {
         return ResponseEntity.ok(mapper.toView(
@@ -108,14 +108,14 @@ public class TicketController {
     }
 
     @PostMapping("/{id}/resolve")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
     public ResponseEntity<TicketDtos.TicketView> resolveDirect(@AuthenticationPrincipal AppPrincipal p,
             @PathVariable UUID id, @Valid @RequestBody TicketDtos.ResolveRequest body) {
         return ResponseEntity.ok(mapper.toView(ticketService.resolveDirect(p, id, body.resolutionNotes()), p));
     }
 
     @PostMapping("/{id}/assign")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
     public ResponseEntity<TicketDtos.TicketView> assign(@AuthenticationPrincipal AppPrincipal p,
             @PathVariable UUID id, @Valid @RequestBody TicketDtos.AssignRequest body) {
         return ResponseEntity.ok(mapper.toView(
@@ -123,7 +123,7 @@ public class TicketController {
     }
 
     @PostMapping("/{id}/reroute")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
     @Operation(summary = "Reassign to a different provider (same as assign; kept for clarity)")
     public ResponseEntity<TicketDtos.TicketView> reroute(@AuthenticationPrincipal AppPrincipal p,
             @PathVariable UUID id, @Valid @RequestBody TicketDtos.AssignRequest body) {

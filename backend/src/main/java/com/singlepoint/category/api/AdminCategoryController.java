@@ -25,7 +25,7 @@ import java.util.UUID;
  */
 @RestController
 @RequestMapping("/api/v1/admin/ticket-categories")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
 @Tag(name = "Admin — Ticket categories", description = "A community's own ticket categories")
 public class AdminCategoryController {
 

@@ -38,14 +38,17 @@ public class MeBillingController {
     private final OfferRepository offers;
     private final AppUserRepository users;
     private final ServiceProviderRepository providers;
+    private final com.singlepoint.tenant.AdminDirectory adminDirectory;
 
     public MeBillingController(BillingService billing, TicketRepository tickets, OfferRepository offers,
-                              AppUserRepository users, ServiceProviderRepository providers) {
+                              AppUserRepository users, ServiceProviderRepository providers,
+                              com.singlepoint.tenant.AdminDirectory adminDirectory) {
         this.billing = billing;
         this.tickets = tickets;
         this.offers = offers;
         this.users = users;
         this.providers = providers;
+        this.adminDirectory = adminDirectory;
     }
 
     /** Resolve (subjectType, subjectId) for the caller. */
@@ -65,7 +68,7 @@ public class MeBillingController {
         var monthStart = TicketService.monthStart();
         return switch (feature) {
             case "TICKETS_PER_MONTH" -> tickets.countByTenantIdAndCreatedAtAfter(ref.id(), monthStart);
-            case "ADMIN_SEATS" -> users.countByRoleAndCurrentTenantId(Role.ADMIN, ref.id());
+            case "ADMIN_SEATS" -> adminDirectory.seatCount(ref.id());
             case "OFFERS_PER_MONTH" -> ref.type() == SubjectType.TENANT
                     ? offers.countByTenantIdAndCreatedAtAfter(ref.id(), monthStart)
                     : offers.countByServiceProviderIdAndCreatedAtAfter(ref.id(), monthStart);

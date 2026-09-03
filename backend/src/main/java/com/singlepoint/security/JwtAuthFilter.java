@@ -47,10 +47,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     principal, null, List.of(new SimpleGrantedAuthority(principal.getRole().authority())));
             SecurityContextHolder.getContext().setAuthentication(auth);
 
-            if (principal.getRole() == Role.SUPER_ADMIN) {
+            if (principal.getRole() == Role.SUPER_ADMIN && principal.getTenantId() == null) {
+                // Platform-wide: cross-tenant reads via the RLS wildcard.
                 TenantContext.setWildcard();
                 MDC.put("tenantId", "*");
             } else if (principal.getTenantId() != null) {
+                // A Super Admin with a tenant claim is "acting as admin" — scope to that community.
                 TenantContext.setTenant(principal.getTenantId());
                 MDC.put("tenantId", principal.getTenantId().toString());
             }
