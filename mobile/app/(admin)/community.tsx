@@ -1,8 +1,8 @@
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
-import { Pressable, Switch, View } from "react-native";
+import { Alert, Pressable, Switch, View } from "react-native";
 import { admin, adminCategories } from "@/api/endpoints";
-import { FlatView, InviteView, JoinRequestView, TicketCategory } from "@/api/types";
+import { FlatView, InviteView, JoinRequestView, LocationView, MemberView, RemovalCheck, TicketCategory } from "@/api/types";
 import { Button } from "@/components/Button";
 import { Divider, EmptyState, Pill, Segmented } from "@/components/Bits";
 import { Field } from "@/components/Field";
@@ -10,7 +10,7 @@ import { AppText, Card, Loading, Screen } from "@/components/Themed";
 import { useAsync } from "@/hooks/useAsync";
 import { useTheme } from "@/theme/ThemeProvider";
 
-type Tab = "requests" | "invites" | "flats" | "settings";
+type Tab = "requests" | "invites" | "flats" | "members" | "settings";
 
 export default function Community() {
   const { theme } = useTheme();
@@ -18,11 +18,14 @@ export default function Community() {
   const requests = useAsync(() => admin.joinRequests(), []);
   const invites = useAsync(() => admin.invites(), []);
   const flats = useAsync(() => admin.flats(), []);
+  const locations = useAsync(() => admin.locations(), []);
   const settings = useAsync(() => admin.communitySettings(), []);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [newFlat, setNewFlat] = useState("");
   const [newBlock, setNewBlock] = useState("");
+  const [flatLocId, setFlatLocId] = useState<string | null>(null);
+  const [newLoc, setNewLoc] = useState("");
   const [reopenHrs, setReopenHrs] = useState("");
   const [savingGate, setSavingGate] = useState(false);
 
@@ -46,6 +49,7 @@ export default function Community() {
       requests.refresh();
       invites.refresh();
       flats.refresh();
+      locations.refresh();
       settings.refresh();
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
@@ -75,10 +79,27 @@ export default function Community() {
     }
   }
 
-  async function addFlat() {
+  async function addLocation() {
     setErr(null);
     try {
-      await admin.createFlat({ block: newBlock.trim() || undefined, flatNumber: newFlat.trim() });
+      const l = await admin.createLocation({ label: newLoc.trim() });
+      setNewLoc("");
+      locations.reload();
+      setFlatLocId(l.id);
+    } catch (e: any) {
+      setErr(e.message ?? "Failed");
+    }
+  }
+
+  async function addFlat() {
+    if (!flatLocId) return setErr("Pick a location for the flat");
+    setErr(null);
+    try {
+      await admin.createFlat({
+        locationId: flatLocId,
+        block: newBlock.trim() || undefined,
+        flatNumber: newFlat.trim(),
+      });
       setNewFlat("");
       setNewBlock("");
       flats.reload();
@@ -87,12 +108,15 @@ export default function Community() {
     }
   }
 
+  const locs: LocationView[] = locations.data ?? [];
+
   return (
     <Screen
       onRefresh={() => {
         requests.refresh();
         invites.refresh();
         flats.refresh();
+        locations.refresh();
       }}
       refreshing={requests.refreshing}
     >
@@ -106,6 +130,7 @@ export default function Community() {
           { value: "requests", label: `Requests${(requests.data?.length ?? 0) ? ` (${requests.data!.length})` : ""}` },
           { value: "invites", label: "Invites" },
           { value: "flats", label: "Flats" },
+          { value: "members", label: "Members" },
           { value: "settings", label: "Settings" },
         ]}
       />
@@ -201,6 +226,18 @@ export default function Community() {
               </View>
             </Card>
 
+            <Card style={{ gap: theme.space(1) }}>
+              <AppText weight="700">Provider enrolment</AppText>
+              <Pill
+                text={settings.data.providerOnboardingAllowed ? "Enabled by the platform" : "Not enabled"}
+                tone={settings.data.providerOnboardingAllowed ? "primary" : "muted"}
+              />
+              <AppText size="xs" tone="faint">
+                When enabled, you can enrol verified providers from the Providers tab. Only the Super
+                Admin can change this.
+              </AppText>
+            </Card>
+
             <Card style={{ gap: theme.space(2) }}>
               <AppText weight="700">Reopen window</AppText>
               <AppText size="xs" tone="faint">
@@ -246,12 +283,37 @@ export default function Community() {
           </>
         ))}
 
+      {tab === "members" && <MembersTab theme={theme} onError={setErr} />}
+
       {tab === "flats" && (
         <>
           <Card style={{ gap: theme.space(2) }}>
-            <AppText size="sm" weight="700">
-              Add a flat
-            </AppText>
+            <AppText size="sm" weight="700">Locations</AppText>
+            {locs.length === 0 ? (
+              <AppText size="xs" tone="faint">Add a location — every flat sits in one.</AppText>
+            ) : (
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: theme.space(1.5) }}>
+                {locs.map((l) => (
+                  <Button
+                    key={l.id}
+                    label={l.label}
+                    fullWidth={false}
+                    variant={flatLocId === l.id ? "primary" : "secondary"}
+                    onPress={() => setFlatLocId(l.id)}
+                  />
+                ))}
+              </View>
+            )}
+            <View style={{ flexDirection: "row", gap: theme.space(2) }}>
+              <View style={{ flex: 1 }}>
+                <Field placeholder="New location name" value={newLoc} onChangeText={setNewLoc} />
+              </View>
+              <Button label="Add" fullWidth={false} disabled={!newLoc.trim()} onPress={addLocation} />
+            </View>
+          </Card>
+
+          <Card style={{ gap: theme.space(2) }}>
+            <AppText size="sm" weight="700">Add a flat</AppText>
             <View style={{ flexDirection: "row", gap: theme.space(2) }}>
               <View style={{ flex: 1 }}>
                 <Field placeholder="Block" value={newBlock} onChangeText={setNewBlock} />
@@ -260,8 +322,13 @@ export default function Community() {
                 <Field placeholder="Number" value={newFlat} onChangeText={setNewFlat} />
               </View>
             </View>
-            <Button label="Add flat" onPress={addFlat} disabled={newFlat.trim().length === 0} />
+            <Button
+              label={flatLocId ? "Add flat" : "Pick a location first"}
+              onPress={addFlat}
+              disabled={newFlat.trim().length === 0 || !flatLocId}
+            />
           </Card>
+
           {flats.loading ? (
             <Loading />
           ) : (
@@ -271,6 +338,7 @@ export default function Community() {
                   <View>
                     <AppText weight="700">{f.label}</AppText>
                     <AppText size="xs" tone="faint">
+                      {f.locationLabel ? f.locationLabel + " · " : ""}
                       {f.occupancyType.toLowerCase().replace(/_/g, " ")}
                     </AppText>
                   </View>
@@ -284,6 +352,96 @@ export default function Community() {
         </>
       )}
     </Screen>
+  );
+}
+
+function MembersTab({ theme, onError }: { theme: any; onError: (m: string | null) => void }) {
+  const members = useAsync(() => admin.members(), []);
+  const [check, setCheck] = useState<{ userId: string; data: RemovalCheck } | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function openCheck(m: MemberView) {
+    setBusy(m.userId);
+    onError(null);
+    try {
+      const data = await admin.memberRemovalCheck(m.userId);
+      setCheck({ userId: m.userId, data });
+    } catch (e: any) {
+      onError(e.message ?? "Failed");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function confirmRemove(m: MemberView) {
+    Alert.alert("Remove " + (m.name ?? "this member") + "?", "They keep the app but lose this community's features.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          setBusy(m.userId);
+          onError(null);
+          try {
+            await admin.removeMember(m.userId);
+            setCheck(null);
+            members.reload();
+          } catch (e: any) {
+            onError(e.message ?? "Could not remove — check open tickets / bills");
+          } finally {
+            setBusy(null);
+          }
+        },
+      },
+    ]);
+  }
+
+  if (members.loading) return <Loading />;
+  if ((members.data?.length ?? 0) === 0) return <EmptyState title="No members yet" />;
+
+  return (
+    <>
+      {members.data!.map((m) => (
+        <Card key={m.userId} style={{ gap: theme.space(2) }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            <View style={{ flexShrink: 1 }}>
+              <AppText weight="700">{m.name ?? "Member"}</AppText>
+              <AppText size="xs" tone="faint">
+                {m.phoneMasked} · {m.householdRole.toLowerCase()}
+              </AppText>
+            </View>
+            <Button label="Remove…" variant="secondary" fullWidth={false}
+              loading={busy === m.userId} onPress={() => openCheck(m)} />
+          </View>
+          {check?.userId === m.userId ? (
+            <View style={{ gap: theme.space(1.5), backgroundColor: theme.color.surfaceAlt,
+                           borderRadius: theme.radius.sm, padding: theme.space(3) }}>
+              {check.data.removable ? (
+                <>
+                  <AppText size="sm" tone="success">Nothing blocks removal.</AppText>
+                  <Button label="Remove from community" variant="danger" fullWidth={false}
+                    onPress={() => confirmRemove(m)} />
+                </>
+              ) : (
+                <>
+                  <AppText size="sm" weight="700" tone="danger">Cannot remove yet</AppText>
+                  {check.data.openTickets.map((t) => (
+                    <AppText key={t.ticketId} size="xs" tone="faint">
+                      Open ticket {t.referenceCode} · {t.status.toLowerCase()}
+                    </AppText>
+                  ))}
+                  {check.data.unsettledPayments.map((p) => (
+                    <AppText key={p.ticketId} size="xs" tone="faint">
+                      Unsettled bill ₹{p.amount} · {p.status.toLowerCase()}
+                    </AppText>
+                  ))}
+                </>
+              )}
+            </View>
+          ) : null}
+        </Card>
+      ))}
+    </>
   );
 }
 
