@@ -44,7 +44,7 @@ public abstract class IntegrationTestBase {
     /** All application tables are wiped before each test (Flyway history is kept). */
     private static final String TRUNCATE_SQL = """
             TRUNCATE TABLE
-              audit_log, notification, notification_outbox, otp_challenge, device_token,
+              audit_log, broadcast, notification, notification_outbox, otp_challenge, device_token,
               notification_preference,
               subscription_invoice, subscription, subscription_plan,
               payment_event, payment_receipt, ticket_payment,

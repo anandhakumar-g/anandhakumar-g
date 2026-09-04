@@ -58,6 +58,7 @@ public class OutboxDispatcher {
         String title = payload.path("title").asText("");
         String body = payload.path("body").asText("");
         boolean promo = payload.path("promo").asBoolean(false);
+        String kind = payload.path("kind").asText(promo ? "promo" : "transactional");
         String vendorCategoryId = payload.hasNonNull("vendorCategoryId")
                 ? payload.get("vendorCategoryId").asText() : null;
         @SuppressWarnings("unchecked")
@@ -65,15 +66,15 @@ public class OutboxDispatcher {
         if (data == null) data = Map.of();
 
         for (JsonNode r : payload.path("recipients")) {
-            deliver(row, UUID.fromString(r.asText()), title, body, data, promo, vendorCategoryId);
+            deliver(row, UUID.fromString(r.asText()), title, body, data, promo, kind, vendorCategoryId);
         }
     }
 
     private void deliver(NotificationOutbox row, UUID userId, String title, String body,
-                         Map<String, Object> data, boolean promo, String vendorCategoryId) throws Exception {
+                         Map<String, Object> data, boolean promo, String kind, String vendorCategoryId) throws Exception {
         NotificationPreference pref = preferenceRepository.findByUserId(userId).orElse(null);
 
-        String skipReason = gate(pref, promo, vendorCategoryId, userId);
+        String skipReason = gate(pref, promo, kind, vendorCategoryId, userId);
         if (skipReason != null) {
             record(row, userId, title, body, data, Notification.Status.SKIPPED, skipReason, null,
                     Notification.Channel.PUSH);
@@ -100,8 +101,8 @@ public class OutboxDispatcher {
         }
 
         // Additive WhatsApp delivery for ticket notifications, when the community is entitled
-        // and the user has opted in.
-        if (!promo) maybeSendWhatsApp(row, userId, title, body, data, pref);
+        // and the user has opted in. Broadcasts are push + in-app only this MVP.
+        if (!promo && !"broadcast".equals(kind)) maybeSendWhatsApp(row, userId, title, body, data, pref);
     }
 
     private void maybeSendWhatsApp(NotificationOutbox row, UUID userId, String title, String body,
@@ -120,7 +121,10 @@ public class OutboxDispatcher {
     }
 
     /** @return skip reason, or null to proceed. */
-    private String gate(NotificationPreference pref, boolean promo, String vendorCategoryId, UUID userId) {
+    private String gate(NotificationPreference pref, boolean promo, String kind, String vendorCategoryId, UUID userId) {
+        if ("broadcast".equals(kind)) {
+            return (pref != null && !pref.isBroadcastEnabled()) ? "broadcasts muted" : null;
+        }
         if (!promo) {
             return (pref != null && !pref.isTicketNotificationsEnabled()) ? "ticket notifications muted" : null;
         }

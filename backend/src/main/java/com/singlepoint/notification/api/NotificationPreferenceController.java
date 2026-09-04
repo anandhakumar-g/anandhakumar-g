@@ -24,17 +24,17 @@ public class NotificationPreferenceController {
 
     public record PrefView(List<String> subscribedVendorCategoryIds, int promoFrequencyCapPerWeek,
                            String digestMode, boolean ticketNotificationsEnabled, boolean promoNotificationsEnabled,
-                           boolean whatsappEnabled) {
+                           boolean whatsappEnabled, boolean broadcastEnabled) {
         static PrefView of(NotificationPreference p) {
             return new PrefView(List.copyOf(p.subscribedCategorySet()), p.getPromoFrequencyCapPerWeek(),
                     p.getDigestMode().name(), p.isTicketNotificationsEnabled(), p.isPromoNotificationsEnabled(),
-                    p.isWhatsappEnabled());
+                    p.isWhatsappEnabled(), p.isBroadcastEnabled());
         }
     }
 
     public record UpdateRequest(List<String> subscribedVendorCategoryIds, Integer promoFrequencyCapPerWeek,
                                 String digestMode, Boolean ticketNotificationsEnabled, Boolean promoNotificationsEnabled,
-                                Boolean whatsappEnabled) { }
+                                Boolean whatsappEnabled, Boolean broadcastEnabled) { }
 
     @GetMapping
     @Operation(summary = "Get my notification preferences (created with opt-in defaults on first read)")
@@ -50,7 +50,8 @@ public class NotificationPreferenceController {
         var updated = service.update(p.getUserId(),
                 body.subscribedVendorCategoryIds() != null ? new java.util.LinkedHashSet<>(body.subscribedVendorCategoryIds()) : null,
                 body.promoFrequencyCapPerWeek(), digest,
-                body.ticketNotificationsEnabled(), body.promoNotificationsEnabled(), body.whatsappEnabled());
+                body.ticketNotificationsEnabled(), body.promoNotificationsEnabled(), body.whatsappEnabled(),
+                body.broadcastEnabled());
         return ResponseEntity.ok(PrefView.of(updated));
     }
 }

@@ -28,7 +28,8 @@ public class NotificationPreferenceService {
     @Transactional
     public NotificationPreference update(UUID userId, Set<String> subscribedCategoryIds, Integer freqCap,
                                         NotificationPreference.DigestMode digestMode,
-                                        Boolean ticketEnabled, Boolean promoEnabled, Boolean whatsappEnabled) {
+                                        Boolean ticketEnabled, Boolean promoEnabled, Boolean whatsappEnabled,
+                                        Boolean broadcastEnabled) {
         NotificationPreference p = getOrCreate(userId);
         if (subscribedCategoryIds != null) p.setSubscribedCategorySet(subscribedCategoryIds);
         if (freqCap != null && freqCap >= 0) p.setPromoFrequencyCapPerWeek(freqCap);
@@ -36,6 +37,7 @@ public class NotificationPreferenceService {
         if (ticketEnabled != null) p.setTicketNotificationsEnabled(ticketEnabled);
         if (promoEnabled != null) p.setPromoNotificationsEnabled(promoEnabled);
         if (whatsappEnabled != null) p.setWhatsappEnabled(whatsappEnabled);
+        if (broadcastEnabled != null) p.setBroadcastEnabled(broadcastEnabled);
         return repository.save(p);
     }
 }

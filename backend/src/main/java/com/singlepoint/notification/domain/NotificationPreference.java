@@ -52,6 +52,10 @@ public class NotificationPreference extends BaseEntity {
     @Column(name = "whatsapp_enabled", nullable = false)
     private boolean whatsappEnabled = false;
 
+    /** MVP-9: opt-out of community / platform announcements (default on). */
+    @Column(name = "broadcast_enabled", nullable = false)
+    private boolean broadcastEnabled = true;
+
     public Set<String> subscribedCategorySet() {
         if (subscribedVendorCategoryIds == null || subscribedVendorCategoryIds.isBlank()) return Set.of();
         return Arrays.stream(subscribedVendorCategoryIds.split(","))

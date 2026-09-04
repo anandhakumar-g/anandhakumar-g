@@ -33,7 +33,19 @@ public class DomainEventPublisher {
     /** Transactional notification (ticket status etc.) — gated only by the ticket opt-out. */
     public void publish(String eventType, String aggregateType, UUID aggregateId, UUID tenantId,
                         List<UUID> recipientUserIds, String title, String body, Map<String, Object> data) {
-        enqueue(eventType, aggregateType, aggregateId, tenantId, recipientUserIds, title, body, data, false, null);
+        enqueue(eventType, aggregateType, aggregateId, tenantId, recipientUserIds, title, body, data,
+                false, null, "transactional");
+    }
+
+    /**
+     * MVP-9: an announcement. Rides the non-promo delivery path but is gated by its own
+     * opt-out ({@code notification_preference.broadcast_enabled}, default on) — see
+     * {@link OutboxDispatcher}.
+     */
+    public void publishBroadcast(UUID broadcastId, UUID tenantId, List<UUID> recipientUserIds,
+                                 String title, String body, Map<String, Object> data) {
+        enqueue("BROADCAST", "broadcast", broadcastId, tenantId, recipientUserIds, title, body, data,
+                false, null, "broadcast");
     }
 
     /**
@@ -43,12 +55,12 @@ public class DomainEventPublisher {
     public void publishPromo(String eventType, UUID offerId, UUID vendorCategoryId,
                              List<UUID> recipientUserIds, String title, String body, Map<String, Object> data) {
         enqueue(eventType, "offer", offerId, null, recipientUserIds, title, body, data, true,
-                vendorCategoryId != null ? vendorCategoryId.toString() : null);
+                vendorCategoryId != null ? vendorCategoryId.toString() : null, "promo");
     }
 
     private void enqueue(String eventType, String aggregateType, UUID aggregateId, UUID tenantId,
                          List<UUID> recipientUserIds, String title, String body, Map<String, Object> data,
-                         boolean promo, String vendorCategoryId) {
+                         boolean promo, String vendorCategoryId, String kind) {
         try {
             Map<String, Object> payload = new HashMap<>();
             payload.put("recipients", recipientUserIds.stream().map(UUID::toString).collect(Collectors.toList()));
@@ -56,6 +68,7 @@ public class DomainEventPublisher {
             payload.put("body", body == null ? "" : body);
             payload.put("data", data == null ? Map.of() : data);
             payload.put("promo", promo);
+            payload.put("kind", kind);
             if (vendorCategoryId != null) payload.put("vendorCategoryId", vendorCategoryId);
 
             NotificationOutbox row = new NotificationOutbox();
