@@ -53,11 +53,14 @@ function OfferReview({
   onDone: () => void;
 }) {
   const { theme } = useTheme();
-  const [mode, setMode] = useState<"KEEP" | "ALL" | "ENQUIRY">("KEEP");
+  const [mode, setMode] = useState<"KEEP" | "ALL" | "ENQUIRY" | "PEOPLE">("KEEP");
   const [enquiryCategoryId, setEnquiryCategoryId] = useState<string | null>(null);
+  const [phonesText, setPhonesText] = useState("");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState<"" | "approve" | "reject">("");
   const [err, setErr] = useState<string | null>(null);
+
+  const phones = phonesText.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
 
   async function approve() {
     setErr(null);
@@ -68,6 +71,8 @@ function OfferReview({
           ? { targetType: "ALL_TENANTS" }
           : mode === "ENQUIRY"
           ? { targetType: "ENQUIRY_BASED", enquiryCategoryId }
+          : mode === "PEOPLE"
+          ? { targetType: "USER_LIST", phones }
           : undefined;
       await superOffers.approve(offer.id, override);
       onDone();
@@ -119,8 +124,9 @@ function OfferReview({
         onChange={(v) => setMode(v as any)}
         options={[
           { value: "KEEP", label: "Keep suggested" },
-          { value: "ALL", label: "All communities" },
-          { value: "ENQUIRY", label: "Enquired before" },
+          { value: "ALL", label: "All" },
+          { value: "ENQUIRY", label: "Enquired" },
+          { value: "PEOPLE", label: "Specific people" },
         ]}
       />
       {mode === "ENQUIRY" ? (
@@ -136,11 +142,20 @@ function OfferReview({
           ))}
         </View>
       ) : null}
+      {mode === "PEOPLE" ? (
+        <Field
+          placeholder="Phone numbers, comma or space separated"
+          value={phonesText}
+          onChangeText={setPhonesText}
+          multiline
+          autoCapitalize="none"
+        />
+      ) : null}
 
       <Button
         label="Approve & publish"
         loading={busy === "approve"}
-        disabled={mode === "ENQUIRY" && !enquiryCategoryId}
+        disabled={(mode === "ENQUIRY" && !enquiryCategoryId) || (mode === "PEOPLE" && phones.length === 0)}
         onPress={approve}
       />
 

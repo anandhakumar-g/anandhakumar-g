@@ -2,7 +2,8 @@ import { api, uploadFile } from "./client";
 import {
   AdminAssignment, AdminVendorCategory, AttachmentView, Category, CommunitySettings, FlatView, InvoiceView,
   InviteView, JoinRequestView, KycDocView, LocationView, MeResponse, MemberView, MyBillingView,
-  NotificationPreferences, OfferStatus, OfferView, HouseholdMember, MyFlat, Page, PaymentView, PlanView,
+  NotificationPreferences, OfferFeedbackList, OfferFeedbackView, OfferStatus, OfferView, HouseholdMember,
+  MyFlat, Page, PaymentView, PlanView,
   ProviderProfile, ProviderTier, ProviderView, PublicProviderView, ReceiptView, RedemptionView, RemovalCheck,
   SessionResponse, SubscriptionStatus, SubscriptionView, SubjectType, SuperProviderView, TenantCard,
   TicketCategory, TicketView, TimelineEntry, VendorCategory, VendorCategoryKind,
@@ -59,6 +60,9 @@ export const offers = {
     uploadFile<OfferView>(`/offers/${id}/image`, file),
   redeem: (id: string, code?: string) => api.post<RedemptionView>(`/offers/${id}/redeem`, { code }),
   confirmRedemption: (rid: string) => api.post<RedemptionView>(`/offers/redemptions/${rid}/confirm`),
+  leaveFeedback: (id: string, rating: number, comment?: string) =>
+    api.post<OfferFeedbackView>(`/offers/${id}/feedback`, { rating, comment }),
+  feedback: (id: string) => api.get<OfferFeedbackList>(`/offers/${id}/feedback`),
 };
 
 export const superOffers = {

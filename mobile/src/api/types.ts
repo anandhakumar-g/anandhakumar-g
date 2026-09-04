@@ -351,14 +351,31 @@ export interface NotificationPreferences {
 }
 
 export type OfferStatus = "DRAFT" | "PENDING_APPROVAL" | "ACTIVE" | "EXPIRED" | "CANCELLED" | "REJECTED";
-export type TargetType = "SINGLE_TENANT" | "TENANT_LIST" | "ALL_TENANTS" | "USER_SEGMENT" | "ENQUIRY_BASED";
+export type TargetType =
+  | "SINGLE_TENANT" | "TENANT_LIST" | "ALL_TENANTS" | "USER_SEGMENT" | "ENQUIRY_BASED" | "USER_LIST";
 
 export interface OfferTargetView {
   targetType: TargetType;
   tenantIds: string[];
+  userIds: string[];
+  userCount: number;
   enquiryCategoryId: string | null;
   segmentFilter: string | null;
   summary: string | null;
+}
+
+export interface OfferFeedbackView {
+  id: string;
+  offerId: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+}
+
+export interface OfferFeedbackList {
+  ratingAvg: number | null;
+  ratingCount: number;
+  items: OfferFeedbackView[];
 }
 
 export interface OfferView {
@@ -375,10 +392,13 @@ export interface OfferView {
   validTo: string;
   redemptionLimitPerUser: number;
   redemptionLimitTotal: number | null;
+  redemptionsRemaining: number | null;
   terms: string | null;
   createdByRole: string;
   rejectReason: string | null;
   target: OfferTargetView | null;
+  ratingAvg: number | null;
+  ratingCount: number;
   submittedAt: string | null;
   validatedAt: string | null;
   createdAt: string;

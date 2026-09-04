@@ -56,6 +56,13 @@ export default function ProviderOffers() {
             <AppText size="sm" tone="muted">
               {discountLabel(o)} · {o.couponCode ?? "no code"} · till {new Date(o.validTo).toLocaleDateString()}
             </AppText>
+            {o.ratingCount > 0 || o.redemptionsRemaining != null ? (
+              <AppText size="xs" tone="faint">
+                {o.ratingCount > 0 ? `★ ${o.ratingAvg?.toFixed(1)} (${o.ratingCount})` : ""}
+                {o.ratingCount > 0 && o.redemptionsRemaining != null ? "  ·  " : ""}
+                {o.redemptionsRemaining != null ? `${o.redemptionsRemaining}/${o.redemptionLimitTotal} left` : ""}
+              </AppText>
+            ) : null}
             {o.status === "REJECTED" && o.rejectReason ? (
               <AppText size="xs" tone="danger">
                 Rejected: {o.rejectReason}

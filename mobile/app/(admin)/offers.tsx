@@ -58,6 +58,9 @@ export default function AdminOffers() {
             <AppText size="sm" tone="muted">
               {discountLabel(o)} · {o.target?.summary ?? "audience pending"}
             </AppText>
+            {o.ratingCount > 0 ? (
+              <AppText size="xs" tone="faint">★ {o.ratingAvg?.toFixed(1)} ({o.ratingCount})</AppText>
+            ) : null}
             {o.status === "REJECTED" && o.rejectReason ? (
               <AppText size="xs" tone="danger">
                 Rejected: {o.rejectReason}
