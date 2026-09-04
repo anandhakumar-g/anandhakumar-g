@@ -69,6 +69,11 @@ export default function SuperHome() {
         Platform
       </AppText>
 
+      <View style={{ flexDirection: "row", gap: theme.space(2) }}>
+        <Button label="Audit log" variant="secondary" fullWidth={false} onPress={() => router.push("/(super)/audit")} />
+        <Button label="Announcement" variant="secondary" fullWidth={false} onPress={() => router.push("/(super)/broadcast")} />
+      </View>
+
       {health.loading ? (
         <Loading />
       ) : (health.data?.length ?? 0) === 0 ? (

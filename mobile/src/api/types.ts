@@ -348,6 +348,44 @@ export interface NotificationPreferences {
   ticketNotificationsEnabled: boolean;
   promoNotificationsEnabled: boolean;
   whatsappEnabled: boolean;
+  broadcastEnabled: boolean;
+}
+
+export type BroadcastScope = "COMMUNITY" | "ALL_ADMINS" | "ALL_USERS";
+
+export interface BroadcastView {
+  id: string;
+  scope: BroadcastScope;
+  tenantId: string | null;
+  tenantName: string | null;
+  senderUserId: string;
+  senderName: string | null;
+  senderRole: string;
+  title: string;
+  body: string;
+  recipientCount: number;
+  at: string;
+}
+
+export interface AuditLogView {
+  id: string;
+  at: string;
+  actorUserId: string | null;
+  actorName: string | null;
+  actorPhoneMasked: string | null;
+  actorRole: string | null;
+  tenantId: string | null;
+  tenantName: string | null;
+  action: string;
+  entityType: string | null;
+  entityId: string | null;
+  httpMethod: string | null;
+  endpoint: string | null;
+  requestId: string | null;
+  success: boolean;
+  errorCode: string | null;
+  durationMs: number | null;
+  detail: string | null;
 }
 
 export type OfferStatus = "DRAFT" | "PENDING_APPROVAL" | "ACTIVE" | "EXPIRED" | "CANCELLED" | "REJECTED";

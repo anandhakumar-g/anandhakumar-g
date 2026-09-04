@@ -20,6 +20,8 @@ export default function SuperLayout() {
       <Tabs.Screen name="billing" options={{ title: "Billing" }} />
       <Tabs.Screen name="ticket-categories" options={{ title: "Categories" }} />
       <Tabs.Screen name="taxonomy" options={{ title: "Taxonomy" }} />
+      <Tabs.Screen name="audit" options={{ href: null }} />
+      <Tabs.Screen name="broadcast" options={{ href: null }} />
     </Tabs>
   );
 }

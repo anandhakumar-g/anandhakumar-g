@@ -1,6 +1,7 @@
 import { api, uploadFile } from "./client";
 import {
-  AdminAssignment, AdminVendorCategory, AttachmentView, Category, CommunitySettings, FlatView, InvoiceView,
+  AdminAssignment, AdminVendorCategory, AttachmentView, AuditLogView, BroadcastScope, BroadcastView,
+  Category, CommunitySettings, FlatView, InvoiceView,
   InviteView, JoinRequestView, KycDocView, LocationView, MeResponse, MemberView, MyBillingView,
   NotificationPreferences, OfferFeedbackList, OfferFeedbackView, OfferStatus, OfferView, HouseholdMember,
   MyFlat, Page, PaymentView, PlanView,
@@ -269,6 +270,25 @@ export const superadmin = {
     api.post<InviteView>(`/superadmin/tenants/${tenantId}/invite-codes`, body ?? {}),
   revokeTenantInvite: (tenantId: string, codeId: string) =>
     api.del<void>(`/superadmin/tenants/${tenantId}/invite-codes/${codeId}`),
+};
+
+export const audit = {
+  list: (params: {
+    action?: string; tenantId?: string; success?: boolean;
+    from?: string; to?: string; page?: number; size?: number;
+  }) => api.get<Page<AuditLogView>>("/superadmin/audit-logs", { query: { ...params } }),
+  actions: () => api.get<string[]>("/superadmin/audit-logs/actions"),
+};
+
+export const broadcasts = {
+  sendAdmin: (title: string, body: string) =>
+    api.post<BroadcastView>("/admin/broadcasts", { title, body }),
+  listAdmin: (page = 0) =>
+    api.get<Page<BroadcastView>>("/admin/broadcasts", { query: { page, size: 30 } }),
+  sendSuper: (scope: BroadcastScope, title: string, body: string, tenantId?: string) =>
+    api.post<BroadcastView>("/superadmin/broadcasts", { scope, title, body, tenantId }),
+  listSuper: (scope?: BroadcastScope, page = 0) =>
+    api.get<Page<BroadcastView>>("/superadmin/broadcasts", { query: { scope, page, size: 30 } }),
 };
 
 export const admin = {
