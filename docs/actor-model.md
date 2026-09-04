@@ -10,7 +10,8 @@ direct-to-provider, household model) · MVP-7 Actor authority & multi-community 
 provider onboarding, `admin_tenant` + Super-Admin-as-admin, community locations, flat-owner
 raise, gated user removal) · MVP-8 Community-less users & offers depth (READY-without-community,
 tenant-less booking, `USER_LIST`/`TENANT_LIST` offer targeting, redemption-cap hardening,
-offer feedback). See `roadmap.md` and `decisions.md`.
+offer feedback) · MVP-9 Audit visibility & broadcasts (Super-Admin audit-log view; admin /
+Super-Admin announcements over the outbox). See `roadmap.md` and `decisions.md`.
 
 ---
 
@@ -44,7 +45,7 @@ offer feedback). See `roadmap.md` and `decisions.md`.
 | A2 | **Resolve tickets** — himself, with a provider, or via in-house basic staff (electricians, plumbers) | ✅ `resolveDirect` + provider assignment; in-house staff can be modelled as providers or just resolved directly | — |
 | A3 | Track a ticket to closure | ✅ (MVP-1 lifecycle + MVP-5 SLA) | — |
 | A4 | **Unmap a user** from the community after verifying pending bills; the person stays an app user, loses apartment features | ✅ (MVP-7, see I8) | — |
-| A5 | **Broadcast a notification** to all community residents | ❌ new admin endpoint over `DomainEventPublisher` | MVP-9 (deferred from MVP-8) |
+| A5 | **Broadcast a notification** to all community residents | ✅ (MVP-9) — `POST /api/v1/admin/broadcasts` (scope fixed to the acting community) → one outbox row fanned out to every ACTIVE resident; opt-out via `notification_preference.broadcast_enabled`; 60s cooldown + 20/day cap. ADR-036 | — |
 | A6 | An admin may also be a **flat owner** and raise for their own flat | ✅ (MVP-7, see P4) | — |
 | A7 | Manage **one or more communities** (with a switcher) | ✅ (MVP-7) — `admin_tenant` mapping; `POST /me/active-community` generalised to ADMIN; `me.memberships` carries admin rows for the switcher | — |
 
@@ -57,14 +58,14 @@ offer feedback). See `roadmap.md` and `decisions.md`.
 | S3 | **If a community has no admin, the Super Admin performs the admin activity** and tags users | ✅ (MVP-7) — `POST /me/active-community` for SUPER_ADMIN mints a tenant-scoped token; `POST /me/stop-acting` returns to platform scope | — |
 | S4 | **Validate & onboard service providers** after document verification; manage provider maintenance | ✅ (MVP-7, see P1) | — |
 | S5 | Validate offers / discounts / promo codes and tag them to communities or **groups of individuals** | ✅ (MVP-8) — the Super Admin can override an offer's audience to `USER_LIST` (phones) at approval (ADR-035) | — |
-| S6 | **Broadcast** to all community admins, or across all users | ❌ | MVP-9 (deferred from MVP-8) |
+| S6 | **Broadcast** to all community admins, or across all users | ✅ (MVP-9) — `POST /api/v1/superadmin/broadcasts` with `scope` `ALL_ADMINS` / `ALL_USERS` / `COMMUNITY`; same outbox fan-out + opt-out + rate guard as A5. ADR-036 | — |
 | S7 | Issue invite codes directly (when acting for an admin-less community) | ✅ (MVP-7) — `/superadmin/tenants/{id}/invite-codes` | — |
 
 ## Platform (Single Point app)
 
 | # | Concern | State | Track |
 |---|---|---|---|
-| X1 | **Audit log of all onboarding** | ◐ `AuditAspect` already records every onboarding write (tenant / admin / provider create, membership approve); MVP-5 added `@AuditRead`. Missing: a Super-Admin **audit view** API/screen | MVP-9 |
+| X1 | **Audit log of all onboarding** | ✅ (MVP-9) — `AuditAspect` capture (since MVP-1) + `@AuditRead` (MVP-5) + the Super-Admin **audit view**: `GET /superadmin/audit-logs[/actions]` with filters + a mobile viewer. ADR-036 | — |
 | X2 | **Dashboards** for every role — info / action items, completed, in-progress | ❌ only a tiny `tenantHealth` aggregate | MVP-9 |
 | X3 | **Archival & backup** configuration | ❌ ops — scheduled `pg_dump` + S3 lifecycle rules; documented, not app code | ops |
 | X4 | **Performance monitoring** | ◐ Actuator `/health` + an access-log filter with timings; add Micrometer metrics + an APM hook | ops |
@@ -107,5 +108,6 @@ offer feedback). See `roadmap.md` and `decisions.md`.
 |---|---|---|
 | **MVP-7** ✅ | **Actor authority & multi-community** | Super-Admin provider onboarding (re-eng #1) · community → multiple **locations** (re-eng #2) · **admin ↔ many communities** + switcher + Super-Admin-as-admin (re-eng #3) · **admin/provider raise for their own flat** (re-eng #4) · **admin/Super-Admin removes a user** with a pending-bills / open-tickets gate · Super-Admin-issued invite codes. *Deferred: mobile raise entry for flat-owning admins/providers.* |
 | **MVP-8** ✅ | **Community-less users & offers depth** | Individual user with **no community** — onboarding ends `READY` with no tenant + tenant-less service requests (nullable `ticket.tenant_id` + `app.current_user_id` GUC + null-tenant RLS branch) + direct booking of any verified provider · **offer targeting** to a set of communities (`TENANT_LIST`) or named individuals by phone (`USER_LIST`) · offer **global count cap** ("top 100") hardened with a pessimistic redeem lock + `redemptionsRemaining` · **feedback on an offer** (`offer_feedback`, encrypted comment, `ratingAvg`/`ratingCount`). *Deferred to MVP-9: biometric login / device binding / OTP auto-read; broadcast notifications; paid community-less bookings.* |
-| **MVP-9** | **Visibility (+ deferred)** | Per-role **dashboards** (open / in-progress / done, action items) · **audit-log view** for the Super Admin · reporting/exports · **biometric login / device binding / OTP auto-read** · **broadcast notifications** (admin → residents, Super Admin → admins / all) · paid community-less bookings. |
+| **MVP-9** ✅ | **Audit visibility & broadcasts** | **Super-Admin audit-log view** (`GET /superadmin/audit-logs[/actions]`, filterable + paged, over the rows `AuditAspect` already writes; `V27` read indexes) · **broadcast announcements** (`com.singlepoint.broadcast`: admin → acting community's residents, Super Admin → `ALL_ADMINS` / `ALL_USERS` / a `COMMUNITY`; one `broadcast` row + one outbox row fanned out; `kind:"broadcast"` + `notification_preference.broadcast_enabled` opt-out; 60s + 20/day rate guard; `V28`). *Deferred to MVP-10: per-role dashboards; biometric / device-binding / OTP auto-read; reporting / exports; paid community-less bookings.* |
+| **MVP-10** | **Visibility & scale (deferred pool)** | Per-role **dashboards** (open / in-progress / done, action items) · reporting / exports (CSV) · **biometric login + device binding + OTP auto-read** · paid community-less bookings · multi-tenant self-onboarding, full Super Admin web console, analytics. |
 | **Continuous** | **UX & Ops** | Icon / loading / imagery polish · safe-area & responsive audit (mobile + web) · Micrometer metrics + APM · scheduled backups + S3 lifecycle. |

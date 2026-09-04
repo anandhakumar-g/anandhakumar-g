@@ -2,7 +2,7 @@ openapi: 3.0.1
 info:
   title: Single Point API
   description: Multi-tenant gated-community ticket management platform.
-  version: MVP-8
+  version: MVP-9
 servers:
 - url: http://localhost:18080
   description: Generated server url
@@ -11,6 +11,8 @@ security:
 tags:
 - name: Me
   description: "Signed-in user profile, theme, memberships, devices"
+- name: Super Admin — Announcements
+  description: "Broadcast to all admins, all users, or a named community"
 - name: Super Admin — KYC review
   description: Review a provider's verification documents
 - name: Me — Notification preferences
@@ -43,6 +45,8 @@ tags:
   description: Community roster and gated removal
 - name: Provider — KYC
   description: Provider uploads its own verification documents
+- name: Admin — Announcements
+  description: Broadcast to every active resident of the acting community
 - name: Provider — Profile
   description: Provider self-service (name/phone stay admin-only)
 - name: Tickets
@@ -59,6 +63,8 @@ tags:
   description: Manage vendor categories and verticals
 - name: Payments — webhook
   description: Gateway payment callbacks
+- name: Super Admin — Audit
+  description: Platform audit trail (read-only)
 - name: Payments
   description: "Service charge, cash-with-OTP, online payment, receipt"
 - name: Membership
@@ -1934,12 +1940,68 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/InvoiceView'
+  /api/v1/superadmin/broadcasts:
+    get:
+      tags:
+      - Super Admin — Announcements
+      summary: Past announcements (optionally one scope)
+      operationId: list_5
+      parameters:
+      - name: scope
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PageResponseBroadcastView'
+    post:
+      tags:
+      - Super Admin — Announcements
+      summary: Send a platform-wide or community announcement
+      operationId: send
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                principal:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/SendRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/BroadcastView'
   /api/v1/provider/kyc:
     get:
       tags:
       - Provider — KYC
       summary: List my KYC documents and their review status
-      operationId: list_6
+      operationId: list_7
       parameters:
       - name: p
         in: query
@@ -2530,7 +2592,7 @@ paths:
     get:
       tags:
       - Admin — Ticket categories
-      operationId: list_7
+      operationId: list_8
       parameters:
       - name: p
         in: query
@@ -2715,7 +2777,7 @@ paths:
     get:
       tags:
       - Admin — Locations
-      operationId: list_9
+      operationId: list_10
       parameters:
       - name: p
         in: query
@@ -2935,6 +2997,62 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/FlatView'
+  /api/v1/admin/broadcasts:
+    get:
+      tags:
+      - Admin — Announcements
+      summary: Past announcements for the acting community
+      operationId: list_11
+      parameters:
+      - name: principal
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PageResponseBroadcastView'
+    post:
+      tags:
+      - Admin — Announcements
+      summary: Announce to every active resident of the acting community
+      operationId: send_1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                principal:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/SendRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/BroadcastView'
   /dev/pay/{ref}:
     get:
       tags:
@@ -3225,13 +3343,95 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/InvoiceView'
+  /api/v1/superadmin/audit-logs:
+    get:
+      tags:
+      - Super Admin — Audit
+      summary: Search the audit trail (every filter optional; newest first)
+      operationId: search_1
+      parameters:
+      - name: actorUserId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: tenantId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: action
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: entityType
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: success
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 50
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PageResponseAuditLogView'
+  /api/v1/superadmin/audit-logs/actions:
+    get:
+      tags:
+      - Super Admin — Audit
+      summary: "Distinct action values, for the filter UI"
+      operationId: actions
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  type: string
   /api/v1/providers:
     get:
       tags:
       - Providers
       summary: "Verified providers I can book directly (my community's directory,\
         \ or the global verified list when I'm not in a community)"
-      operationId: list_5
+      operationId: list_6
       parameters:
       - name: principal
         in: query
@@ -3499,7 +3699,7 @@ paths:
       tags:
       - Admin — Members
       summary: ACTIVE members of this community
-      operationId: list_8
+      operationId: list_9
       parameters:
       - name: p
         in: query
@@ -3628,9 +3828,9 @@ components:
           type: string
         superAdmin:
           type: boolean
-        admin:
-          type: boolean
         provider:
+          type: boolean
+        admin:
           type: boolean
         resident:
           type: boolean
@@ -4054,6 +4254,8 @@ components:
         promoNotificationsEnabled:
           type: boolean
         whatsappEnabled:
+          type: boolean
+        broadcastEnabled:
           type: boolean
     AwayRequest:
       type: object
@@ -4728,6 +4930,54 @@ components:
         createdAt:
           type: string
           format: date-time
+    SendRequest:
+      required:
+      - body
+      - title
+      type: object
+      properties:
+        title:
+          maxLength: 160
+          minLength: 0
+          type: string
+        body:
+          maxLength: 2000
+          minLength: 0
+          type: string
+        scope:
+          type: string
+        tenantId:
+          type: string
+    BroadcastView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        scope:
+          type: string
+        tenantId:
+          type: string
+          format: uuid
+        tenantName:
+          type: string
+        senderUserId:
+          type: string
+          format: uuid
+        senderName:
+          type: string
+        senderRole:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        recipientCount:
+          type: integer
+          format: int32
+        at:
+          type: string
+          format: date-time
     SubmitRequest:
       required:
       - target
@@ -5124,6 +5374,89 @@ components:
           type: string
         active:
           type: boolean
+    PageResponseBroadcastView:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/BroadcastView'
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+    AuditLogView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        at:
+          type: string
+          format: date-time
+        actorUserId:
+          type: string
+          format: uuid
+        actorName:
+          type: string
+        actorPhoneMasked:
+          type: string
+        actorRole:
+          type: string
+        tenantId:
+          type: string
+          format: uuid
+        tenantName:
+          type: string
+        action:
+          type: string
+        entityType:
+          type: string
+        entityId:
+          type: string
+          format: uuid
+        httpMethod:
+          type: string
+        endpoint:
+          type: string
+        requestId:
+          type: string
+        success:
+          type: boolean
+        errorCode:
+          type: string
+        durationMs:
+          type: integer
+          format: int32
+        detail:
+          type: string
+    PageResponseAuditLogView:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLogView'
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
     PublicProviderView:
       type: object
       properties:

@@ -3509,6 +3509,225 @@
      }
     }
    ]
+  },
+  {
+   "name": "14 · Audit trail & announcements (MVP-9)",
+   "item": [
+    {
+     "name": "Audit · search (newest first, unfiltered)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/audit-logs?page=0&size=40",
+      "description": "Every state-changing admin/provider call + every @AuditRead PII read. Paged, created_at DESC. Actor + community names hydrated, phone masked. SUPER_ADMIN only (an admin token gets 403)."
+     }
+    },
+    {
+     "name": "Audit · only failures",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/audit-logs?success=false",
+      "description": "Each row has success=false and its errorCode (e.g. SP-404, SP-403)."
+     }
+    },
+    {
+     "name": "Audit · by action + community + time window",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/audit-logs?action=Broadcast&tenantId={{tenantId}}&from=2026-09-01T00:00:00Z",
+      "description": "action is a case-insensitive substring of \"<Controller>#<method>\". All filters optional and combinable."
+     }
+    },
+    {
+     "name": "Audit · distinct actions (for the filter UI)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/audit-logs/actions"
+     }
+    },
+    {
+     "name": "Announce · admin -> residents of the acting community",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/admin/broadcasts",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"title\": \"Water shutdown\",\n  \"body\": \"Supply off tomorrow 10am–2pm for tank cleaning.\"\n}"
+      },
+      "description": "COMMUNITY scope, fixed to the admin's active community. One notification_outbox row fanned out to every ACTIVE resident (push + in-app). Rate-limited: a second send inside 60s -> 429; 20/day cap."
+     }
+    },
+    {
+     "name": "Announce · admin's past announcements",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/admin/broadcasts?page=0&size=30",
+      "description": "Only the acting community's history."
+     }
+    },
+    {
+     "name": "Announce · Super Admin -> all admins",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/broadcasts",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"scope\": \"ALL_ADMINS\",\n  \"title\": \"Quarterly sync\",\n  \"body\": \"Thursday 4pm, video link in email.\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Announce · Super Admin -> all users",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/broadcasts",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"scope\": \"ALL_USERS\",\n  \"title\": \"New app version\",\n  \"body\": \"Update from your app store for the latest fixes.\"\n}"
+      },
+      "description": "Reaches every account, including community-less individuals."
+     }
+    },
+    {
+     "name": "Announce · Super Admin -> a named community",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/broadcasts",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"scope\": \"COMMUNITY\",\n  \"tenantId\": \"{{tenantId}}\",\n  \"title\": \"Gate access\",\n  \"body\": \"Visitor gate moves to the east entrance from Monday.\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Announce · Super Admin history (optionally one scope)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/broadcasts?scope=ALL_USERS&page=0&size=30"
+     }
+    },
+    {
+     "name": "Announce · resident mutes announcements",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "url": "{{baseUrl}}/me/notification-preferences",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"broadcastEnabled\": false\n}"
+      },
+      "description": "Announcements are opt-out (default on). A muted resident's next broadcast is recorded SKIPPED (\"broadcasts muted\"), never pushed."
+     }
+    }
+   ]
   }
  ]
 }

@@ -4,6 +4,47 @@ Short ADRs. Newest first.
 
 ---
 
+## ADR-036 — Audit read-model & broadcast announcements
+**Decision (MVP-9):**
+
+- **Audit viewer (read-only).** `audit_log` is already written on every state-changing
+  admin / super-admin / provider call and on `@AuditRead` PII reads (`AuditAspect`) — MVP-9
+  adds no capture, only `GET /api/v1/superadmin/audit-logs` (SUPER_ADMIN). Every filter
+  optional (`actorUserId`, `tenantId`, `action` substring, `entityType`, `success`, `from`,
+  `to`), paged, `created_at DESC`; actor + community names hydrated per page (two
+  `findAllById` batch loads), phone masked. `.../audit-logs/actions` lists distinct actions
+  for the filter UI. `V27` adds three read indexes. The filter query is **native** so each
+  nullable bind is `CAST(:p AS …)`-anchored — a bare `:p IS NULL` over a JPQL nullable param
+  makes PostgreSQL throw *"could not determine data type of parameter"*. `action` stays
+  `"<Controller>#<method>"` (no migration to semantic names). No admin-scoped view this MVP.
+
+- **Broadcasts.** New `com.singlepoint.broadcast`. A community **admin** announces to every
+  ACTIVE resident of the community they're acting in (`POST /api/v1/admin/broadcasts`,
+  scope fixed to `principal.getTenantId()`); the **Super Admin** announces to `ALL_ADMINS`,
+  `ALL_USERS`, or a named `COMMUNITY` (`POST /api/v1/superadmin/broadcasts`). One append-only
+  `broadcast` row (`V28`, `body` encrypted at rest like ticket free-text) + **one**
+  `notification_outbox` row via new `DomainEventPublisher.publishBroadcast`; the existing
+  `OutboxPoller` → `OutboxDispatcher` fans it out (push + in-app; **not** digest-deferred,
+  **not** WhatsApp). Recipient resolution reuses `UserTenantMembershipRepository
+  .findByTenantIdAndStatus(ACTIVE)` / new `AdminTenantRepository.findActiveAdminUserIds` /
+  new `AppUserRepository.findAllIds`; the sender is dropped, ids de-duped. `GET` on both
+  routes lists past sends (admin: own community only). The `POST` is auto-audited by
+  `AuditAspect`.
+
+- **Delivery discriminator.** `enqueue(...)` gains a `kind` written into the outbox payload
+  (`"transactional"` | `"promo"` | `"broadcast"`; the old `"promo": boolean` stays for
+  back-compat). `OutboxDispatcher.gate()` suppresses a broadcast only when
+  `notification_preference.broadcast_enabled` is `false`. **Announcements are opt-out**
+  (`broadcast_enabled` default `true`), unlike promos (opt-in by category) — a resident who
+  muted *ticket* notifications still gets announcements unless they also turn off the new
+  toggle. `GET/PUT /api/v1/me/notification-preferences` carries `broadcastEnabled`.
+
+- **Abuse guard, not a billing meter.** `BroadcastService` enforces a per-sender cooldown
+  (`sp.broadcast.min-interval-seconds`, default 60) + a daily cap
+  (`sp.broadcast.daily-cap`, default 20), both counted off the `broadcast` table → `SP-429`.
+  A `BROADCASTS_PER_MONTH` plan entitlement is deferred. `ALL_USERS` = every `app_user` row
+  (one `select u.id` + one outbox row); chunked dispatch for real scale is deferred.
+
 ## ADR-035 — Offers depth: individual targeting, cap hardening, feedback
 **Decision (MVP-8):**
 - **Target a set of communities** (`TENANT_LIST`) was already wired end to end (targeting

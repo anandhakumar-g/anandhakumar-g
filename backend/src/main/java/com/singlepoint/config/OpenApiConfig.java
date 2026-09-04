@@ -17,7 +17,7 @@ public class OpenApiConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title("Single Point API")
-                        .version("MVP-8")
+                        .version("MVP-9")
                         .description("Multi-tenant gated-community ticket management platform."))
                 .addSecurityItem(new SecurityRequirement().addList(scheme))
                 .components(new Components().addSecuritySchemes(scheme,
