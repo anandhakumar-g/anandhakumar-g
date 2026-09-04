@@ -93,6 +93,7 @@ class SwitchCommunityIT extends IntegrationTestBase {
 
         JsonNode afterLeaveB = post("/api/v1/me/memberships/" + tenantB + "/leave", residentToken, Map.of());
         assertFalse(afterLeaveB.get("user").hasNonNull("activeTenantId"));
-        assertEquals("NEEDS_COMMUNITY", afterLeaveB.get("onboardingState").asText());
+        // MVP-8: a resident with no community is READY (a community-less individual), not NEEDS_COMMUNITY.
+        assertEquals("READY", afterLeaveB.get("onboardingState").asText());
     }
 }

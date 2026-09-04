@@ -34,7 +34,9 @@ class AuthRefreshIT extends IntegrationTestBase {
                 Map.of("tenantId", tenant.toString(), "requestedFlatLabel", "A-101"));
         assertEquals("PENDING_APPROVAL", joined.get("onboardingState").asText());
         String pendingToken = joined.get("token").asText();
-        assertEquals(403, http(HttpMethod.GET, "/api/v1/tickets", pendingToken, null).getStatusCode().value());
+        // MVP-8: a no-tenant resident's ticket list is a 200 empty page (not a 403).
+        JsonNode before = get("/api/v1/tickets", pendingToken);
+        assertEquals(0, before.get("content").size());
 
         // admin approves
         String membershipId = get("/api/v1/admin/join-requests", adminToken).get(0).get("id").asText();

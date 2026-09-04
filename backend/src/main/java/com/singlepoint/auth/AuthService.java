@@ -135,10 +135,12 @@ public class AuthService {
 
     private OnboardingState onboardingState(AppUser user, UUID activeTenant) {
         if (!user.isProfileCompleted()) return OnboardingState.NEEDS_PROFILE;
-        if (user.getRole() == Role.RESIDENT && activeTenant == null) {
-            boolean pending = !membershipRepository
-                    .findByUserIdAndStatus(user.getId(), MembershipStatus.PENDING_APPROVAL).isEmpty();
-            return pending ? OnboardingState.PENDING_APPROVAL : OnboardingState.NEEDS_COMMUNITY;
+        // MVP-8: a profile-complete resident with no community is READY (a community-less
+        // individual). They wait only while a join request is pending approval.
+        if (user.getRole() == Role.RESIDENT && activeTenant == null
+                && !membershipRepository.findByUserIdAndStatus(
+                        user.getId(), MembershipStatus.PENDING_APPROVAL).isEmpty()) {
+            return OnboardingState.PENDING_APPROVAL;
         }
         return OnboardingState.READY;
     }

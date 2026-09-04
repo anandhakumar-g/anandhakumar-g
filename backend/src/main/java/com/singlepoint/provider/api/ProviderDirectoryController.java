@@ -50,15 +50,19 @@ public class ProviderDirectoryController {
                                      String availability, String availabilityNote, boolean assignable) { }
 
     @GetMapping
-    @Operation(summary = "Verified providers in my community I can book directly (rating-sorted)")
+    @Operation(summary = "Verified providers I can book directly (my community's directory, "
+            + "or the global verified list when I'm not in a community)")
     public ResponseEntity<List<PublicProviderView>> list(@AuthenticationPrincipal AppPrincipal principal) {
+        List<ServiceProvider> providers;
         if (principal.getTenantId() == null) {
-            throw new AppException(ErrorCode.FORBIDDEN, "Join a community first");
+            // MVP-8: a community-less individual books from every verified provider.
+            providers = providerService.verifiedGlobal(null);
+        } else {
+            if (!tenantService.require(principal.getTenantId()).isDirectServiceEnabled()) {
+                throw new AppException(ErrorCode.FORBIDDEN, "Direct booking isn't enabled for your community");
+            }
+            providers = providerService.directoryForTenant(principal.getTenantId(), "rating");
         }
-        if (!tenantService.require(principal.getTenantId()).isDirectServiceEnabled()) {
-            throw new AppException(ErrorCode.FORBIDDEN, "Direct booking isn't enabled for your community");
-        }
-        List<ServiceProvider> providers = providerService.directoryForTenant(principal.getTenantId(), "rating");
         Map<UUID, String> labels = vendorCategories.findAllById(
                 providers.stream().map(ServiceProvider::getVendorCategoryId).collect(Collectors.toList()))
                 .stream().collect(Collectors.toMap(VendorCategory::getId, VendorCategory::getName));

@@ -103,9 +103,17 @@ public class TicketService {
         if (nonResident && cmd.flatId() == null) {
             throw new AppException(ErrorCode.FORBIDDEN, "Raise a request only for a flat you own");
         }
-        UUID tenantId = requireTenant(principal);
-        entitlements.requireWithinQuota(com.singlepoint.billing.domain.SubjectType.TENANT, tenantId,
-                "TICKETS_PER_MONTH", ticketRepository.countByTenantIdAndCreatedAtAfter(tenantId, monthStart()));
+        // MVP-8: a RESIDENT with no active community books a provider directly, tenant-free.
+        boolean communityless = principal.getRole() == Role.RESIDENT && principal.getTenantId() == null;
+        if (communityless && cmd.providerId() == null) {
+            throw new AppException(ErrorCode.VALIDATION_FAILED, "Choose a provider — you're not in a community");
+        }
+        UUID tenantId = communityless ? null : requireTenant(principal);
+
+        if (tenantId != null) {
+            entitlements.requireWithinQuota(com.singlepoint.billing.domain.SubjectType.TENANT, tenantId,
+                    "TICKETS_PER_MONTH", ticketRepository.countByTenantIdAndCreatedAtAfter(tenantId, monthStart()));
+        }
         Category category = categoryRepository.findActiveForTenantScope(cmd.categoryId(), tenantId)
                 .orElseThrow(() -> AppException.notFound("Category"));
         if (cmd.subcategoryId() != null
@@ -114,13 +122,14 @@ public class TicketService {
         }
 
         Flat flat = null;
-        if (cmd.flatId() != null) {
+        if (tenantId != null && cmd.flatId() != null) {
             flat = flatRepository.findByIdAndTenantId(cmd.flatId(), tenantId)
                     .orElseThrow(() -> AppException.notFound("Flat"));
             boolean mine = !membershipRepository.findByUserIdAndFlatIdAndStatusIn(principal.getUserId(),
                     cmd.flatId(), java.util.List.of(com.singlepoint.user.domain.MembershipStatus.ACTIVE)).isEmpty();
             if (!mine) throw new AppException(ErrorCode.FORBIDDEN, "That flat isn't one of yours");
-        } else if (hasAnyFlatMembership(principal.getUserId(), tenantId)) {
+        } else if (tenantId != null && cmd.flatId() == null
+                && hasAnyFlatMembership(principal.getUserId(), tenantId)) {
             throw new AppException(ErrorCode.VALIDATION_FAILED, "Choose which flat this request is for");
         }
 
@@ -158,12 +167,17 @@ public class TicketService {
 
         ServiceProvider directProvider = null;
         if (cmd.providerId() != null) {
-            boolean enabled = tenantRepository.findById(tenantId)
-                    .map(com.singlepoint.tenant.domain.Tenant::isDirectServiceEnabled).orElse(false);
-            if (!enabled) {
-                throw new AppException(ErrorCode.FORBIDDEN, "Direct booking isn't enabled for your community");
+            if (tenantId != null) {
+                boolean enabled = tenantRepository.findById(tenantId)
+                        .map(com.singlepoint.tenant.domain.Tenant::isDirectServiceEnabled).orElse(false);
+                if (!enabled) {
+                    throw new AppException(ErrorCode.FORBIDDEN, "Direct booking isn't enabled for your community");
+                }
+                directProvider = requireAssignableProvider(tenantId, cmd.providerId());
+            } else {
+                // MVP-8: community-less booking — any verified, listed provider, no enrolment.
+                directProvider = requireAssignableProviderGlobal(cmd.providerId());
             }
-            directProvider = requireAssignableProvider(tenantId, cmd.providerId());
             t.setRequestMode(Ticket.RequestMode.DIRECT_SERVICE);
             t.setAssignedProviderId(directProvider.getId());
             t.setAllocationApprovedByResident(true);
@@ -176,10 +190,13 @@ public class TicketService {
 
         if (directProvider != null) {
             recordHistory(t, null, TicketStatus.ASSIGNED, principal.getUserId(), Role.RESIDENT,
-                    "Direct booking: " + directProvider.getName());
+                    tenantId != null ? "Direct booking: " + directProvider.getName()
+                                     : "Direct booking (no community): " + directProvider.getName());
             notifyAssignedProvider(t, directProvider);
-            notifyAdmins(t, "New direct booking " + t.getReferenceCode(),
-                    category.getName() + ": " + shorten(t.getDescription()));
+            if (tenantId != null) {
+                notifyAdmins(t, "New direct booking " + t.getReferenceCode(),
+                        category.getName() + ": " + shorten(t.getDescription()));
+            }
         } else {
             recordHistory(t, null, TicketStatus.NEW, principal.getUserId(), Role.RESIDENT, "Ticket raised");
             notifyAdmins(t, "New ticket " + t.getReferenceCode(),
@@ -470,14 +487,17 @@ public class TicketService {
 
     @Transactional(readOnly = true)
     public Page<Ticket> list(AppPrincipal principal, String statusFilter, Pageable pageable) {
-        UUID tenantId = requireTenant(principal);
         TicketStatus status = (statusFilter != null && !statusFilter.isBlank())
                 ? TicketStatus.valueOf(statusFilter.toUpperCase()) : null;
         return switch (principal.getRole()) {
+            // RLS scopes this to the caller's own rows (tenant or tenant-less).
             case RESIDENT -> ticketRepository.findByRaisedByUserIdOrderByCreatedAtDesc(principal.getUserId(), pageable);
-            case ADMIN, SUPER_ADMIN -> status != null
-                    ? ticketRepository.findByTenantIdAndStatusOrderByCreatedAtDesc(tenantId, status, pageable)
-                    : ticketRepository.findByTenantIdOrderByCreatedAtDesc(tenantId, pageable);
+            case ADMIN, SUPER_ADMIN -> {
+                UUID tenantId = requireTenant(principal);
+                yield status != null
+                        ? ticketRepository.findByTenantIdAndStatusOrderByCreatedAtDesc(tenantId, status, pageable)
+                        : ticketRepository.findByTenantIdOrderByCreatedAtDesc(tenantId, pageable);
+            }
             case PROVIDER -> ticketRepository.findByAssignedProviderIdOrRaisedByUserId(
                     requireProvider(principal).getId(), principal.getUserId(), pageable);
         };
@@ -505,8 +525,9 @@ public class TicketService {
     }
 
     private Ticket loadForActor(AppPrincipal principal, UUID ticketId) {
-        UUID tenantId = requireTenant(principal);
-        Ticket t = ticketRepository.findByIdAndTenantId(ticketId, tenantId)
+        // RLS on the ticket table already limits this connection to rows the caller may see
+        // (their tenant, a tenant-less row they raised or are assigned to, or the wildcard).
+        Ticket t = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> AppException.notFound("Ticket"));
         // MVP-7: whoever raised the ticket can always see it, whatever their role.
         if (principal.getUserId().equals(t.getRaisedByUserId())) return t;
@@ -557,7 +578,8 @@ public class TicketService {
                 .orElseThrow(() -> new AppException(ErrorCode.FORBIDDEN, "No provider profile for this account"));
     }
 
-    private ServiceProvider requireAssignableProvider(UUID tenantId, UUID providerId) {
+    /** MVP-8: verified + active + a live listing plan — no per-community enrolment. */
+    private ServiceProvider requireAssignableProviderGlobal(UUID providerId) {
         ServiceProvider p = providerRepository.findById(providerId)
                 .orElseThrow(() -> AppException.notFound("Service provider"));
         if (!p.isAssignable()) {
@@ -570,6 +592,11 @@ public class TicketService {
             throw new AppException(ErrorCode.PROVIDER_NOT_ASSIGNABLE,
                     "Provider's listing plan is not active");
         }
+        return p;
+    }
+
+    private ServiceProvider requireAssignableProvider(UUID tenantId, UUID providerId) {
+        ServiceProvider p = requireAssignableProviderGlobal(providerId);
         boolean enrolledActive = tenantProviderRepository.findByTenantIdAndServiceProviderId(tenantId, providerId)
                 .map(com.singlepoint.provider.domain.TenantServiceProvider::isActive).orElse(false);
         if (!enrolledActive) {

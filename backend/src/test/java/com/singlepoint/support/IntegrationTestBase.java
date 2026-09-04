@@ -264,6 +264,22 @@ public abstract class IntegrationTestBase {
         throw new IllegalStateException("category not found: " + name);
     }
 
+    /** MVP-8: a profile-complete resident with no community — onboardingState READY, no active tenant. */
+    protected String individualUser(String phone, String name) {
+        Session s = completeProfile(login(phone).token(), name, name.toLowerCase() + "@example.com");
+        assertEquals("READY", s.onboardingState(), "community-less user should be READY");
+        assertTrue(s.activeTenantId() == null, "community-less user has no active tenant");
+        return s.token();
+    }
+
+    /** Community-less direct booking: raise with a providerId and no flat. */
+    protected String bookGlobalProvider(String token, UUID providerId, String categoryName) {
+        String cat = firstCategoryId(token, categoryName);
+        return post("/api/v1/tickets", token, Map.of(
+                "categoryId", cat, "description", "fix it", "serviceAddressText", "12 Nowhere St",
+                "providerId", providerId.toString())).get("id").asText();
+    }
+
     protected record Marketplace(String superToken, UUID tenantId, String adminToken,
                                  UUID providerId, String providerToken) { }
 

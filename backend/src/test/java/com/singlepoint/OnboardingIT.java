@@ -23,8 +23,10 @@ class OnboardingIT extends IntegrationTestBase {
         Session s = login("+919888000001");
         assertEquals("NEEDS_PROFILE", s.onboardingState());
 
+        // MVP-8: a profile-complete resident is READY even before joining a community.
         s = completeProfile(s.token(), "Ravi", "ravi@example.com");
-        assertEquals("NEEDS_COMMUNITY", s.onboardingState());
+        assertEquals("READY", s.onboardingState());
+        assertNull(s.activeTenantId());
 
         JsonNode joined = post("/api/v1/memberships/join", s.token(),
                 Map.of("tenantId", tenant.toString(), "inviteCode", code));
