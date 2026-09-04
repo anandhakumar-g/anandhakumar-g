@@ -120,9 +120,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!meData) return;
     if (!meData.profileCompleted) return setOnboardingState("NEEDS_PROFILE");
-    if (meData.role === "RESIDENT" && !meData.activeTenantId) {
-      const pending = meData.memberships.some((m) => m.status === "PENDING_APPROVAL");
-      return setOnboardingState(pending ? "PENDING_APPROVAL" : "NEEDS_COMMUNITY");
+    // MVP-8: a profile-complete resident with no community is READY (a community-less
+    // individual). They wait only while a join request is pending approval.
+    if (
+      meData.role === "RESIDENT" &&
+      !meData.activeTenantId &&
+      meData.memberships.some((m) => m.status === "PENDING_APPROVAL")
+    ) {
+      return setOnboardingState("PENDING_APPROVAL");
     }
     setOnboardingState("READY");
   }, [meData]);

@@ -26,17 +26,37 @@ export default function ResidentHome() {
 
   const catName = (id: string) => cats.data?.find((c) => c.id === id)?.name;
   const recent = list.data?.content.slice(0, 4) ?? [];
+  const noCommunity = !me?.activeTenantId;
 
   return (
     <Screen onRefresh={list.refresh} refreshing={list.refreshing}>
       <View style={{ gap: theme.space(1), marginTop: theme.space(2) }}>
         <AppText tone="muted">Hi {user?.name?.split(" ")[0] ?? "there"} 👋</AppText>
         <AppText size="xl" weight="700">
-          {me?.activeTenantBranding?.name ?? "Your community"}
+          {me?.activeTenantBranding?.name ?? "Single Point"}
         </AppText>
       </View>
 
-      <Button label="＋  Raise a ticket" onPress={() => router.push("/(resident)/raise")} />
+      {noCommunity ? (
+        <Card style={{ gap: theme.space(2) }}>
+          <AppText weight="700">You're not in a community</AppText>
+          <AppText size="sm" tone="faint">
+            You can still book a verified service provider directly. Join your community with an
+            invite code to see its tickets, notices and offers.
+          </AppText>
+          <View style={{ flexDirection: "row", gap: theme.space(2), flexWrap: "wrap" }}>
+            <Button label="Book a service" fullWidth={false} onPress={() => router.push("/(resident)/raise")} />
+            <Button
+              label="Join a community"
+              variant="secondary"
+              fullWidth={false}
+              onPress={() => router.push("/(resident)/community")}
+            />
+          </View>
+        </Card>
+      ) : (
+        <Button label="＋  Raise a ticket" onPress={() => router.push("/(resident)/raise")} />
+      )}
 
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: theme.space(2) }}>
         <AppText weight="700">Recent</AppText>

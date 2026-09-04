@@ -46,6 +46,9 @@ export default function Raise() {
   }, [flats.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const flatRequired = myFlats.length > 0;
+  // MVP-8: a community-less individual can only book a provider directly.
+  const noCommunity = !me?.activeTenantId;
+  const providerRequired = noCommunity;
 
   async function addPhoto() {
     try {
@@ -77,6 +80,7 @@ export default function Raise() {
   async function submit() {
     if (!category) return;
     if (flatRequired && !flatId) return setError("Choose which flat this is for");
+    if (providerRequired && !provider) return setError("Pick a provider — you're not in a community");
     setBusy(true);
     setError(null);
     try {
@@ -198,16 +202,22 @@ export default function Raise() {
             onPress={useMyLocation}
           />
 
-          {me?.directServiceEnabled ? (
+          {me?.directServiceEnabled || noCommunity ? (
             <Card style={{ gap: theme.space(2) }}>
-              <AppText size="sm" weight="700">Book a provider directly?</AppText>
+              <AppText size="sm" weight="700">
+                {noCommunity ? "Choose a provider" : "Book a provider directly?"}
+              </AppText>
               {provider ? (
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                   <View>
                     <AppText weight="600">{provider.name}</AppText>
                     <AppText size="xs" tone="faint">{provider.vendorCategoryLabel ?? "Provider"}</AppText>
                   </View>
-                  <AppText size="sm" tone="primary" onPress={() => setProvider(null)}>Send to community instead</AppText>
+                  {noCommunity ? (
+                    <AppText size="sm" tone="primary" onPress={() => setPickingProvider(true)}>Change</AppText>
+                  ) : (
+                    <AppText size="sm" tone="primary" onPress={() => setProvider(null)}>Send to community instead</AppText>
+                  )}
                 </View>
               ) : pickingProvider ? (
                 <DirectProviderPicker
@@ -217,7 +227,9 @@ export default function Raise() {
               ) : (
                 <>
                   <AppText size="xs" tone="faint">
-                    Skip the community queue — send this straight to a verified provider.
+                    {noCommunity
+                      ? "Your request goes straight to the verified provider you pick."
+                      : "Skip the community queue — send this straight to a verified provider."}
                   </AppText>
                   <Button label="Choose a provider" variant="secondary" onPress={() => setPickingProvider(true)} />
                 </>
@@ -231,7 +243,11 @@ export default function Raise() {
             label={provider ? `Book ${provider.name}` : "Submit request"}
             onPress={submit}
             loading={busy}
-            disabled={description.trim().length < 5 || (flatRequired && !flatId)}
+            disabled={
+              description.trim().length < 5 ||
+              (flatRequired && !flatId) ||
+              (providerRequired && !provider)
+            }
           />
           <Button label="Change category" variant="ghost" onPress={() => setCategory(null)} />
         </>
