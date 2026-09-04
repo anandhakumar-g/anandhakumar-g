@@ -33,13 +33,16 @@ public class OfferService {
     private final VendorCategoryRepository vendorCategoryRepository;
     private final ServiceProviderRepository providerRepository;
     private final TicketRepository ticketRepository;
+    private final com.singlepoint.user.AppUserRepository userRepository;
+    private final com.singlepoint.crypto.CryptoService crypto;
     private final DomainEventPublisher events;
     private final com.singlepoint.entitlement.EntitlementService entitlements;
 
     public OfferService(OfferRepository offerRepository, OfferTargetRepository targetRepository,
                         OfferRedemptionRepository redemptionRepository, OfferTargetingService targetingService,
                         VendorCategoryRepository vendorCategoryRepository, ServiceProviderRepository providerRepository,
-                        TicketRepository ticketRepository, DomainEventPublisher events,
+                        TicketRepository ticketRepository, com.singlepoint.user.AppUserRepository userRepository,
+                        com.singlepoint.crypto.CryptoService crypto, DomainEventPublisher events,
                         com.singlepoint.entitlement.EntitlementService entitlements) {
         this.offerRepository = offerRepository;
         this.targetRepository = targetRepository;
@@ -48,6 +51,8 @@ public class OfferService {
         this.vendorCategoryRepository = vendorCategoryRepository;
         this.providerRepository = providerRepository;
         this.ticketRepository = ticketRepository;
+        this.userRepository = userRepository;
+        this.crypto = crypto;
         this.events = events;
         this.entitlements = entitlements;
     }
@@ -57,8 +62,8 @@ public class OfferService {
                                Instant validFrom, Instant validTo, Integer redemptionLimitPerUser,
                                Integer redemptionLimitTotal, String terms) { }
 
-    public record TargetCommand(String targetType, List<String> tenantIds,
-                                String enquiryCategoryId, String segmentFilter) { }
+    public record TargetCommand(String targetType, List<String> tenantIds, List<String> userIds,
+                                List<String> phones, String enquiryCategoryId, String segmentFilter) { }
 
     // ---- authoring -----------------------------------------------------------
 
@@ -211,6 +216,7 @@ public class OfferService {
                     tenantId != null && t.tenantIdList().contains(tenantId);
             case ENQUIRY_BASED -> t.getEnquiryCategoryId() != null
                     && ticketRepository.existsByRaisedByUserIdAndCategoryId(principal.getUserId(), t.getEnquiryCategoryId());
+            case USER_LIST -> t.userIdList().contains(principal.getUserId());
         };
     }
 
@@ -279,8 +285,27 @@ public class OfferService {
     private OfferTarget upsertTarget(UUID offerId, TargetCommand c, UUID setBy) {
         OfferTarget t = targetRepository.findByOfferId(offerId).orElseGet(OfferTarget::new);
         t.setOfferId(offerId);
-        t.setTargetType(OfferTarget.TargetType.valueOf(c.targetType().toUpperCase()));
-        t.setTenantIds(c.tenantIds() == null ? null : String.join(",", c.tenantIds()));
+        OfferTarget.TargetType type = OfferTarget.TargetType.valueOf(c.targetType().toUpperCase());
+        t.setTargetType(type);
+        t.setTenantIds(c.tenantIds() == null || c.tenantIds().isEmpty() ? null : String.join(",", c.tenantIds()));
+        if (type == OfferTarget.TargetType.USER_LIST) {
+            java.util.LinkedHashSet<String> ids = new java.util.LinkedHashSet<>();
+            if (c.userIds() != null) ids.addAll(c.userIds());
+            if (c.phones() != null) {
+                for (String phone : c.phones()) {
+                    userRepository.findByPhoneHash(crypto.lookupHash(
+                            com.singlepoint.common.util.PhoneNumbers.normalize(phone)))
+                        .ifPresent(u -> ids.add(u.getId().toString()));
+                }
+            }
+            if (ids.isEmpty()) {
+                throw new AppException(ErrorCode.VALIDATION_FAILED,
+                        "None of those phone numbers are registered");
+            }
+            t.setUserIds(String.join(",", ids));
+        } else {
+            t.setUserIds(null);
+        }
         t.setEnquiryCategoryId(c.enquiryCategoryId() != null ? UUID.fromString(c.enquiryCategoryId()) : null);
         t.setSegmentFilter(c.segmentFilter());
         t.setSetByUserId(setBy);

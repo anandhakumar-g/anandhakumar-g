@@ -57,6 +57,8 @@ public class OfferTargetingService {
             case SINGLE_TENANT, TENANT_LIST -> activeResidentsOf(target.tenantIdList());
             case ENQUIRY_BASED -> enquiryCohort(target);
             case USER_SEGMENT -> segment(target);
+            // MVP-8: explicit people — may be community-less, so no membership filter.
+            case USER_LIST -> target.userIdList();
         };
     }
 
@@ -69,6 +71,7 @@ public class OfferTargetingService {
             case TENANT_LIST -> target.tenantIdList().size() + " communities";
             case ENQUIRY_BASED -> "Residents who enquired about this category";
             case USER_SEGMENT -> "A resident segment";
+            case USER_LIST -> target.userIdList().size() + " people";
         };
     }
 

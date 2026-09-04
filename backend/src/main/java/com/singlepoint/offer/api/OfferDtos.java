@@ -38,9 +38,11 @@ public final class OfferDtos {
     }
 
     public record TargetRequest(@NotBlank String targetType, List<String> tenantIds,
+                                List<String> userIds, List<String> phones,
                                 String enquiryCategoryId, String segmentFilter) {
         public OfferService.TargetCommand toCommand() {
-            return new OfferService.TargetCommand(targetType, tenantIds, enquiryCategoryId, segmentFilter);
+            return new OfferService.TargetCommand(targetType, tenantIds, userIds, phones,
+                    enquiryCategoryId, segmentFilter);
         }
     }
 
@@ -52,12 +54,14 @@ public final class OfferDtos {
 
     public record RedeemRequest(String code) { }
 
-    public record TargetView(String targetType, List<String> tenantIds, String enquiryCategoryId,
-                             String segmentFilter, String summary) {
+    public record TargetView(String targetType, List<String> tenantIds, List<String> userIds, int userCount,
+                             String enquiryCategoryId, String segmentFilter, String summary) {
         static TargetView of(OfferTarget t, String summary) {
             if (t == null) return null;
+            List<String> users = t.userIdList().stream().map(UUID::toString).toList();
             return new TargetView(t.getTargetType().name(),
                     t.tenantIdList().stream().map(UUID::toString).toList(),
+                    users, users.size(),
                     t.getEnquiryCategoryId() != null ? t.getEnquiryCategoryId().toString() : null,
                     t.getSegmentFilter(), summary);
         }

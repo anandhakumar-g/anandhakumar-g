@@ -23,7 +23,7 @@ import java.util.UUID;
 @Setter
 public class OfferTarget extends BaseEntity {
 
-    public enum TargetType { SINGLE_TENANT, TENANT_LIST, ALL_TENANTS, USER_SEGMENT, ENQUIRY_BASED }
+    public enum TargetType { SINGLE_TENANT, TENANT_LIST, ALL_TENANTS, USER_SEGMENT, ENQUIRY_BASED, USER_LIST }
 
     @Column(name = "offer_id", nullable = false)
     private UUID offerId;
@@ -36,6 +36,10 @@ public class OfferTarget extends BaseEntity {
     @Column(name = "tenant_ids")
     private String tenantIds;
 
+    /** MVP-8: CSV of app_user UUIDs for USER_LIST (resolved from phone numbers). */
+    @Column(name = "user_ids")
+    private String userIds;
+
     /** JSON blob for USER_SEGMENT, e.g. {"block":"A"} or {"usedVendorCategoryId":"..."}. */
     @Column(name = "segment_filter")
     private String segmentFilter;
@@ -47,8 +51,16 @@ public class OfferTarget extends BaseEntity {
     private UUID setByUserId;
 
     public List<UUID> tenantIdList() {
-        if (tenantIds == null || tenantIds.isBlank()) return List.of();
-        return Arrays.stream(tenantIds.split(",")).map(String::trim).filter(s -> !s.isEmpty())
+        return csvToUuids(tenantIds);
+    }
+
+    public List<UUID> userIdList() {
+        return csvToUuids(userIds);
+    }
+
+    private static List<UUID> csvToUuids(String csv) {
+        if (csv == null || csv.isBlank()) return List.of();
+        return Arrays.stream(csv.split(",")).map(String::trim).filter(s -> !s.isEmpty())
                 .map(UUID::fromString).toList();
     }
 }
