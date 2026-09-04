@@ -3361,7 +3361,7 @@
       "url": "{{baseUrl}}/tickets",
       "body": {
        "mode": "raw",
-       "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"providerId\": \"{{providerId}}\",\n  \"serviceAddressText\": \"14 Baker Street, Flat 2\",\n  \"title\": \"Ceiling fan not working\",\n  \"description\": \"Needs a replacement capacitor\"\n}"
+       "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"providerId\": \"{{providerId}}\",\n  \"description\": \"Ceiling fan not working — needs a replacement capacitor\",\n  \"serviceAddressText\": \"14 Baker Street, Flat 2\"\n}"
       },
       "description": "providerId is required (400 otherwise). Books tenant-free — requestMode DIRECT_SERVICE, straight to ASSIGNED. No admin, no quota, no payment."
      }
@@ -3401,7 +3401,7 @@
       "url": "{{baseUrl}}/tickets/{{ticketId}}/close",
       "body": {
        "mode": "raw",
-       "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Quick and tidy\"\n}"
+       "raw": "{\n  \"rating\": 5,\n  \"remarks\": \"Quick and tidy\"\n}"
       },
       "description": "Run after the provider accepts → marks in-progress → resolves."
      }
