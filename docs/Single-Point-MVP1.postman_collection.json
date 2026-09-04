@@ -1,3283 +1,3514 @@
 {
-  "info": {
-    "name": "Single Point \u2014 MVP-1 \u2026 MVP-7",
-    "_postman_id": "sp-mvp1-0001-0001-0001-000000000001",
-    "description": "End-to-end walkthrough of the MVP-1 API: resident onboarding, ticket lifecycle, admin triage, provider workflow, super-admin onboarding.\n\nRun the requests top to bottom the first time \u2014 each folder's scripts capture the tokens / ids the next requests need into collection variables.\n\nLocal defaults: backend on http://localhost:18080, dev OTP mode ON (the code is returned in `devCode`).",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+ "info": {
+  "name": "Single Point — MVP-1 … MVP-7",
+  "_postman_id": "sp-mvp1-0001-0001-0001-000000000001",
+  "description": "End-to-end walkthrough of the MVP-1 API: resident onboarding, ticket lifecycle, admin triage, provider workflow, super-admin onboarding.\n\nRun the requests top to bottom the first time — each folder's scripts capture the tokens / ids the next requests need into collection variables.\n\nLocal defaults: backend on http://localhost:18080, dev OTP mode ON (the code is returned in `devCode`).",
+  "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+ },
+ "variable": [
+  {
+   "key": "baseUrl",
+   "value": "http://localhost:18080/api/v1"
   },
-  "variable": [
+  {
+   "key": "residentPhone",
+   "value": "+919888100001"
+  },
+  {
+   "key": "adminPhone",
+   "value": "+919000000101"
+  },
+  {
+   "key": "providerPhone",
+   "value": "+919000000301"
+  },
+  {
+   "key": "superAdminPhone",
+   "value": "+919000000000"
+  },
+  {
+   "key": "devCode",
+   "value": ""
+  },
+  {
+   "key": "token",
+   "value": ""
+  },
+  {
+   "key": "adminToken",
+   "value": ""
+  },
+  {
+   "key": "providerToken",
+   "value": ""
+  },
+  {
+   "key": "superToken",
+   "value": ""
+  },
+  {
+   "key": "tenantId",
+   "value": ""
+  },
+  {
+   "key": "inviteCode",
+   "value": ""
+  },
+  {
+   "key": "categoryId",
+   "value": ""
+  },
+  {
+   "key": "ticketId",
+   "value": ""
+  },
+  {
+   "key": "providerId",
+   "value": ""
+  },
+  {
+   "key": "membershipId",
+   "value": ""
+  },
+  {
+   "key": "kycDocId",
+   "value": ""
+  },
+  {
+   "key": "offerId",
+   "value": ""
+  },
+  {
+   "key": "redemptionId",
+   "value": ""
+  },
+  {
+   "key": "cashOtp",
+   "value": ""
+  },
+  {
+   "key": "payRef",
+   "value": ""
+  },
+  {
+   "key": "kindCode",
+   "value": ""
+  },
+  {
+   "key": "vendorCategoryId2",
+   "value": ""
+  },
+  {
+   "key": "planId",
+   "value": ""
+  },
+  {
+   "key": "planCode",
+   "value": ""
+  },
+  {
+   "key": "subscriptionId",
+   "value": ""
+  },
+  {
+   "key": "invoiceId",
+   "value": ""
+  },
+  {
+   "key": "billingPayRef",
+   "value": ""
+  },
+  {
+   "key": "tenantId2",
+   "value": ""
+  }
+ ],
+ "item": [
+  {
+   "name": "1 · Resident onboarding",
+   "item": [
     {
-      "key": "baseUrl",
-      "value": "http://localhost:18080/api/v1"
+     "name": "Request OTP",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.collectionVariables.set('devCode', pm.response.json().devCode || '');"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/auth/otp/request",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"phone\": \"{{residentPhone}}\"\n}"
+      }
+     }
     },
     {
-      "key": "residentPhone",
-      "value": "+919888100001"
+     "name": "Verify OTP",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "const j = pm.response.json();",
+         "pm.collectionVariables.set('token', j.token);",
+         "pm.test('needs profile', () => pm.expect(j.onboardingState).to.eql('NEEDS_PROFILE'));"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/auth/otp/verify",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"phone\": \"{{residentPhone}}\",\n  \"code\": \"{{devCode}}\"\n}"
+      }
+     }
     },
     {
-      "key": "adminPhone",
-      "value": "+919000000101"
+     "name": "Complete profile",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "pm.collectionVariables.set('token', pm.response.json().token);"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/auth/profile",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"name\": \"Ravi Kumar\",\n  \"email\": \"ravi@example.com\"\n}"
+      }
+     }
     },
     {
-      "key": "providerPhone",
-      "value": "+919000000301"
+     "name": "Search communities",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "const list = pm.response.json().content;",
+         "if (list.length) pm.collectionVariables.set('tenantId', list[0].id);"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/tenants?query=green",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ]
+     }
     },
     {
-      "key": "superAdminPhone",
-      "value": "+919000000000"
+     "name": "Join community (invite code)",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "const j = pm.response.json();",
+         "pm.collectionVariables.set('token', j.token);",
+         "pm.test('READY', () => pm.expect(j.onboardingState).to.eql('READY'));"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/memberships/join",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"inviteCode\": \"{{inviteCode}}\"\n}"
+      },
+      "description": "Set `inviteCode` from the backend startup banner (or the Admin > Create invite code request). Leave it blank to submit a join request for admin approval instead."
+     }
     },
     {
-      "key": "devCode",
-      "value": ""
-    },
-    {
-      "key": "token",
-      "value": ""
-    },
-    {
-      "key": "adminToken",
-      "value": ""
-    },
-    {
-      "key": "providerToken",
-      "value": ""
-    },
-    {
-      "key": "superToken",
-      "value": ""
-    },
-    {
-      "key": "tenantId",
-      "value": ""
-    },
-    {
-      "key": "inviteCode",
-      "value": ""
-    },
-    {
-      "key": "categoryId",
-      "value": ""
-    },
-    {
-      "key": "ticketId",
-      "value": ""
-    },
-    {
-      "key": "providerId",
-      "value": ""
-    },
-    {
-      "key": "membershipId",
-      "value": ""
-    },
-    {
-      "key": "kycDocId",
-      "value": ""
-    },
-    {
-      "key": "offerId",
-      "value": ""
-    },
-    {
-      "key": "redemptionId",
-      "value": ""
-    },
-    {
-      "key": "cashOtp",
-      "value": ""
-    },
-    {
-      "key": "payRef",
-      "value": ""
-    },
-    {
-      "key": "kindCode",
-      "value": ""
-    },
-    {
-      "key": "vendorCategoryId2",
-      "value": ""
-    },
-    {
-      "key": "planId",
-      "value": ""
-    },
-    {
-      "key": "planCode",
-      "value": ""
-    },
-    {
-      "key": "subscriptionId",
-      "value": ""
-    },
-    {
-      "key": "invoiceId",
-      "value": ""
-    },
-    {
-      "key": "billingPayRef",
-      "value": ""
+     "name": "Me",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/me",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ]
+     }
     }
-  ],
-  "item": [
+   ]
+  },
+  {
+   "name": "2 · Resident — raise & track",
+   "item": [
     {
-      "name": "1 \u00b7 Resident onboarding",
-      "item": [
-        {
-          "name": "Request OTP",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('200', () => pm.response.to.have.status(200));",
-                  "pm.collectionVariables.set('devCode', pm.response.json().devCode || '');"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/auth/otp/request",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"phone\": \"{{residentPhone}}\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Verify OTP",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('200', () => pm.response.to.have.status(200));",
-                  "const j = pm.response.json();",
-                  "pm.collectionVariables.set('token', j.token);",
-                  "pm.test('needs profile', () => pm.expect(j.onboardingState).to.eql('NEEDS_PROFILE'));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/auth/otp/verify",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"phone\": \"{{residentPhone}}\",\n  \"code\": \"{{devCode}}\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Complete profile",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('200', () => pm.response.to.have.status(200));",
-                  "pm.collectionVariables.set('token', pm.response.json().token);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/auth/profile",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Ravi Kumar\",\n  \"email\": \"ravi@example.com\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Search communities",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('200', () => pm.response.to.have.status(200));",
-                  "const list = pm.response.json().content;",
-                  "if (list.length) pm.collectionVariables.set('tenantId', list[0].id);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/tenants?query=green",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Join community (invite code)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('200', () => pm.response.to.have.status(200));",
-                  "const j = pm.response.json();",
-                  "pm.collectionVariables.set('token', j.token);",
-                  "pm.test('READY', () => pm.expect(j.onboardingState).to.eql('READY'));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/memberships/join",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"inviteCode\": \"{{inviteCode}}\"\n}"
-            },
-            "description": "Set `inviteCode` from the backend startup banner (or the Admin > Create invite code request). Leave it blank to submit a join request for admin approval instead."
-          }
-        },
-        {
-          "name": "Me",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/me",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ]
-          }
-        }
+     "name": "List categories",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "const c = pm.response.json().find(x => x.name === 'Electrical') || pm.response.json()[0];",
+         "pm.collectionVariables.set('categoryId', c.id);"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/categories",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
       ]
+     }
     },
     {
-      "name": "2 \u00b7 Resident \u2014 raise & track",
-      "item": [
-        {
-          "name": "List categories",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('200', () => pm.response.to.have.status(200));",
-                  "const c = pm.response.json().find(x => x.name === 'Electrical') || pm.response.json()[0];",
-                  "pm.collectionVariables.set('categoryId', c.id);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/categories",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Raise ticket",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('201', () => pm.response.to.have.status(201));",
-                  "const j = pm.response.json();",
-                  "pm.collectionVariables.set('ticketId', j.id);",
-                  "pm.test('NEW', () => pm.expect(j.status).to.eql('NEW'));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/tickets",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"description\": \"Kitchen plug sparking\",\n  \"priority\": \"HIGH\",\n  \"serviceAddressText\": \"A-101, Green Meadows\",\n  \"serviceGeoLat\": 12.9698,\n  \"serviceGeoLng\": 77.7499,\n  \"serviceLandmark\": \"Near the lift\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Upload attachment",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/attachments",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "file",
-                  "type": "file",
-                  "src": []
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "My tickets",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/tickets",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Ticket detail",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Ticket timeline",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/timeline",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Reopen (after RESOLVED)",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/reopen",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"remarks\": \"Still sparking\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Close + rate (after RESOLVED)",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/close",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"rating\": 5,\n  \"remarks\": \"Fixed quickly, thanks\"\n}"
-            }
-          }
-        }
-      ]
+     "name": "Raise ticket",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('201', () => pm.response.to.have.status(201));",
+         "const j = pm.response.json();",
+         "pm.collectionVariables.set('ticketId', j.id);",
+         "pm.test('NEW', () => pm.expect(j.status).to.eql('NEW'));"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/tickets",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"description\": \"Kitchen plug sparking\",\n  \"priority\": \"HIGH\",\n  \"serviceAddressText\": \"A-101, Green Meadows\",\n  \"serviceGeoLat\": 12.9698,\n  \"serviceGeoLng\": 77.7499,\n  \"serviceLandmark\": \"Near the lift\"\n}"
+      }
+     }
     },
     {
-      "name": "3 \u00b7 Admin",
-      "item": [
+     "name": "Upload attachment",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/attachments",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "body": {
+       "mode": "formdata",
+       "formdata": [
         {
-          "name": "Login \u2014 request OTP",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.collectionVariables.set('devCode', pm.response.json().devCode || '');"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/auth/otp/request",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"phone\": \"{{adminPhone}}\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Login \u2014 verify OTP",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.collectionVariables.set('adminToken', pm.response.json().token);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/auth/otp/verify",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"phone\": \"{{adminPhone}}\",\n  \"code\": \"{{devCode}}\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Queue (all)",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/tickets",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Queue (NEW only)",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/tickets?status=NEW",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Create invite code",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.collectionVariables.set('inviteCode', pm.response.json().code);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/admin/invite-codes",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"maxUses\": 20,\n  \"validDays\": 30\n}"
-            }
-          }
-        },
-        {
-          "name": "Flats",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/admin/flats",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Pending join requests",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const l = pm.response.json();",
-                  "if (l.length) pm.collectionVariables.set('membershipId', l[0].id);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/admin/join-requests",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Approve join request",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/admin/join-requests/{{membershipId}}/approve",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            }
-          }
-        },
-        {
-          "name": "Provider directory",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const l = pm.response.json();",
-                  "if (l.length) pm.collectionVariables.set('providerId', l[0].id);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/admin/providers",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Add provider",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.collectionVariables.set('providerId', pm.response.json().id);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/admin/providers",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Sparky Electricals\",\n  \"vendorCategoryId\": \"22222222-0000-0000-0000-000000000001\",\n  \"company\": true,\n  \"contactPhone\": \"{{providerPhone}}\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Verify provider",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/admin/providers/{{providerId}}/verify",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"VERIFIED\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Acknowledge ticket",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/acknowledge",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{ \"remarks\": \"Looking into it\" }"
-            }
-          }
-        },
-        {
-          "name": "Assign to provider",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('ASSIGNED', () => pm.expect(pm.response.json().status).to.eql('ASSIGNED'));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/assign",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"providerId\": \"{{providerId}}\",\n  \"remarks\": \"Please attend today\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Reroute to another provider",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/reroute",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"providerId\": \"{{providerId}}\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Resolve directly",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/resolve",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"resolutionNotes\": \"Handled by the in-house team\"\n}"
-            }
-          }
+         "key": "file",
+         "type": "file",
+         "src": []
         }
-      ]
+       ]
+      }
+     }
     },
     {
-      "name": "4 \u00b7 Provider",
-      "item": [
-        {
-          "name": "Login \u2014 request OTP",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.collectionVariables.set('devCode', pm.response.json().devCode || '');"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/auth/otp/request",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"phone\": \"{{providerPhone}}\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Login \u2014 verify OTP",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.collectionVariables.set('providerToken', pm.response.json().token);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/auth/otp/verify",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"phone\": \"{{providerPhone}}\",\n  \"code\": \"{{devCode}}\"\n}"
-            }
-          }
-        },
-        {
-          "name": "My jobs",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/tickets",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{providerToken}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Accept job",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/accept",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{providerToken}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Reject job",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/reject",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{providerToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{ \"reason\": \"Fully booked today\" }"
-            }
-          }
-        },
-        {
-          "name": "Status \u2192 IN_PROGRESS",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/status",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{providerToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{ \"toStatus\": \"IN_PROGRESS\" }"
-            }
-          }
-        },
-        {
-          "name": "Status \u2192 ON_HOLD",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/status",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{providerToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{ \"toStatus\": \"ON_HOLD\", \"reason\": \"Waiting for a spare part\" }"
-            }
-          }
-        },
-        {
-          "name": "Status \u2192 RESOLVED",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/status",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{providerToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{ \"toStatus\": \"RESOLVED\", \"resolutionNotes\": \"Replaced the socket\" }"
-            }
-          }
-        }
+     "name": "My tickets",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/tickets",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
       ]
+     }
     },
     {
-      "name": "5 \u00b7 Super Admin",
-      "item": [
-        {
-          "name": "Login \u2014 request OTP",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.collectionVariables.set('devCode', pm.response.json().devCode || '');"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/auth/otp/request",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"phone\": \"{{superAdminPhone}}\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Login \u2014 verify OTP",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.collectionVariables.set('superToken', pm.response.json().token);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/auth/otp/verify",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"phone\": \"{{superAdminPhone}}\",\n  \"code\": \"{{devCode}}\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Onboard a community",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.collectionVariables.set('tenantId', pm.response.json().id);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/superadmin/tenants",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Palm Grove\",\n  \"city\": \"Bengaluru\",\n  \"locality\": \"Sarjapur\",\n  \"brandPrimaryColor\": \"#7C3AED\",\n  \"defaultTheme\": \"light\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Invite an admin",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/superadmin/tenants/{{tenantId}}/admins",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"phone\": \"+919000000401\",\n  \"name\": \"Palm Grove Admin\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Tenant health",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/superadmin/tenants",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ]
-          }
-        }
+     "name": "Ticket detail",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
       ]
+     }
     },
     {
-      "name": "6 \u00b7 Marketplace & Offers",
-      "item": [
-        {
-          "name": "Vendor categories (grouped)",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/vendor-categories",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Provider \u00b7 upload KYC doc",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/provider/kyc",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{providerToken}}"
-              }
-            ],
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "docType",
-                  "value": "GOV_ID",
-                  "type": "text"
-                },
-                {
-                  "key": "file",
-                  "type": "file",
-                  "src": []
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Provider \u00b7 my KYC docs",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/provider/kyc",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{providerToken}}"
-              }
-            ]
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const l=pm.response.json(); if(l.length) pm.collectionVariables.set('kycDocId', l[0].id);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Admin \u00b7 provider KYC docs",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/admin/providers/{{providerId}}/kyc",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ]
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const l=pm.response.json(); if(l.length) pm.collectionVariables.set('kycDocId', l[0].id);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Admin \u00b7 review KYC doc",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/admin/providers/{{providerId}}/kyc/{{kycDocId}}/review",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"ACCEPTED\",\n  \"note\": \"verified against original\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Author \u00b7 create draft offer",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/offers",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{providerToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"vendorCategoryId\": \"22222222-0000-0000-0001-000000000003\",\n  \"title\": \"Festive 20% off sweets\",\n  \"description\": \"Diwali special on all boxes\",\n  \"discountType\": \"PERCENTAGE\",\n  \"discountValue\": 20,\n  \"couponCode\": \"DIWALI20\",\n  \"validFrom\": \"2026-10-01T00:00:00Z\",\n  \"validTo\": \"2026-11-15T00:00:00Z\",\n  \"redemptionLimitPerUser\": 1\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.collectionVariables.set('offerId', pm.response.json().id);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Author \u00b7 upload offer image",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/offers/{{offerId}}/image",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{providerToken}}"
-              }
-            ],
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "file",
-                  "type": "file",
-                  "src": []
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Author \u00b7 submit for approval",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/offers/{{offerId}}/submit",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{providerToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"target\": {\n    \"targetType\": \"ENQUIRY_BASED\",\n    \"enquiryCategoryId\": \"11111111-0000-0000-0000-00000000000d\"\n  }\n}"
-            }
-          }
-        },
-        {
-          "name": "Author \u00b7 my offers",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/offers/mine",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{providerToken}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Super Admin \u00b7 approval queue",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/superadmin/offers?status=PENDING_APPROVAL",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ]
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const l=pm.response.json(); if(l.length) pm.collectionVariables.set('offerId', l[0].id);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Super Admin \u00b7 approve (keep audience)",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/superadmin/offers/{{offerId}}/approve",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            }
-          }
-        },
-        {
-          "name": "Super Admin \u00b7 approve (override to all tenants)",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/superadmin/offers/{{offerId}}/approve",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"target\": {\n    \"targetType\": \"ALL_TENANTS\"\n  }\n}"
-            }
-          }
-        },
-        {
-          "name": "Super Admin \u00b7 reject",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/superadmin/offers/{{offerId}}/reject",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"reason\": \"Discount exceeds platform cap\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Resident \u00b7 deals feed",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/offers",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ]
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const l=pm.response.json(); if(l.length) pm.collectionVariables.set('offerId', l[0].id);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Resident \u00b7 offer detail",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/offers/{{offerId}}",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Resident \u00b7 redeem",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/offers/{{offerId}}/redeem",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"code\": \"DIWALI20\"\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if(pm.response.code===201) pm.collectionVariables.set('redemptionId', pm.response.json().id);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Provider \u00b7 confirm redemption",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/offers/redemptions/{{redemptionId}}/confirm",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{providerToken}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Resident \u00b7 get notification preferences",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/me/notification-preferences",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Resident \u00b7 update notification preferences",
-          "request": {
-            "method": "PUT",
-            "url": "{{baseUrl}}/me/notification-preferences",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"subscribedVendorCategoryIds\": [\n    \"22222222-0000-0000-0001-000000000003\"\n  ],\n  \"promoFrequencyCapPerWeek\": 3,\n  \"digestMode\": \"WEEKLY\",\n  \"ticketNotificationsEnabled\": true,\n  \"promoNotificationsEnabled\": true\n}"
-            }
-          }
-        }
+     "name": "Ticket timeline",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/timeline",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
       ]
+     }
     },
     {
-      "name": "7 \u00b7 Payments & Receipts",
-      "item": [
-        {
-          "name": "Note",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/payment",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ]
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "// Prereq: a RESOLVED ticket in {{ticketId}} (run folders 1-3 to raise/assign/resolve one)."
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Provider \u00b7 add charge",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/charge",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{providerToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"amount\": 500,\n  \"note\": \"parts + labour\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Admin \u00b7 adjust charge",
-          "request": {
-            "method": "PUT",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/charge",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"amount\": 450\n}"
-            }
-          }
-        },
-        {
-          "name": "Resident \u00b7 choose CASH",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/mode",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"mode\": \"CASH\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Provider \u00b7 collect cash (OTP to resident)",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/cash/collect",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{providerToken}}"
-              }
-            ]
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if(pm.response.json().devOtp) pm.collectionVariables.set('cashOtp', pm.response.json().devOtp);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Confirm cash (resident or provider submits OTP)",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/cash/confirm",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"otp\": \"{{cashOtp}}\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Resident \u00b7 choose ONLINE",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/mode",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"mode\": \"ONLINE\"\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const l=pm.response.json().payLink||''; pm.collectionVariables.set('payRef', l.split('/').pop());"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Dev \u00b7 settle online payment (local stub)",
-          "request": {
-            "method": "POST",
-            "url": "http://localhost:18080/dev/pay/{{payRef}}/settle"
-          }
-        },
-        {
-          "name": "Get payment",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/payment",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Get receipt",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/receipt",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Admin \u00b7 waive",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/waive",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"reason\": \"goodwill\"\n}"
-            }
-          }
-        }
-      ]
+     "name": "Reopen (after RESOLVED)",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/reopen",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"remarks\": \"Still sparking\"\n}"
+      }
+     }
     },
     {
-      "name": "8 \u00b7 Vendor taxonomy (Super Admin)",
-      "item": [
-        {
-          "name": "List verticals",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/superadmin/vendor-category-kinds",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Create vertical",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/superadmin/vendor-category-kinds",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"code\": \"PET_CARE\",\n  \"label\": \"Pet Care\"\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.collectionVariables.set('kindCode','PET_CARE');"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Create category",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/superadmin/vendor-categories",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Dog Grooming\",\n  \"kind\": \"{{kindCode}}\"\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.collectionVariables.set('vendorCategoryId2', pm.response.json().id);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "List all categories (incl. inactive)",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/superadmin/vendor-categories",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Rename category",
-          "request": {
-            "method": "PUT",
-            "url": "{{baseUrl}}/superadmin/vendor-categories/{{vendorCategoryId2}}",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Pet Grooming\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Deactivate category",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/superadmin/vendor-categories/{{vendorCategoryId2}}/deactivate",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Public list now excludes it",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/vendor-categories",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "9 \u00b7 Billing & Plans",
-      "item": [
-        {
-          "name": "List plans",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/superadmin/plans",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Create plan (capped, $0)",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/superadmin/plans",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"target\": \"TENANT\",\n  \"code\": \"POSTMAN_CAP\",\n  \"name\": \"Postman Cap\",\n  \"price\": 0,\n  \"entitlements\": {\n    \"TICKETS_PER_MONTH\": 2,\n    \"ADMIN_SEATS\": 5,\n    \"OFFERS_PER_MONTH\": 5\n  }\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('201', () => pm.response.to.have.status(201));",
-                  "pm.collectionVariables.set('planCode', pm.response.json().code);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Update plan price/entitlements",
-          "request": {
-            "method": "PUT",
-            "url": "{{baseUrl}}/superadmin/plans/{{planId}}",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"price\": 1499,\n  \"active\": true,\n  \"entitlements\": {\n    \"TICKETS_PER_MONTH\": 50,\n    \"ADMIN_SEATS\": 8,\n    \"OFFERS_PER_MONTH\": 12\n  }\n}"
-            }
-          }
-        },
-        {
-          "name": "List subscriptions (TENANT)",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/superadmin/subscriptions?subjectType=TENANT",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Assign plan to a community",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/superadmin/subscriptions",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"subjectType\": \"TENANT\",\n  \"subjectId\": \"{{tenantId}}\",\n  \"planCode\": \"{{planCode}}\",\n  \"comp\": false\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('201', () => pm.response.to.have.status(201));",
-                  "pm.collectionVariables.set('subscriptionId', pm.response.json().id);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Comp a subscription",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/superadmin/subscriptions/{{subscriptionId}}/comp",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            }
-          }
-        },
-        {
-          "name": "Cancel a subscription",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/superadmin/subscriptions/{{subscriptionId}}/cancel",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            }
-          }
-        },
-        {
-          "name": "List DUE invoices",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/superadmin/invoices?status=DUE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ]
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const a = pm.response.json();",
-                  "if (a.length) pm.collectionVariables.set('invoiceId', a[0].id);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Mark invoice paid",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/superadmin/invoices/{{invoiceId}}/mark-paid",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            }
-          }
-        },
-        {
-          "name": "List providers with tier",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/superadmin/providers",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Feature a provider",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/superadmin/providers/{{providerId}}/tier",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"tier\": \"FEATURED\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Un-feature a provider",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/superadmin/providers/{{providerId}}/tier",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"tier\": \"STANDARD\"\n}"
-            }
-          }
-        },
-        {
-          "name": "My billing (admin/provider)",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/me/billing",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ]
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const b = pm.response.json();",
-                  "if (b.dueInvoices && b.dueInvoices.length) pm.collectionVariables.set('invoiceId', b.dueInvoices[0].id);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Self-upgrade to a paid plan",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/me/billing/plan",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"planCode\": \"TENANT_STANDARD\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Pay a due invoice (returns link)",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/me/billing/invoices/{{invoiceId}}/pay",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('200', () => pm.response.to.have.status(200));",
-                  "const l = pm.response.json().paymentLink || '';",
-                  "pm.collectionVariables.set('billingPayRef', l.split('/').pop());"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "10 \u00b7 Ticketing depth (MVP-5)",
-      "item": [
-        {
-          "name": "Community settings \u2014 get",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/admin/community-settings"
-          }
-        },
-        {
-          "name": "Community settings \u2014 set approval gate",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/admin/community-settings",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"requireAllocationApproval\": true\n}"
-            }
-          }
-        },
-        {
-          "name": "Super Admin \u2014 update tenant",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/superadmin/tenants/{{tenantId}}",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"categoryAdmin\": \"COMMUNITY\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Resident \u2014 approve allocation",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{residentToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/allocation/approve",
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            }
-          }
-        },
-        {
-          "name": "Resident \u2014 reject allocation",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{residentToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/allocation/reject",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"reason\": \"Away this week\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Super Admin \u2014 list ticket categories (global)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/superadmin/ticket-categories"
-          }
-        },
-        {
-          "name": "Super Admin \u2014 create ticket category",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/superadmin/ticket-categories",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Fire Safety\",\n  \"requestType\": \"ISSUE\",\n  \"slaHours\": 4\n}"
-            }
-          }
-        },
-        {
-          "name": "Super Admin \u2014 create tenant category",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/superadmin/ticket-categories?tenantId={{tenantId}}",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Clubhouse Booking\",\n  \"requestType\": \"ENQUIRY\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Admin \u2014 create own ticket category",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/admin/ticket-categories",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Society Notice\",\n  \"requestType\": \"FEEDBACK\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Admin \u2014 deactivate ticket category",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/admin/ticket-categories/{{categoryId}}/deactivate",
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            }
-          }
-        },
-        {
-          "name": "Admin \u2014 providers (with rating sort)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/admin/providers?sort=rating"
-          }
-        },
-        {
-          "name": "Admin \u2014 providers (include deactivated)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/admin/providers?includeInactive=true"
-          }
-        },
-        {
-          "name": "Admin \u2014 edit provider",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/admin/providers/{{providerId}}",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"contactEmail\": \"ops@vendor.example\",\n  \"serviceArea\": \"Whitefield\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Admin \u2014 remove provider from directory",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/admin/providers/{{providerId}}/deactivate",
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            }
-          }
-        },
-        {
-          "name": "Admin \u2014 restore provider",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/admin/providers/{{providerId}}/reactivate",
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            }
-          }
-        },
-        {
-          "name": "Provider \u2014 get profile",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{providerToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/provider/profile"
-          }
-        },
-        {
-          "name": "Provider \u2014 set availability",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{providerToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/provider/profile",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"availability\": \"AWAY\",\n  \"availabilityNote\": \"Back Monday\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Resident \u2014 set away-until",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{residentToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/me/away-until",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"awayUntil\": \"2026-10-01T00:00:00Z\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Me \u2014 notification prefs (enable WhatsApp)",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{residentToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/me/notification-preferences",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"whatsappEnabled\": true\n}"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "11 \u00b7 Reach expansion (MVP-6)",
-      "item": [
-        {
-          "name": "Auth \u2014 refresh session",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{residentToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/auth/refresh",
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            }
-          }
-        },
-        {
-          "name": "Me \u2014 switch active community",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{residentToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/me/active-community",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"{{tenantId}}\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Me \u2014 leave a community",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{residentToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/me/memberships/{{tenantId}}/leave",
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            }
-          }
-        },
-        {
-          "name": "Me \u2014 my flats",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{residentToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/me/flats"
-          }
-        },
-        {
-          "name": "Household \u2014 roster",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{residentToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/me/household/{{flatId}}/members"
-          }
-        },
-        {
-          "name": "Household \u2014 invite a family member (PRIMARY)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{residentToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/me/household/invites",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"flatId\": \"{{flatId}}\",\n  \"maxUses\": 3,\n  \"validDays\": 14\n}"
-            }
-          }
-        },
-        {
-          "name": "Household \u2014 remove a member (PRIMARY)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{residentToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/me/household/{{flatId}}/members/{{memberUserId}}/remove",
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            }
-          }
-        },
-        {
-          "name": "Providers \u2014 resident directory",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{residentToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/providers"
-          }
-        },
-        {
-          "name": "Ticket \u2014 direct booking",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{residentToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/tickets",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"description\": \"AC not cooling\",\n  \"flatId\": \"{{flatId}}\",\n  \"providerId\": \"{{providerId}}\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Ticket \u2014 rebook after a decline",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{residentToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/tickets/{{ticketId}}/rebook",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"providerId\": \"{{providerId}}\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Super Admin \u2014 toggle direct booking",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/superadmin/tenants/{{tenantId}}",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"directServiceEnabled\": true\n}"
-            }
-          }
-        },
-        {
-          "name": "Admin \u2014 toggle direct booking",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/admin/community-settings",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"directServiceEnabled\": true\n}"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "12 \u00b7 Actor authority & multi-community (MVP-7)",
-      "item": [
-        {
-          "name": "Super Admin \u2014 add / attach admin",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/superadmin/tenants/{{tenantId}}/admins",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"phone\": \"{{adminPhone}}\",\n  \"name\": \"Community Admin\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Super Admin \u2014 list a community's admins",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/superadmin/tenants/{{tenantId}}/admins"
-          }
-        },
-        {
-          "name": "Super Admin \u2014 attach existing admin to another community",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/superadmin/tenants/{{tenantId2}}/admins/{{adminUserId}}",
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            }
-          }
-        },
-        {
-          "name": "Super Admin \u2014 detach admin",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/superadmin/tenants/{{tenantId2}}/admins/{{adminUserId}}"
-          }
-        },
-        {
-          "name": "Super Admin \u2014 issue an invite code for a community",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/superadmin/tenants/{{tenantId}}/invite-codes",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"maxUses\": 20,\n  \"validDays\": 30\n}"
-            }
-          }
-        },
-        {
-          "name": "Admin \u2014 switch active community",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/me/active-community",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"{{tenantId2}}\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Super Admin \u2014 act as admin for a community",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/me/active-community",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"{{tenantId}}\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Super Admin \u2014 stop acting (back to platform scope)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/me/stop-acting",
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            }
-          }
-        },
-        {
-          "name": "Super Admin \u2014 enable provider enrolment for a community",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/superadmin/tenants/{{tenantId}}",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"providerOnboardingAllowed\": true\n}"
-            }
-          }
-        },
-        {
-          "name": "Super Admin \u2014 create a global provider",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/superadmin/providers",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Sparky Electricals\",\n  \"vendorCategoryId\": \"{{vendorCategoryId}}\",\n  \"company\": true,\n  \"contactPhone\": \"{{providerPhone}}\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Super Admin \u2014 list a provider's KYC docs",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/superadmin/providers/{{providerId}}/kyc"
-          }
-        },
-        {
-          "name": "Super Admin \u2014 review a KYC doc",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/superadmin/providers/{{providerId}}/kyc/{{kycDocId}}/review",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"ACCEPTED\",\n  \"note\": \"ok\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Super Admin \u2014 verify a provider",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/superadmin/providers/{{providerId}}/verify",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"VERIFIED\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Super Admin \u2014 set featured tier",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/superadmin/providers/{{providerId}}/tier",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"tier\": \"FEATURED\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Admin \u2014 browse the verified provider directory",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/admin/providers/catalog"
-          }
-        },
-        {
-          "name": "Admin \u2014 enrol a verified provider",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/admin/providers/{{providerId}}/enrol",
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            }
-          }
-        },
-        {
-          "name": "Admin \u2014 create a location",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/admin/locations",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"label\": \"Tower A\",\n  \"pincode\": \"560066\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Admin \u2014 list locations",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/admin/locations"
-          }
-        },
-        {
-          "name": "Admin \u2014 create a flat in a location",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/admin/flats",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"locationId\": \"{{locationId}}\",\n  \"block\": \"A\",\n  \"flatNumber\": \"101\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Flat-owner (admin/provider) \u2014 raise for their own flat",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/tickets",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"description\": \"Kitchen plug sparking\",\n  \"flatId\": \"{{flatId}}\",\n  \"serviceAddressText\": \"A-101\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Admin \u2014 community members roster",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/admin/members"
-          }
-        },
-        {
-          "name": "Admin \u2014 removal check for a member",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/admin/members/{{memberUserId}}/removal-check"
-          }
-        },
-        {
-          "name": "Admin \u2014 remove a member (409 if blocked)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/admin/members/{{memberUserId}}/remove",
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            }
-          }
-        }
-      ]
+     "name": "Close + rate (after RESOLVED)",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/close",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"rating\": 5,\n  \"remarks\": \"Fixed quickly, thanks\"\n}"
+      }
+     }
     }
-  ]
+   ]
+  },
+  {
+   "name": "3 · Admin",
+   "item": [
+    {
+     "name": "Login — request OTP",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.collectionVariables.set('devCode', pm.response.json().devCode || '');"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/auth/otp/request",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"phone\": \"{{adminPhone}}\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Login — verify OTP",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.collectionVariables.set('adminToken', pm.response.json().token);"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/auth/otp/verify",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"phone\": \"{{adminPhone}}\",\n  \"code\": \"{{devCode}}\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Queue (all)",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/tickets",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ]
+     }
+    },
+    {
+     "name": "Queue (NEW only)",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/tickets?status=NEW",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ]
+     }
+    },
+    {
+     "name": "Create invite code",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.collectionVariables.set('inviteCode', pm.response.json().code);"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/admin/invite-codes",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"maxUses\": 20,\n  \"validDays\": 30\n}"
+      }
+     }
+    },
+    {
+     "name": "Flats",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/admin/flats",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ]
+     }
+    },
+    {
+     "name": "Pending join requests",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "const l = pm.response.json();",
+         "if (l.length) pm.collectionVariables.set('membershipId', l[0].id);"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/admin/join-requests",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ]
+     }
+    },
+    {
+     "name": "Approve join request",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/admin/join-requests/{{membershipId}}/approve",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      }
+     }
+    },
+    {
+     "name": "Provider directory",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "const l = pm.response.json();",
+         "if (l.length) pm.collectionVariables.set('providerId', l[0].id);"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/admin/providers",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ]
+     }
+    },
+    {
+     "name": "Add provider",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.collectionVariables.set('providerId', pm.response.json().id);"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/admin/providers",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"name\": \"Sparky Electricals\",\n  \"vendorCategoryId\": \"22222222-0000-0000-0000-000000000001\",\n  \"company\": true,\n  \"contactPhone\": \"{{providerPhone}}\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Verify provider",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/admin/providers/{{providerId}}/verify",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"status\": \"VERIFIED\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Acknowledge ticket",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/acknowledge",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{ \"remarks\": \"Looking into it\" }"
+      }
+     }
+    },
+    {
+     "name": "Assign to provider",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('ASSIGNED', () => pm.expect(pm.response.json().status).to.eql('ASSIGNED'));"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/assign",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"providerId\": \"{{providerId}}\",\n  \"remarks\": \"Please attend today\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Reroute to another provider",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/reroute",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"providerId\": \"{{providerId}}\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Resolve directly",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/resolve",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"resolutionNotes\": \"Handled by the in-house team\"\n}"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "4 · Provider",
+   "item": [
+    {
+     "name": "Login — request OTP",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.collectionVariables.set('devCode', pm.response.json().devCode || '');"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/auth/otp/request",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"phone\": \"{{providerPhone}}\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Login — verify OTP",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.collectionVariables.set('providerToken', pm.response.json().token);"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/auth/otp/verify",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"phone\": \"{{providerPhone}}\",\n  \"code\": \"{{devCode}}\"\n}"
+      }
+     }
+    },
+    {
+     "name": "My jobs",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/tickets",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{providerToken}}"
+       }
+      ]
+     }
+    },
+    {
+     "name": "Accept job",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/accept",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{providerToken}}"
+       }
+      ]
+     }
+    },
+    {
+     "name": "Reject job",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/reject",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{providerToken}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{ \"reason\": \"Fully booked today\" }"
+      }
+     }
+    },
+    {
+     "name": "Status → IN_PROGRESS",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/status",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{providerToken}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{ \"toStatus\": \"IN_PROGRESS\" }"
+      }
+     }
+    },
+    {
+     "name": "Status → ON_HOLD",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/status",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{providerToken}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{ \"toStatus\": \"ON_HOLD\", \"reason\": \"Waiting for a spare part\" }"
+      }
+     }
+    },
+    {
+     "name": "Status → RESOLVED",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/status",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{providerToken}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{ \"toStatus\": \"RESOLVED\", \"resolutionNotes\": \"Replaced the socket\" }"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "5 · Super Admin",
+   "item": [
+    {
+     "name": "Login — request OTP",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.collectionVariables.set('devCode', pm.response.json().devCode || '');"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/auth/otp/request",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"phone\": \"{{superAdminPhone}}\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Login — verify OTP",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.collectionVariables.set('superToken', pm.response.json().token);"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/auth/otp/verify",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"phone\": \"{{superAdminPhone}}\",\n  \"code\": \"{{devCode}}\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Onboard a community",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.collectionVariables.set('tenantId', pm.response.json().id);"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/superadmin/tenants",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"name\": \"Palm Grove\",\n  \"city\": \"Bengaluru\",\n  \"locality\": \"Sarjapur\",\n  \"brandPrimaryColor\": \"#7C3AED\",\n  \"defaultTheme\": \"light\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Invite an admin",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/superadmin/tenants/{{tenantId}}/admins",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"phone\": \"+919000000401\",\n  \"name\": \"Palm Grove Admin\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Tenant health",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/superadmin/tenants",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "6 · Marketplace & Offers",
+   "item": [
+    {
+     "name": "Vendor categories (grouped)",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/vendor-categories",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ]
+     }
+    },
+    {
+     "name": "Provider · upload KYC doc",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/provider/kyc",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{providerToken}}"
+       }
+      ],
+      "body": {
+       "mode": "formdata",
+       "formdata": [
+        {
+         "key": "docType",
+         "value": "GOV_ID",
+         "type": "text"
+        },
+        {
+         "key": "file",
+         "type": "file",
+         "src": []
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "Provider · my KYC docs",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/provider/kyc",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{providerToken}}"
+       }
+      ]
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "const l=pm.response.json(); if(l.length) pm.collectionVariables.set('kycDocId', l[0].id);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "Admin · provider KYC docs",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/admin/providers/{{providerId}}/kyc",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ]
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "const l=pm.response.json(); if(l.length) pm.collectionVariables.set('kycDocId', l[0].id);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "Admin · review KYC doc",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/admin/providers/{{providerId}}/kyc/{{kycDocId}}/review",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"status\": \"ACCEPTED\",\n  \"note\": \"verified against original\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Author · create draft offer",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/offers",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{providerToken}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"vendorCategoryId\": \"22222222-0000-0000-0001-000000000003\",\n  \"title\": \"Festive 20% off sweets\",\n  \"description\": \"Diwali special on all boxes\",\n  \"discountType\": \"PERCENTAGE\",\n  \"discountValue\": 20,\n  \"couponCode\": \"DIWALI20\",\n  \"validFrom\": \"2026-10-01T00:00:00Z\",\n  \"validTo\": \"2026-11-15T00:00:00Z\",\n  \"redemptionLimitPerUser\": 1\n}"
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.collectionVariables.set('offerId', pm.response.json().id);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "Author · upload offer image",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/offers/{{offerId}}/image",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{providerToken}}"
+       }
+      ],
+      "body": {
+       "mode": "formdata",
+       "formdata": [
+        {
+         "key": "file",
+         "type": "file",
+         "src": []
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "Author · submit for approval",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/offers/{{offerId}}/submit",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{providerToken}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"target\": {\n    \"targetType\": \"ENQUIRY_BASED\",\n    \"enquiryCategoryId\": \"11111111-0000-0000-0000-00000000000d\"\n  }\n}"
+      }
+     }
+    },
+    {
+     "name": "Author · my offers",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/offers/mine",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{providerToken}}"
+       }
+      ]
+     }
+    },
+    {
+     "name": "Super Admin · approval queue",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/superadmin/offers?status=PENDING_APPROVAL",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ]
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "const l=pm.response.json(); if(l.length) pm.collectionVariables.set('offerId', l[0].id);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "Super Admin · approve (keep audience)",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/superadmin/offers/{{offerId}}/approve",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      }
+     }
+    },
+    {
+     "name": "Super Admin · approve (override to all tenants)",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/superadmin/offers/{{offerId}}/approve",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"target\": {\n    \"targetType\": \"ALL_TENANTS\"\n  }\n}"
+      }
+     }
+    },
+    {
+     "name": "Super Admin · reject",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/superadmin/offers/{{offerId}}/reject",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"reason\": \"Discount exceeds platform cap\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Resident · deals feed",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/offers",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ]
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "const l=pm.response.json(); if(l.length) pm.collectionVariables.set('offerId', l[0].id);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "Resident · offer detail",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/offers/{{offerId}}",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ]
+     }
+    },
+    {
+     "name": "Resident · redeem",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/offers/{{offerId}}/redeem",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"code\": \"DIWALI20\"\n}"
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "if(pm.response.code===201) pm.collectionVariables.set('redemptionId', pm.response.json().id);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "Provider · confirm redemption",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/offers/redemptions/{{redemptionId}}/confirm",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{providerToken}}"
+       }
+      ]
+     }
+    },
+    {
+     "name": "Resident · get notification preferences",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/me/notification-preferences",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ]
+     }
+    },
+    {
+     "name": "Resident · update notification preferences",
+     "request": {
+      "method": "PUT",
+      "url": "{{baseUrl}}/me/notification-preferences",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"subscribedVendorCategoryIds\": [\n    \"22222222-0000-0000-0001-000000000003\"\n  ],\n  \"promoFrequencyCapPerWeek\": 3,\n  \"digestMode\": \"WEEKLY\",\n  \"ticketNotificationsEnabled\": true,\n  \"promoNotificationsEnabled\": true\n}"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "7 · Payments & Receipts",
+   "item": [
+    {
+     "name": "Note",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/payment",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ]
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "// Prereq: a RESOLVED ticket in {{ticketId}} (run folders 1-3 to raise/assign/resolve one)."
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "Provider · add charge",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/charge",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{providerToken}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"amount\": 500,\n  \"note\": \"parts + labour\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Admin · adjust charge",
+     "request": {
+      "method": "PUT",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/charge",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"amount\": 450\n}"
+      }
+     }
+    },
+    {
+     "name": "Resident · choose CASH",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/mode",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"mode\": \"CASH\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Provider · collect cash (OTP to resident)",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/cash/collect",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{providerToken}}"
+       }
+      ]
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "if(pm.response.json().devOtp) pm.collectionVariables.set('cashOtp', pm.response.json().devOtp);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "Confirm cash (resident or provider submits OTP)",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/cash/confirm",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"otp\": \"{{cashOtp}}\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Resident · choose ONLINE",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/mode",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"mode\": \"ONLINE\"\n}"
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "const l=pm.response.json().payLink||''; pm.collectionVariables.set('payRef', l.split('/').pop());"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "Dev · settle online payment (local stub)",
+     "request": {
+      "method": "POST",
+      "url": "http://localhost:18080/dev/pay/{{payRef}}/settle"
+     }
+    },
+    {
+     "name": "Get payment",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/payment",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ]
+     }
+    },
+    {
+     "name": "Get receipt",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/receipt",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ]
+     }
+    },
+    {
+     "name": "Admin · waive",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/waive",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"reason\": \"goodwill\"\n}"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "8 · Vendor taxonomy (Super Admin)",
+   "item": [
+    {
+     "name": "List verticals",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/superadmin/vendor-category-kinds",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ]
+     }
+    },
+    {
+     "name": "Create vertical",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/superadmin/vendor-category-kinds",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"code\": \"PET_CARE\",\n  \"label\": \"Pet Care\"\n}"
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.collectionVariables.set('kindCode','PET_CARE');"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "Create category",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/superadmin/vendor-categories",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"name\": \"Dog Grooming\",\n  \"kind\": \"{{kindCode}}\"\n}"
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.collectionVariables.set('vendorCategoryId2', pm.response.json().id);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "List all categories (incl. inactive)",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/superadmin/vendor-categories",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ]
+     }
+    },
+    {
+     "name": "Rename category",
+     "request": {
+      "method": "PUT",
+      "url": "{{baseUrl}}/superadmin/vendor-categories/{{vendorCategoryId2}}",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"name\": \"Pet Grooming\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Deactivate category",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/superadmin/vendor-categories/{{vendorCategoryId2}}/deactivate",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ]
+     }
+    },
+    {
+     "name": "Public list now excludes it",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/vendor-categories",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "9 · Billing & Plans",
+   "item": [
+    {
+     "name": "List plans",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/superadmin/plans",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ]
+     }
+    },
+    {
+     "name": "Create plan (capped, $0)",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/superadmin/plans",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"target\": \"TENANT\",\n  \"code\": \"POSTMAN_CAP\",\n  \"name\": \"Postman Cap\",\n  \"price\": 0,\n  \"entitlements\": {\n    \"TICKETS_PER_MONTH\": 2,\n    \"ADMIN_SEATS\": 5,\n    \"OFFERS_PER_MONTH\": 5\n  }\n}"
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('201', () => pm.response.to.have.status(201));",
+         "pm.collectionVariables.set('planCode', pm.response.json().code);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "Update plan price/entitlements",
+     "request": {
+      "method": "PUT",
+      "url": "{{baseUrl}}/superadmin/plans/{{planId}}",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"price\": 1499,\n  \"active\": true,\n  \"entitlements\": {\n    \"TICKETS_PER_MONTH\": 50,\n    \"ADMIN_SEATS\": 8,\n    \"OFFERS_PER_MONTH\": 12\n  }\n}"
+      }
+     }
+    },
+    {
+     "name": "List subscriptions (TENANT)",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/superadmin/subscriptions?subjectType=TENANT",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ]
+     }
+    },
+    {
+     "name": "Assign plan to a community",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/superadmin/subscriptions",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"subjectType\": \"TENANT\",\n  \"subjectId\": \"{{tenantId}}\",\n  \"planCode\": \"{{planCode}}\",\n  \"comp\": false\n}"
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('201', () => pm.response.to.have.status(201));",
+         "pm.collectionVariables.set('subscriptionId', pm.response.json().id);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "Comp a subscription",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/superadmin/subscriptions/{{subscriptionId}}/comp",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      }
+     }
+    },
+    {
+     "name": "Cancel a subscription",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/superadmin/subscriptions/{{subscriptionId}}/cancel",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      }
+     }
+    },
+    {
+     "name": "List DUE invoices",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/superadmin/invoices?status=DUE",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ]
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "const a = pm.response.json();",
+         "if (a.length) pm.collectionVariables.set('invoiceId', a[0].id);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "Mark invoice paid",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/superadmin/invoices/{{invoiceId}}/mark-paid",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      }
+     }
+    },
+    {
+     "name": "List providers with tier",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/superadmin/providers",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ]
+     }
+    },
+    {
+     "name": "Feature a provider",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/superadmin/providers/{{providerId}}/tier",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"tier\": \"FEATURED\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Un-feature a provider",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/superadmin/providers/{{providerId}}/tier",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"tier\": \"STANDARD\"\n}"
+      }
+     }
+    },
+    {
+     "name": "My billing (admin/provider)",
+     "request": {
+      "method": "GET",
+      "url": "{{baseUrl}}/me/billing",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ]
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "const b = pm.response.json();",
+         "if (b.dueInvoices && b.dueInvoices.length) pm.collectionVariables.set('invoiceId', b.dueInvoices[0].id);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "Self-upgrade to a paid plan",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/me/billing/plan",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"planCode\": \"TENANT_STANDARD\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Pay a due invoice (returns link)",
+     "request": {
+      "method": "POST",
+      "url": "{{baseUrl}}/me/billing/invoices/{{invoiceId}}/pay",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('200', () => pm.response.to.have.status(200));",
+         "const l = pm.response.json().paymentLink || '';",
+         "pm.collectionVariables.set('billingPayRef', l.split('/').pop());"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "10 · Ticketing depth (MVP-5)",
+   "item": [
+    {
+     "name": "Community settings — get",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/admin/community-settings"
+     }
+    },
+    {
+     "name": "Community settings — set approval gate",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/admin/community-settings",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"requireAllocationApproval\": true\n}"
+      }
+     }
+    },
+    {
+     "name": "Super Admin — update tenant",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/tenants/{{tenantId}}",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"categoryAdmin\": \"COMMUNITY\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Resident — approve allocation",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{residentToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/allocation/approve",
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      }
+     }
+    },
+    {
+     "name": "Resident — reject allocation",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{residentToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/allocation/reject",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"reason\": \"Away this week\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Super Admin — list ticket categories (global)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/ticket-categories"
+     }
+    },
+    {
+     "name": "Super Admin — create ticket category",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/ticket-categories",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"name\": \"Fire Safety\",\n  \"requestType\": \"ISSUE\",\n  \"slaHours\": 4\n}"
+      }
+     }
+    },
+    {
+     "name": "Super Admin — create tenant category",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/ticket-categories?tenantId={{tenantId}}",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"name\": \"Clubhouse Booking\",\n  \"requestType\": \"ENQUIRY\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Admin — create own ticket category",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/admin/ticket-categories",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"name\": \"Society Notice\",\n  \"requestType\": \"FEEDBACK\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Admin — deactivate ticket category",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/admin/ticket-categories/{{categoryId}}/deactivate",
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      }
+     }
+    },
+    {
+     "name": "Admin — providers (with rating sort)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/admin/providers?sort=rating"
+     }
+    },
+    {
+     "name": "Admin — providers (include deactivated)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/admin/providers?includeInactive=true"
+     }
+    },
+    {
+     "name": "Admin — edit provider",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/admin/providers/{{providerId}}",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"contactEmail\": \"ops@vendor.example\",\n  \"serviceArea\": \"Whitefield\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Admin — remove provider from directory",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/admin/providers/{{providerId}}/deactivate",
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      }
+     }
+    },
+    {
+     "name": "Admin — restore provider",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/admin/providers/{{providerId}}/reactivate",
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      }
+     }
+    },
+    {
+     "name": "Provider — get profile",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{providerToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/provider/profile"
+     }
+    },
+    {
+     "name": "Provider — set availability",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{providerToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/provider/profile",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"availability\": \"AWAY\",\n  \"availabilityNote\": \"Back Monday\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Resident — set away-until",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{residentToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/me/away-until",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"awayUntil\": \"2026-10-01T00:00:00Z\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Me — notification prefs (enable WhatsApp)",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{residentToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/me/notification-preferences",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"whatsappEnabled\": true\n}"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "11 · Reach expansion (MVP-6)",
+   "item": [
+    {
+     "name": "Auth — refresh session",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{residentToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/auth/refresh",
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      }
+     }
+    },
+    {
+     "name": "Me — switch active community",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{residentToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/me/active-community",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"tenantId\": \"{{tenantId}}\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Me — leave a community",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{residentToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/me/memberships/{{tenantId}}/leave",
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      }
+     }
+    },
+    {
+     "name": "Me — my flats",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{residentToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/me/flats"
+     }
+    },
+    {
+     "name": "Household — roster",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{residentToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/me/household/{{flatId}}/members"
+     }
+    },
+    {
+     "name": "Household — invite a family member (PRIMARY)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{residentToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/me/household/invites",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"flatId\": \"{{flatId}}\",\n  \"maxUses\": 3,\n  \"validDays\": 14\n}"
+      }
+     }
+    },
+    {
+     "name": "Household — remove a member (PRIMARY)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{residentToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/me/household/{{flatId}}/members/{{memberUserId}}/remove",
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      }
+     }
+    },
+    {
+     "name": "Providers — resident directory",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{residentToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/providers"
+     }
+    },
+    {
+     "name": "Ticket — direct booking",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{residentToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/tickets",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"description\": \"AC not cooling\",\n  \"flatId\": \"{{flatId}}\",\n  \"providerId\": \"{{providerId}}\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Ticket — rebook after a decline",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{residentToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/rebook",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"providerId\": \"{{providerId}}\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Super Admin — toggle direct booking",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/tenants/{{tenantId}}",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"directServiceEnabled\": true\n}"
+      }
+     }
+    },
+    {
+     "name": "Admin — toggle direct booking",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/admin/community-settings",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"directServiceEnabled\": true\n}"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "12 · Actor authority & multi-community (MVP-7)",
+   "item": [
+    {
+     "name": "Super Admin — add / attach admin",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/tenants/{{tenantId}}/admins",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"phone\": \"{{adminPhone}}\",\n  \"name\": \"Community Admin\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Super Admin — list a community's admins",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/tenants/{{tenantId}}/admins"
+     }
+    },
+    {
+     "name": "Super Admin — attach existing admin to another community",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/tenants/{{tenantId2}}/admins/{{adminUserId}}",
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      }
+     }
+    },
+    {
+     "name": "Super Admin — detach admin",
+     "request": {
+      "method": "DELETE",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/tenants/{{tenantId2}}/admins/{{adminUserId}}"
+     }
+    },
+    {
+     "name": "Super Admin — issue an invite code for a community",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/tenants/{{tenantId}}/invite-codes",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"maxUses\": 20,\n  \"validDays\": 30\n}"
+      }
+     }
+    },
+    {
+     "name": "Admin — switch active community",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/me/active-community",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"tenantId\": \"{{tenantId2}}\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Super Admin — act as admin for a community",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/me/active-community",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"tenantId\": \"{{tenantId}}\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Super Admin — stop acting (back to platform scope)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/me/stop-acting",
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      }
+     }
+    },
+    {
+     "name": "Super Admin — enable provider enrolment for a community",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/tenants/{{tenantId}}",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"providerOnboardingAllowed\": true\n}"
+      }
+     }
+    },
+    {
+     "name": "Super Admin — create a global provider",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/providers",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"name\": \"Sparky Electricals\",\n  \"vendorCategoryId\": \"{{vendorCategoryId}}\",\n  \"company\": true,\n  \"contactPhone\": \"{{providerPhone}}\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Super Admin — list a provider's KYC docs",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/providers/{{providerId}}/kyc"
+     }
+    },
+    {
+     "name": "Super Admin — review a KYC doc",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/providers/{{providerId}}/kyc/{{kycDocId}}/review",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"status\": \"ACCEPTED\",\n  \"note\": \"ok\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Super Admin — verify a provider",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/providers/{{providerId}}/verify",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"status\": \"VERIFIED\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Super Admin — set featured tier",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/providers/{{providerId}}/tier",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"tier\": \"FEATURED\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Admin — browse the verified provider directory",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/admin/providers/catalog"
+     }
+    },
+    {
+     "name": "Admin — enrol a verified provider",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/admin/providers/{{providerId}}/enrol",
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      }
+     }
+    },
+    {
+     "name": "Admin — create a location",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/admin/locations",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"label\": \"Tower A\",\n  \"pincode\": \"560066\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Admin — list locations",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/admin/locations"
+     }
+    },
+    {
+     "name": "Admin — create a flat in a location",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/admin/flats",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"locationId\": \"{{locationId}}\",\n  \"block\": \"A\",\n  \"flatNumber\": \"101\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Flat-owner (admin/provider) — raise for their own flat",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/tickets",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"description\": \"Kitchen plug sparking\",\n  \"flatId\": \"{{flatId}}\",\n  \"serviceAddressText\": \"A-101\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Admin — community members roster",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/admin/members"
+     }
+    },
+    {
+     "name": "Admin — removal check for a member",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/admin/members/{{memberUserId}}/removal-check"
+     }
+    },
+    {
+     "name": "Admin — remove a member (409 if blocked)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/admin/members/{{memberUserId}}/remove",
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "13 · Community-less user & offers depth (MVP-8)",
+   "item": [
+    {
+     "name": "Individual · verify OTP (no invite code)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": "{{baseUrl}}/auth/otp/verify",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"phone\": \"{{residentPhone}}\",\n  \"code\": \"{{devCode}}\"\n}"
+      },
+      "description": "A fresh number with no invite code. The session comes back with onboardingState NEEDS_PROFILE, then READY after the profile is set — activeTenantId stays null."
+     }
+    },
+    {
+     "name": "Individual · complete profile",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "url": "{{baseUrl}}/auth/profile",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"name\": \"Nomad Individual\"\n}"
+      },
+      "description": "onboardingState is now READY with activeTenantId null — a community-less resident."
+     }
+    },
+    {
+     "name": "Individual · global provider directory",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "url": "{{baseUrl}}/providers",
+      "description": "With no active tenant, GET /providers returns every Super-Admin-verified assignable provider, contact-free (no phone/email)."
+     }
+    },
+    {
+     "name": "Individual · book a provider directly (no community)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "url": "{{baseUrl}}/tickets",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"providerId\": \"{{providerId}}\",\n  \"serviceAddressText\": \"14 Baker Street, Flat 2\",\n  \"title\": \"Ceiling fan not working\",\n  \"description\": \"Needs a replacement capacitor\"\n}"
+      },
+      "description": "providerId is required (400 otherwise). Books tenant-free — requestMode DIRECT_SERVICE, straight to ASSIGNED. No admin, no quota, no payment."
+     }
+    },
+    {
+     "name": "Individual · my tickets",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "url": "{{baseUrl}}/tickets",
+      "description": "RLS (app.current_user_id GUC) scopes the list to the caller's own tenant-less rows. A community admin gets 404 on the same ticket id."
+     }
+    },
+    {
+     "name": "Individual · close & rate the booking",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/close",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Quick and tidy\"\n}"
+      },
+      "description": "Run after the provider accepts → marks in-progress → resolves."
+     }
+    },
+    {
+     "name": "Offers · submit targeting named individuals (USER_LIST)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{providerToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/offers/{{offerId}}/submit",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"target\": {\n    \"targetType\": \"USER_LIST\",\n    \"phones\": [\"{{residentPhone}}\", \"{{adminPhone}}\"]\n  }\n}"
+      },
+      "description": "Phones are resolved to app_user ids at submit time and frozen. All-unknown phones → 400. Named individuals may be community-less."
+     }
+    },
+    {
+     "name": "Offers · approve targeting a set of communities (TENANT_LIST)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/offers/{{offerId}}/approve",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"target\": {\n    \"targetType\": \"TENANT_LIST\",\n    \"tenantIds\": [\"{{tenantId}}\", \"{{tenantId2}}\"]\n  }\n}"
+      },
+      "description": "The Super Admin can override the audience at approval. Residents of every listed community are fanned out."
+     }
+    },
+    {
+     "name": "Offers · resident leaves feedback",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "url": "{{baseUrl}}/offers/{{offerId}}/feedback",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"rating\": 4,\n  \"comment\": \"Good deal, easy to redeem\"\n}"
+      },
+      "description": "Any resident who can fetch the offer may rate it (1–5). One row per (offer, user) — a second POST upserts. Comment is encrypted at rest."
+     }
+    },
+    {
+     "name": "Offers · author reads the feedback list",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{providerToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/offers/{{offerId}}/feedback",
+      "description": "Offer author (provider/admin) or Super Admin only — a different provider gets 404. Returns { ratingAvg, ratingCount, items[] }."
+     }
+    },
+    {
+     "name": "Offers · redemptions remaining on the view",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "url": "{{baseUrl}}/offers",
+      "description": "When offer.redemptionLimitTotal is set, each OfferView carries redemptionsRemaining (0 once the global cap is hit). redeem() now takes a pessimistic lock."
+     }
+    }
+   ]
+  }
+ ]
 }

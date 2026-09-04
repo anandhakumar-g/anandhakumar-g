@@ -4,6 +4,53 @@ Short ADRs. Newest first.
 
 ---
 
+## ADR-035 — Offers depth: individual targeting, cap hardening, feedback
+**Decision (MVP-8):**
+- **Target a set of communities** (`TENANT_LIST`) was already wired end to end (targeting
+  resolution, `describe`, and the resident feed gate) — MVP-8 only adds the mobile pickers.
+- **Target named individuals** (`USER_LIST`, new): `V25` widens the `offer_target.target_type`
+  CHECK and adds `offer_target.user_ids` (CSV, mirrors `tenant_ids`). `OfferDtos.TargetRequest`
+  gains `phones` (and `userIds`); `OfferService.upsertTarget` resolves phones via
+  `CryptoService.lookupHash` + `AppUserRepository.findByPhoneHash`, unions with any explicit
+  ids, and `422`s when nothing resolves. Resolution happens at submit / approval time and the
+  ids are frozen — a later signup is not retro-added. `resolveRecipients` / `describe` /
+  `feedForResident.isTargeted` gain a `USER_LIST` arm with **no** membership filter (targeted
+  people may be community-less).
+- **Global redemption cap** (`offer.redemption_limit_total`, present since V6, enforced in
+  `redeem`): `OfferService.redeem` now loads the offer with
+  `OfferRepository.findByIdForUpdate` (`PESSIMISTIC_WRITE`) so concurrent redemptions of one
+  offer serialise. `OfferView` exposes `redemptionsRemaining`.
+- **Feedback on an offer** (new): `V26` `offer_feedback` (one row per `(offer, user)`, rating
+  1–5, `comment_enc` encrypted at rest like `ticket.rating_comment_enc`) — app-scoped, no RLS,
+  consistent with the offer module. `POST /api/v1/offers/{id}/feedback` (RESIDENT, upsert;
+  notifies the author via `DomainEventPublisher.publish`), `GET /api/v1/offers/{id}/feedback`
+  (author or Super Admin). `OfferView` carries `ratingAvg` / `ratingCount`. Open to any
+  resident who can fetch the offer, not only redeemers.
+
+## ADR-034 — Tenant-less service requests for community-less users
+**Decision (MVP-8):** a profile-complete `RESIDENT` with no community is now `READY`
+(`AuthService.onboardingState` — `NEEDS_COMMUNITY` is no longer returned; `PENDING_APPROVAL`
+still applies while a join request is open). Such a user books a **verified provider with no
+tenant at all**: `POST /api/v1/tickets` with no active tenant **requires** a `providerId`,
+runs a new `requireAssignableProviderGlobal` (VERIFIED + active + a live listing plan, **no**
+`tenant_service_provider` enrolment), and creates a `tenant_id = NULL`, `DIRECT_SERVICE`
+ticket straight to `ASSIGNED` — no admin routing, no `TICKETS_PER_MONTH` quota, and **no
+in-app payment** (the `ticket_payment` tables keep `tenant_id NOT NULL` + tenant RLS; paid
+community-less bookings are deferred). `GET /api/v1/providers` returns the global verified
+assignable list (contact-free) for a no-tenant caller.
+
+**RLS.** `V24` makes `ticket` / `ticket_status_history` / `ticket_attachment` `tenant_id`
+nullable and rebuilds their policies with a null-tenant branch. A second per-connection GUC
+`app.current_user_id` (new `UserContext`, set for every authenticated request by
+`JwtAuthFilter`, written/`RESET` per borrow by `TenantAwareDataSource`, `''` for
+system/unauthenticated) scopes tenant-less rows:
+`tenant_id IS NULL AND (current_tenant_id = '*' OR raised_by_user_id = current_user_id OR the
+row's assigned provider's user_id = current_user_id)`; the two child tables resolve ownership
+through the parent `ticket` in an `EXISTS` (`service_provider` carries no RLS; one level of
+nested policy evaluation, not recursion). Existing tenant rows are unaffected (`tenant_id IS
+NULL` is false for them). `TicketService.loadForActor` / `list` drop the `requireTenant`
+gate and rely on RLS + the role check for isolation.
+
 ## ADR-033 — Gated community removal
 **Decision (MVP-7):** an admin (or a Super Admin acting as one) can remove a user from a
 community via `POST /api/v1/admin/members/{userId}/remove`, preceded by

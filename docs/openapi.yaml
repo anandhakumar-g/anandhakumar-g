@@ -2,7 +2,7 @@ openapi: 3.0.1
 info:
   title: Single Point API
   description: Multi-tenant gated-community ticket management platform.
-  version: MVP-7
+  version: MVP-8
 servers:
 - url: http://localhost:18080
   description: Generated server url
@@ -2145,6 +2145,61 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/OfferView'
+  /api/v1/offers/{id}/feedback:
+    get:
+      tags:
+      - Offers
+      summary: Feedback on an offer (author or Super Admin)
+      operationId: feedback
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/OfferFeedbackListView'
+    post:
+      tags:
+      - Offers
+      summary: Rate + comment on an offer (one per user; re-posting updates it)
+      operationId: leaveFeedback
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/FeedbackRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/OfferFeedbackView'
   /api/v1/offers/redemptions/{redemptionId}/confirm:
     post:
       tags:
@@ -3174,7 +3229,8 @@ paths:
     get:
       tags:
       - Providers
-      summary: Verified providers in my community I can book directly (rating-sorted)
+      summary: "Verified providers I can book directly (my community's directory,\
+        \ or the global verified list when I'm not in a community)"
       operationId: list_5
       parameters:
       - name: principal
@@ -3570,13 +3626,13 @@ components:
           format: uuid
         name:
           type: string
-        resident:
-          type: boolean
-        provider:
+        superAdmin:
           type: boolean
         admin:
           type: boolean
-        superAdmin:
+        provider:
+          type: boolean
+        resident:
           type: boolean
     ChargeRequest:
       required:
@@ -3926,6 +3982,9 @@ components:
         redemptionLimitTotal:
           type: integer
           format: int32
+        redemptionsRemaining:
+          type: integer
+          format: int32
         terms:
           type: string
         createdByRole:
@@ -3934,6 +3993,12 @@ components:
           type: string
         target:
           $ref: '#/components/schemas/TargetView'
+        ratingAvg:
+          type: number
+          format: double
+        ratingCount:
+          type: integer
+          format: int32
         submittedAt:
           type: string
           format: date-time
@@ -3952,6 +4017,13 @@ components:
           type: array
           items:
             type: string
+        userIds:
+          type: array
+          items:
+            type: string
+        userCount:
+          type: integer
+          format: int32
         enquiryCategoryId:
           type: string
         segmentFilter:
@@ -4610,6 +4682,14 @@ components:
           type: array
           items:
             type: string
+        userIds:
+          type: array
+          items:
+            type: string
+        phones:
+          type: array
+          items:
+            type: string
         enquiryCategoryId:
           type: string
         segmentFilter:
@@ -4681,6 +4761,35 @@ components:
           format: date-time
         couponCode:
           type: string
+    FeedbackRequest:
+      required:
+      - rating
+      type: object
+      properties:
+        rating:
+          maximum: 5
+          minimum: 1
+          type: integer
+          format: int32
+        comment:
+          type: string
+    OfferFeedbackView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        offerId:
+          type: string
+          format: uuid
+        rating:
+          type: integer
+          format: int32
+        comment:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
     JoinRequest:
       required:
       - tenantId
@@ -5041,6 +5150,19 @@ components:
           type: string
         assignable:
           type: boolean
+    OfferFeedbackListView:
+      type: object
+      properties:
+        ratingAvg:
+          type: number
+          format: double
+        ratingCount:
+          type: integer
+          format: int32
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OfferFeedbackView'
     MeResponse:
       type: object
       properties:

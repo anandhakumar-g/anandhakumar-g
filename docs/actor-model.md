@@ -8,7 +8,9 @@ Shipped so far: MVP-1 Foundation · MVP-2 Marketplace & Offers · MVP-3 Payments
 MVP-4 Monetization · MVP-5 Ticketing depth · MVP-6 Reach expansion (switch-community,
 direct-to-provider, household model) · MVP-7 Actor authority & multi-community (Super-Admin
 provider onboarding, `admin_tenant` + Super-Admin-as-admin, community locations, flat-owner
-raise, gated user removal). See `roadmap.md` and `decisions.md`.
+raise, gated user removal) · MVP-8 Community-less users & offers depth (READY-without-community,
+tenant-less booking, `USER_LIST`/`TENANT_LIST` offer targeting, redemption-cap hardening,
+offer feedback). See `roadmap.md` and `decisions.md`.
 
 ---
 
@@ -17,21 +19,21 @@ raise, gated user removal). See `roadmap.md` and `decisions.md`.
 | # | Responsibility | State | MVP |
 |---|---|---|---|
 | I1 | Mobile number is the **unique identifier**; OTP login on first use | ✅ `app_user.phone_hash` unique, phone is the identity anchor (ADR-004/007) | — |
-| I2 | **Biometric / fingerprint** unlock on subsequent logins (token already persisted) | ❌ `expo-local-authentication` gate before the app opens | **MVP-7** |
-| I3 | **Device binding** — a new/changed device forces OTP again; **auto-read** the OTP | ❌ bind a device fingerprint to the session; Android SMS Retriever / iOS autofill for the code | **MVP-7** |
-| I4 | Use the app and **book a service provider with no community** | ❌ today a community-less user is stuck at onboarding; tickets are `tenant_id`-scoped | **MVP-8** |
-| I5 | Raise **enquiry / feedback** on a service **or on an offer** | ◐ ticket `request_type` ENQUIRY/FEEDBACK exists; offer-feedback is new | MVP-8 |
+| I2 | **Biometric / fingerprint** unlock on subsequent logins (token already persisted) | ❌ `expo-local-authentication` gate before the app opens | **MVP-9** (deferred from MVP-8) |
+| I3 | **Device binding** — a new/changed device forces OTP again; **auto-read** the OTP | ❌ bind a device fingerprint to the session; Android SMS Retriever / iOS autofill for the code | **MVP-9** (deferred from MVP-8) |
+| I4 | Use the app and **book a service provider with no community** | ✅ (MVP-8) — a profile-complete resident with no community is READY; `POST /tickets` with a `providerId` books tenant-free (nullable `ticket.tenant_id` + a user-scoped RLS branch, ADR-034). Payment on such bookings is MVP-9. | — |
+| I5 | Raise **enquiry / feedback** on a service **or on an offer** | ✅ (MVP-8) — `offer_feedback` + `POST /offers/{id}/feedback` (ADR-035); ticket ENQUIRY/FEEDBACK already existed | — |
 | I6 | Receive offers / promo codes — issued **only via the Super Admin** | ✅ Super Admin approves every offer (ADR-014); providers submit drafts | — |
 | I7 | Join community(s) with an **invite code from the admin / Super Admin** — one-time | ✅ admin codes (MVP-1) + Super-Admin-issued codes (MVP-7, `/superadmin/tenants/{id}/invite-codes`) | — |
-| I8 | Be **removed from a community by the admin / Super Admin**, gated on **pending bills / open tickets**; the person keeps the app but loses apartment features | ✅ unmap + bill/ticket gate (MVP-7, `AdminMembershipController`); the community-less app-user state is MVP-8 | MVP-7 (unmap + gate) · MVP-8 (community-less state) |
+| I8 | Be **removed from a community by the admin / Super Admin**, gated on **pending bills / open tickets**; the person keeps the app but loses apartment features | ✅ (MVP-7) unmap + bill/ticket gate (`AdminMembershipController`); ✅ (MVP-8) the removed person is `READY` with no community and can still book directly | — |
 
 ## Service provider
 
 | # | Responsibility | State | MVP |
 |---|---|---|---|
 | P1 | **Super Admin onboards & verifies** the provider (document verification, risk / user safety) | ✅ (MVP-7) — `SuperAdminProviderController` create/verify/tier + `SuperAdminKycController`; a community admin only **enrols** a verified provider (`/admin/providers/catalog` + `/enrol`, gated by `tenant.provider_onboarding_allowed`) | — |
-| P2 | Provide promo codes / offers / discounts tagged to a **community**, a **set of communities**, **specific individuals**, or **across all** | ◐ single-tenant + all-tenants + enquiry-based targeting exist (`offer_target`); multi-community and individual targeting are new | MVP-8 |
-| P3 | Specify offer mechanics: **duration** ✅, **global count cap** (e.g. "top 100" redemptions) | ◐ `valid_from`/`valid_to` + `redemption_limit_per_user`; a total-redemptions cap is new (`offer.total_redemption_limit`) | MVP-8 |
+| P2 | Provide promo codes / offers / discounts tagged to a **community**, a **set of communities**, **specific individuals**, or **across all** | ✅ (MVP-8) — `TENANT_LIST` + `USER_LIST` (by phone) join the existing single/all/enquiry targeting (ADR-035) | — |
+| P3 | Specify offer mechanics: **duration** ✅, **global count cap** (e.g. "top 100" redemptions) | ✅ (MVP-8) — `offer.redemption_limit_total` enforced in `redeem` under a pessimistic lock; `redemptionsRemaining` on the view (ADR-035) | — |
 | P4 | A provider may also be a **flat owner** and raise requests for their own flat | ✅ (MVP-7) — `raise` accepts an ADMIN/PROVIDER with an ACTIVE flat membership; `loadForActor`/`list`/`close` are raiser-aware | — |
 
 ## Admin
@@ -42,7 +44,7 @@ raise, gated user removal). See `roadmap.md` and `decisions.md`.
 | A2 | **Resolve tickets** — himself, with a provider, or via in-house basic staff (electricians, plumbers) | ✅ `resolveDirect` + provider assignment; in-house staff can be modelled as providers or just resolved directly | — |
 | A3 | Track a ticket to closure | ✅ (MVP-1 lifecycle + MVP-5 SLA) | — |
 | A4 | **Unmap a user** from the community after verifying pending bills; the person stays an app user, loses apartment features | ✅ (MVP-7, see I8) | — |
-| A5 | **Broadcast a notification** to all community residents | ❌ new admin endpoint over `DomainEventPublisher` | MVP-8 |
+| A5 | **Broadcast a notification** to all community residents | ❌ new admin endpoint over `DomainEventPublisher` | MVP-9 (deferred from MVP-8) |
 | A6 | An admin may also be a **flat owner** and raise for their own flat | ✅ (MVP-7, see P4) | — |
 | A7 | Manage **one or more communities** (with a switcher) | ✅ (MVP-7) — `admin_tenant` mapping; `POST /me/active-community` generalised to ADMIN; `me.memberships` carries admin rows for the switcher | — |
 
@@ -54,8 +56,8 @@ raise, gated user removal). See `roadmap.md` and `decisions.md`.
 | S2 | Add an **admin** for a community | ✅ `createAdmin` | — |
 | S3 | **If a community has no admin, the Super Admin performs the admin activity** and tags users | ✅ (MVP-7) — `POST /me/active-community` for SUPER_ADMIN mints a tenant-scoped token; `POST /me/stop-acting` returns to platform scope | — |
 | S4 | **Validate & onboard service providers** after document verification; manage provider maintenance | ✅ (MVP-7, see P1) | — |
-| S5 | Validate offers / discounts / promo codes and tag them to communities or **groups of individuals** | ◐ offer approval ✅; group-of-individuals targeting ❌ | MVP-8 |
-| S6 | **Broadcast** to all community admins, or across all users | ❌ | MVP-8 |
+| S5 | Validate offers / discounts / promo codes and tag them to communities or **groups of individuals** | ✅ (MVP-8) — the Super Admin can override an offer's audience to `USER_LIST` (phones) at approval (ADR-035) | — |
+| S6 | **Broadcast** to all community admins, or across all users | ❌ | MVP-9 (deferred from MVP-8) |
 | S7 | Issue invite codes directly (when acting for an admin-less community) | ✅ (MVP-7) — `/superadmin/tenants/{id}/invite-codes` | — |
 
 ## Platform (Single Point app)
@@ -89,10 +91,13 @@ raise, gated user removal). See `roadmap.md` and `decisions.md`.
 4. ✅ **Any role that owns a flat can raise a request.** (P4/A6, MVP-7) Guard lifted in
    `TicketService.raise`; `loadForActor` returns the ticket to its raiser before the role
    switch; `list` / `close` / `reopen` are raiser-aware. See ADR-032.
-5. **Community-less individual user** (I4/I5/I8-b) — the largest: an onboarding path that ends
-   `READY` with no community, plus tenant-less service requests (a nullable `ticket.tenant_id`
-   with a dedicated RLS policy, or a separate `direct_request` table) and direct provider
-   booking with no tenant. Deferred to **MVP-8** so MVP-7 stays structural.
+5. ✅ **Community-less individual user.** (I4/I5/I8-b, MVP-8) Onboarding ends `READY` with no
+   community (`NEEDS_COMMUNITY` retired); tenant-less service requests via a nullable
+   `ticket.tenant_id` + a new `app.current_user_id` GUC + a null-tenant RLS branch on `ticket`
+   and its two children (`V24`), scoping such rows to their raiser + assigned provider;
+   `POST /tickets` with a `providerId` books any verified provider with no tenant
+   (`requireAssignableProviderGlobal`), `GET /providers` falls back to the global verified
+   list. No admin, no quota, no payment (payment deferred to MVP-9). See ADR-034.
 
 ---
 
@@ -101,6 +106,6 @@ raise, gated user removal). See `roadmap.md` and `decisions.md`.
 | MVP | Theme | Contents |
 |---|---|---|
 | **MVP-7** ✅ | **Actor authority & multi-community** | Super-Admin provider onboarding (re-eng #1) · community → multiple **locations** (re-eng #2) · **admin ↔ many communities** + switcher + Super-Admin-as-admin (re-eng #3) · **admin/provider raise for their own flat** (re-eng #4) · **admin/Super-Admin removes a user** with a pending-bills / open-tickets gate · Super-Admin-issued invite codes. *Deferred: mobile raise entry for flat-owning admins/providers.* |
-| **MVP-8** | **Community-less users & offers depth** | Individual user with **no community** — onboarding + tenant-less service requests + direct booking + **biometric login / device binding / OTP auto-read** · **offer targeting** to a set of communities or named individuals · offer **global count cap** ("top 100") · **feedback on an offer** · **broadcast notifications** (admin → residents, Super Admin → admins / all). |
-| **MVP-9** | **Visibility** | Per-role **dashboards** (open / in-progress / done, action items) · **audit-log view** for the Super Admin · reporting/exports. |
+| **MVP-8** ✅ | **Community-less users & offers depth** | Individual user with **no community** — onboarding ends `READY` with no tenant + tenant-less service requests (nullable `ticket.tenant_id` + `app.current_user_id` GUC + null-tenant RLS branch) + direct booking of any verified provider · **offer targeting** to a set of communities (`TENANT_LIST`) or named individuals by phone (`USER_LIST`) · offer **global count cap** ("top 100") hardened with a pessimistic redeem lock + `redemptionsRemaining` · **feedback on an offer** (`offer_feedback`, encrypted comment, `ratingAvg`/`ratingCount`). *Deferred to MVP-9: biometric login / device binding / OTP auto-read; broadcast notifications; paid community-less bookings.* |
+| **MVP-9** | **Visibility (+ deferred)** | Per-role **dashboards** (open / in-progress / done, action items) · **audit-log view** for the Super Admin · reporting/exports · **biometric login / device binding / OTP auto-read** · **broadcast notifications** (admin → residents, Super Admin → admins / all) · paid community-less bookings. |
 | **Continuous** | **UX & Ops** | Icon / loading / imagery polish · safe-area & responsive audit (mobile + web) · Micrometer metrics + APM · scheduled backups + S3 lifecycle. |
