@@ -1,6 +1,7 @@
 package com.singlepoint.config;
 
 import com.singlepoint.security.TenantContext;
+import com.singlepoint.security.UserContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.datasource.DelegatingDataSource;
@@ -55,8 +56,11 @@ public class TenantAwareDataSource extends DelegatingDataSource {
         } else {
             value = "";
         }
+        String user = UserContext.get();
+        String userValue = (user != null && UUID_RE.matcher(user).matches()) ? user : "";
         try (Statement s = real.createStatement()) {
             s.execute("SET app.current_tenant_id = '" + value + "'");
+            s.execute("SET app.current_user_id = '" + userValue + "'");
         }
         return (Connection) Proxy.newProxyInstance(
                 getClass().getClassLoader(),
@@ -76,8 +80,9 @@ public class TenantAwareDataSource extends DelegatingDataSource {
                 if (!target.isClosed()) {
                     try (Statement s = target.createStatement()) {
                         s.execute("RESET app.current_tenant_id");
+                        s.execute("RESET app.current_user_id");
                     } catch (Exception e) {
-                        log.debug("failed to reset app.current_tenant_id on close: {}", e.toString());
+                        log.debug("failed to reset app GUCs on close: {}", e.toString());
                     }
                 }
                 return method.invoke(target, args);

@@ -56,6 +56,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 TenantContext.setTenant(principal.getTenantId());
                 MDC.put("tenantId", principal.getTenantId().toString());
             }
+            // MVP-8: the RLS null-tenant branch matches on this for community-less requests.
+            UserContext.set(principal.getUserId());
             MDC.put("userId", principal.getUserId().toString());
         }
 
@@ -63,6 +65,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
         } finally {
             TenantContext.clear();
+            UserContext.clear();
             SecurityContextHolder.clearContext();
             MDC.remove("userId");
             MDC.remove("tenantId");

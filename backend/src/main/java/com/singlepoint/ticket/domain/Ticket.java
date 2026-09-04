@@ -24,7 +24,8 @@ public class Ticket extends BaseEntity {
     public enum RequestMode { COMMUNITY_TICKET, DIRECT_SERVICE }
     public enum Priority { LOW, NORMAL, HIGH, URGENT }
 
-    @Column(name = "tenant_id", nullable = false)
+    /** MVP-8: null for a community-less individual's direct booking. */
+    @Column(name = "tenant_id")
     private UUID tenantId;
 
     @Column(name = "reference_code", nullable = false, length = 20)

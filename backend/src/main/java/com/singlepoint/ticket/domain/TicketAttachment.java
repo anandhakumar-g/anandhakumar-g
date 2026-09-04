@@ -15,7 +15,7 @@ import java.util.UUID;
 @Setter
 public class TicketAttachment extends CreatedOnlyEntity {
 
-    @Column(name = "tenant_id", nullable = false)
+    @Column(name = "tenant_id")
     private UUID tenantId;
 
     @Column(name = "ticket_id", nullable = false)
