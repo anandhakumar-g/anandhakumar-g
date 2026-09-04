@@ -2,10 +2,13 @@ package com.singlepoint.offer.api;
 
 import com.singlepoint.offer.OfferService;
 import com.singlepoint.offer.domain.Offer;
+import com.singlepoint.offer.domain.OfferFeedback;
 import com.singlepoint.offer.domain.OfferRedemption;
 import com.singlepoint.offer.domain.OfferTarget;
 import com.singlepoint.storage.StorageService;
 
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
@@ -54,6 +57,16 @@ public final class OfferDtos {
 
     public record RedeemRequest(String code) { }
 
+    public record FeedbackRequest(@NotNull @Min(1) @Max(5) Integer rating, String comment) { }
+
+    public record OfferFeedbackView(UUID id, UUID offerId, int rating, String comment, Instant createdAt) {
+        static OfferFeedbackView of(OfferFeedback f) {
+            return new OfferFeedbackView(f.getId(), f.getOfferId(), f.getRating(), f.getComment(), f.getCreatedAt());
+        }
+    }
+
+    public record OfferFeedbackListView(Double ratingAvg, int ratingCount, List<OfferFeedbackView> items) { }
+
     public record TargetView(String targetType, List<String> tenantIds, List<String> userIds, int userCount,
                              String enquiryCategoryId, String segmentFilter, String summary) {
         static TargetView of(OfferTarget t, String summary) {
@@ -70,18 +83,21 @@ public final class OfferDtos {
     public record OfferView(UUID id, String title, String description, String status,
                             String vendorCategoryId, String discountType, BigDecimal discountValue,
                             String couponCode, String imageUrl, Instant validFrom, Instant validTo,
-                            int redemptionLimitPerUser, Integer redemptionLimitTotal, String terms,
-                            String createdByRole, String rejectReason, TargetView target,
+                            int redemptionLimitPerUser, Integer redemptionLimitTotal, Integer redemptionsRemaining,
+                            String terms, String createdByRole, String rejectReason, TargetView target,
+                            Double ratingAvg, int ratingCount,
                             Instant submittedAt, Instant validatedAt, Instant createdAt) {
 
-        public static OfferView of(Offer o, OfferTarget target, String targetSummary, StorageService storage) {
+        public static OfferView of(Offer o, OfferTarget target, String targetSummary, StorageService storage,
+                                   OfferService.Aggregates agg) {
             return new OfferView(o.getId(), o.getTitle(), o.getDescription(), o.getStatus().name(),
                     o.getVendorCategoryId().toString(), o.getDiscountType().name(), o.getDiscountValue(),
                     o.getCouponCode(),
                     o.getImageKey() != null ? storage.publicUrl(o.getImageKey()) : null,
                     o.getValidFrom(), o.getValidTo(), o.getRedemptionLimitPerUser(), o.getRedemptionLimitTotal(),
-                    o.getTerms(), o.getCreatedByRole(), o.getRejectReason(),
-                    TargetView.of(target, targetSummary), o.getSubmittedAt(), o.getValidatedAt(), o.getCreatedAt());
+                    agg.redemptionsRemaining(), o.getTerms(), o.getCreatedByRole(), o.getRejectReason(),
+                    TargetView.of(target, targetSummary), agg.ratingAvg(), agg.ratingCount(),
+                    o.getSubmittedAt(), o.getValidatedAt(), o.getCreatedAt());
         }
     }
 

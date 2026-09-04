@@ -46,6 +46,13 @@ class OfferRedemptionIT extends IntegrationTestBase {
         var bTry = http(HttpMethod.POST, "/api/v1/offers/" + offerId + "/redeem", b, Map.of());
         assertEquals(409, bTry.getStatusCode().value());
         assertEquals("SP-409-OFFER", bTry.getBody().get("errorCode").asText());
+
+        // MVP-8: the resident feed reports the cap is used up
+        for (JsonNode row : get("/api/v1/offers", b)) {
+            if (row.get("id").asText().equals(offerId)) {
+                assertEquals(0, row.get("redemptionsRemaining").asInt());
+            }
+        }
     }
 
     @Test

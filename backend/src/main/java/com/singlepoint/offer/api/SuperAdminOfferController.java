@@ -36,7 +36,8 @@ public class SuperAdminOfferController {
 
     private OfferDtos.OfferView view(Offer o) {
         var t = offerService.targetOf(o.getId());
-        return OfferDtos.OfferView.of(o, t, t != null ? targetingService.describe(t) : null, storage);
+        return OfferDtos.OfferView.of(o, t, t != null ? targetingService.describe(t) : null, storage,
+                offerService.aggregatesFor(o));
     }
 
     @GetMapping

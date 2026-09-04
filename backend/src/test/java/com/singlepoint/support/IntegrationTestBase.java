@@ -48,7 +48,7 @@ public abstract class IntegrationTestBase {
               notification_preference,
               subscription_invoice, subscription, subscription_plan,
               payment_event, payment_receipt, ticket_payment,
-              offer_redemption, offer_target, offer,
+              offer_feedback, offer_redemption, offer_target, offer,
               provider_kyc_document,
               ticket_status_history, ticket_attachment, ticket,
               tenant_service_provider, service_provider,

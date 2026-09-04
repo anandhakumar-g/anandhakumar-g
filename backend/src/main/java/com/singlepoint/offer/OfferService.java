@@ -29,6 +29,7 @@ public class OfferService {
     private final OfferRepository offerRepository;
     private final OfferTargetRepository targetRepository;
     private final OfferRedemptionRepository redemptionRepository;
+    private final OfferFeedbackRepository feedbackRepository;
     private final OfferTargetingService targetingService;
     private final VendorCategoryRepository vendorCategoryRepository;
     private final ServiceProviderRepository providerRepository;
@@ -39,7 +40,8 @@ public class OfferService {
     private final com.singlepoint.entitlement.EntitlementService entitlements;
 
     public OfferService(OfferRepository offerRepository, OfferTargetRepository targetRepository,
-                        OfferRedemptionRepository redemptionRepository, OfferTargetingService targetingService,
+                        OfferRedemptionRepository redemptionRepository, OfferFeedbackRepository feedbackRepository,
+                        OfferTargetingService targetingService,
                         VendorCategoryRepository vendorCategoryRepository, ServiceProviderRepository providerRepository,
                         TicketRepository ticketRepository, com.singlepoint.user.AppUserRepository userRepository,
                         com.singlepoint.crypto.CryptoService crypto, DomainEventPublisher events,
@@ -47,6 +49,7 @@ public class OfferService {
         this.offerRepository = offerRepository;
         this.targetRepository = targetRepository;
         this.redemptionRepository = redemptionRepository;
+        this.feedbackRepository = feedbackRepository;
         this.targetingService = targetingService;
         this.vendorCategoryRepository = vendorCategoryRepository;
         this.providerRepository = providerRepository;
@@ -224,7 +227,8 @@ public class OfferService {
 
     @Transactional
     public OfferRedemption redeem(AppPrincipal principal, UUID offerId, String code) {
-        Offer o = require(offerId);
+        // pessimistic lock so concurrent redemptions of the same offer can't race past the cap
+        Offer o = offerRepository.findByIdForUpdate(offerId).orElseThrow(() -> AppException.notFound("Offer"));
         if (!o.isLive(Instant.now())) throw new AppException(ErrorCode.CONFLICT, "This offer is not currently active");
         if (o.getRedemptionLimitTotal() != null
                 && redemptionRepository.countByOfferIdAndStatus(offerId, OfferRedemption.Status.REDEEMED) >= o.getRedemptionLimitTotal()) {
@@ -252,6 +256,60 @@ public class OfferService {
                 ? OfferRedemption.VerifiedBy.ADMIN : OfferRedemption.VerifiedBy.PROVIDER);
         r.setConfirmedAt(Instant.now());
         return redemptionRepository.save(r);
+    }
+
+    // ---- feedback (MVP-8) -------------------------------------------
+
+    public record Aggregates(Double ratingAvg, int ratingCount, Integer redemptionsRemaining) { }
+
+    @Transactional(readOnly = true)
+    public Aggregates aggregatesFor(Offer o) {
+        List<Object[]> agg = feedbackRepository.ratingAggregate(o.getId());
+        Object[] row = agg.isEmpty() ? new Object[]{null, 0L} : agg.get(0);
+        Double avg = row[0] != null ? ((Number) row[0]).doubleValue() : null;
+        int cnt = row[1] != null ? ((Number) row[1]).intValue() : 0;
+        Integer remaining = null;
+        if (o.getRedemptionLimitTotal() != null) {
+            long used = redemptionRepository.countByOfferIdAndStatus(o.getId(), OfferRedemption.Status.REDEEMED);
+            remaining = (int) Math.max(0, o.getRedemptionLimitTotal() - used);
+        }
+        return new Aggregates(avg, cnt, remaining);
+    }
+
+    @Transactional
+    public com.singlepoint.offer.domain.OfferFeedback leaveFeedback(AppPrincipal principal, UUID offerId,
+                                                                    int rating, String comment) {
+        if (rating < 1 || rating > 5) {
+            throw new AppException(ErrorCode.VALIDATION_FAILED, "rating must be 1-5");
+        }
+        Offer o = require(offerId);
+        if (o.getStatus() != Offer.Status.ACTIVE && o.getStatus() != Offer.Status.EXPIRED) {
+            throw new AppException(ErrorCode.CONFLICT, "This offer isn't open for feedback");
+        }
+        var f = feedbackRepository.findByOfferIdAndUserId(offerId, principal.getUserId())
+                .orElseGet(com.singlepoint.offer.domain.OfferFeedback::new);
+        f.setOfferId(offerId);
+        f.setUserId(principal.getUserId());
+        f.setRating(rating);
+        f.setComment(comment != null && comment.isBlank() ? null : comment);
+        f = feedbackRepository.save(f);
+        if (o.getCreatedByUserId() != null) {
+            events.publish("OFFER_FEEDBACK", "offer", offerId, o.getTenantId(),
+                    List.of(o.getCreatedByUserId()), "New feedback on your offer",
+                    rating + "★ — " + o.getTitle(), Map.of("offerId", offerId.toString(), "type", "offer"));
+        }
+        return f;
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.singlepoint.offer.domain.OfferFeedback> feedbackFor(AppPrincipal principal, UUID offerId) {
+        Offer o = require(offerId);
+        boolean ok = principal.getRole() == Role.SUPER_ADMIN
+                || o.getCreatedByUserId().equals(principal.getUserId())
+                || (principal.getRole() == Role.ADMIN && principal.getTenantId() != null
+                    && principal.getTenantId().equals(o.getTenantId()));
+        if (!ok) throw AppException.notFound("Offer");
+        return feedbackRepository.findByOfferIdOrderByCreatedAtDesc(offerId);
     }
 
     // ---- housekeeping -------------------------------------------------

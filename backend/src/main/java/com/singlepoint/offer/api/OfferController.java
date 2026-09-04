@@ -39,7 +39,8 @@ public class OfferController {
 
     private OfferDtos.OfferView view(Offer o) {
         var t = offerService.targetOf(o.getId());
-        return OfferDtos.OfferView.of(o, t, t != null ? targetingService.describe(t) : null, storage);
+        return OfferDtos.OfferView.of(o, t, t != null ? targetingService.describe(t) : null, storage,
+                offerService.aggregatesFor(o));
     }
 
     // ---- resident deals feed ----
@@ -68,6 +69,27 @@ public class OfferController {
             @PathVariable UUID redemptionId) {
         var r = offerService.confirmRedemption(p, redemptionId);
         return ResponseEntity.ok(OfferDtos.RedemptionView.of(r, null));
+    }
+
+    // ---- feedback (MVP-8) ----
+
+    @PostMapping("/{id}/feedback")
+    @PreAuthorize("hasRole('RESIDENT')")
+    @Operation(summary = "Rate + comment on an offer (one per user; re-posting updates it)")
+    public ResponseEntity<OfferDtos.OfferFeedbackView> leaveFeedback(@AuthenticationPrincipal AppPrincipal p,
+            @PathVariable UUID id, @Valid @RequestBody OfferDtos.FeedbackRequest body) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(OfferDtos.OfferFeedbackView.of(
+                offerService.leaveFeedback(p, id, body.rating(), body.comment())));
+    }
+
+    @GetMapping("/{id}/feedback")
+    @PreAuthorize("hasAnyRole('PROVIDER','ADMIN','SUPER_ADMIN')")
+    @Operation(summary = "Feedback on an offer (author or Super Admin)")
+    public ResponseEntity<OfferDtos.OfferFeedbackListView> feedback(@AuthenticationPrincipal AppPrincipal p,
+            @PathVariable UUID id) {
+        var items = offerService.feedbackFor(p, id).stream().map(OfferDtos.OfferFeedbackView::of).toList();
+        var agg = offerService.aggregatesFor(offerService.require(id));
+        return ResponseEntity.ok(new OfferDtos.OfferFeedbackListView(agg.ratingAvg(), agg.ratingCount(), items));
     }
 
     // ---- authoring (vendor + admin) ----
