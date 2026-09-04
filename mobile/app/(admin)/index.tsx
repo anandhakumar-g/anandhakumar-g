@@ -1,8 +1,9 @@
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { View } from "react-native";
 import { catalog, tickets } from "@/api/endpoints";
 import { EmptyState, Segmented } from "@/components/Bits";
+import { Button } from "@/components/Button";
 import { AppText, Loading, Screen } from "@/components/Themed";
 import { TicketRow } from "@/components/TicketRow";
 import { useAsync } from "@/hooks/useAsync";
@@ -12,6 +13,7 @@ type Filter = "ALL" | "NEW" | "ASSIGNED" | "IN_PROGRESS" | "RESOLVED";
 
 export default function AdminQueue() {
   const { theme } = useTheme();
+  const router = useRouter();
   const [filter, setFilter] = useState<Filter>("ALL");
   const cats = useAsync(() => catalog.categories(), []);
   const list = useAsync(() => tickets.list(filter === "ALL" ? undefined : filter, 0), [filter]);
@@ -28,9 +30,12 @@ export default function AdminQueue() {
 
   return (
     <Screen onRefresh={list.refresh} refreshing={list.refreshing}>
-      <AppText size="xl" weight="700">
-        Ticket queue
-      </AppText>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <AppText size="xl" weight="700">
+          Ticket queue
+        </AppText>
+        <Button label="📣 Announce" variant="secondary" fullWidth={false} onPress={() => router.push("/(admin)/broadcast")} />
+      </View>
       <Segmented
         value={filter}
         onChange={setFilter}

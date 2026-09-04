@@ -20,6 +20,7 @@ export default function AdminLayout() {
       <Tabs.Screen name="offers" options={{ title: "Offers" }} />
       <Tabs.Screen name="settings" options={{ title: "Settings" }} />
       <Tabs.Screen name="ticket/[id]" options={{ href: null }} />
+      <Tabs.Screen name="broadcast" options={{ href: null }} />
     </Tabs>
   );
 }

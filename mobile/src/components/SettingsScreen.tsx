@@ -206,6 +206,12 @@ function OfferNotificationPrefs() {
         value={prefs.promoNotificationsEnabled}
         onValueChange={(v) => patch({ promoNotificationsEnabled: v })}
       />
+      <Row
+        label="Community announcements"
+        hint="Broadcasts from your admin and the platform"
+        value={prefs.broadcastEnabled}
+        onValueChange={(v) => patch({ broadcastEnabled: v })}
+      />
 
       <View style={{ gap: theme.space(1) }}>
         <AppText size="xs" weight="700" tone="faint" style={{ letterSpacing: 0.6 }}>
