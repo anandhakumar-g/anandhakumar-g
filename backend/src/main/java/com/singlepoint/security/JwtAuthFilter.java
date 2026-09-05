@@ -3,6 +3,7 @@ package com.singlepoint.security;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.singlepoint.common.error.ApiError;
 import com.singlepoint.common.error.AppException;
+import com.singlepoint.common.error.ErrorCode;
 import com.singlepoint.user.domain.Role;
 import org.slf4j.MDC;
 import org.springframework.http.MediaType;
@@ -40,6 +41,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 principal = jwtService.parse(token);
             } catch (AppException ex) {
                 writeError(response, ex);
+                return;
+            }
+
+            // MVP-10 (B): a token minted with a device claim is bound to that device — a
+            // copied/replayed token used without it (or with a different one) is rejected,
+            // forcing a fresh OTP sign-in there. A token with no claim (legacy / a client that
+            // has not adopted the header) is never gated, for backward compatibility.
+            if (principal.getDeviceId() != null
+                    && !principal.getDeviceId().equals(request.getHeader("X-Device-Id"))) {
+                writeError(response, new AppException(ErrorCode.DEVICE_MISMATCH, null));
                 return;
             }
 

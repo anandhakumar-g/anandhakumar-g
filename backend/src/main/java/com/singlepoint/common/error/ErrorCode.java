@@ -10,6 +10,7 @@ public enum ErrorCode {
     OTP_INVALID             ("SP-400-OTP",          HttpStatus.BAD_REQUEST,           "Invalid or expired verification code"),
     UNAUTHENTICATED         ("SP-401",              HttpStatus.UNAUTHORIZED,          "Authentication required"),
     TOKEN_EXPIRED           ("SP-401-EXPIRED",      HttpStatus.UNAUTHORIZED,          "Session expired, sign in again"),
+    DEVICE_MISMATCH         ("SP-401-DEVICE",       HttpStatus.UNAUTHORIZED,          "Sign in again on this device"),
     FORBIDDEN               ("SP-403",              HttpStatus.FORBIDDEN,             "Not allowed"),
     TENANT_SCOPE_VIOLATION  ("SP-403-TENANT",       HttpStatus.FORBIDDEN,             "Resource belongs to another community"),
     NOT_FOUND              ("SP-404",              HttpStatus.NOT_FOUND,             "Not found"),

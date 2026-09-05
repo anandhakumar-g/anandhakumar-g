@@ -60,11 +60,11 @@ public class AuthService {
     }
 
     @Transactional
-    public Session verifyOtp(String rawPhone, String code) {
+    public Session verifyOtp(String rawPhone, String code, String deviceId) {
         String phone = PhoneNumbers.normalize(rawPhone);
         otpService.verify(phone, code, OtpChallenge.Purpose.LOGIN);
         AppUser user = userService.findByPhone(phone).orElseGet(() -> resolveNewUser(phone));
-        return buildSession(user);
+        return buildSession(user, deviceId);
     }
 
     @Transactional
@@ -73,14 +73,14 @@ public class AuthService {
     }
 
     @Transactional
-    public Session refreshSessionFor(UUID userId) {
-        return buildSession(userService.require(userId));
+    public Session refreshSessionFor(UUID userId, String deviceId) {
+        return buildSession(userService.require(userId), deviceId);
     }
 
-    private Session buildSession(AppUser user) {
+    private Session buildSession(AppUser user, String deviceId) {
         UUID activeTenant = resolveActiveTenant(user);
         OnboardingState state = onboardingState(user, activeTenant);
-        String token = jwtService.issue(user.getId(), user.getRole(), activeTenant, user.getName());
+        String token = jwtService.issue(user.getId(), user.getRole(), activeTenant, user.getName(), deviceId);
         return new Session(token, jwtService.getTtlSeconds(), state, user, activeTenant);
     }
 

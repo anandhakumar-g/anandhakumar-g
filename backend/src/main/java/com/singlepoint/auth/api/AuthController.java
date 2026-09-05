@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -35,8 +36,11 @@ public class AuthController {
 
     @PostMapping("/otp/verify")
     @Operation(summary = "Verify an OTP and receive a session token")
-    public ResponseEntity<AuthDtos.SessionResponse> verifyOtp(@Valid @RequestBody AuthDtos.OtpVerifyRequest body) {
-        return ResponseEntity.ok(AuthDtos.SessionResponse.from(authService.verifyOtp(body.phone(), body.code())));
+    public ResponseEntity<AuthDtos.SessionResponse> verifyOtp(
+            @Valid @RequestBody AuthDtos.OtpVerifyRequest body,
+            @RequestHeader(value = "X-Device-Id", required = false) String deviceId) {
+        return ResponseEntity.ok(AuthDtos.SessionResponse.from(
+                authService.verifyOtp(body.phone(), body.code(), deviceId)));
     }
 
     @PostMapping("/profile")
@@ -46,7 +50,7 @@ public class AuthController {
             @Valid @RequestBody AuthDtos.ProfileRequest body) {
         authService.completeProfileAndRefresh(principal.getUserId(), body.name(), body.email());
         return ResponseEntity.ok(AuthDtos.SessionResponse.from(
-                authService.refreshSessionFor(principal.getUserId())));
+                authService.refreshSessionFor(principal.getUserId(), principal.getDeviceId())));
     }
 
     @PostMapping("/refresh")
@@ -54,6 +58,6 @@ public class AuthController {
     public ResponseEntity<AuthDtos.SessionResponse> refresh(@AuthenticationPrincipal AppPrincipal principal) {
         if (principal == null) throw new AppException(ErrorCode.UNAUTHENTICATED, "Sign in first");
         return ResponseEntity.ok(AuthDtos.SessionResponse.from(
-                authService.refreshSessionFor(principal.getUserId())));
+                authService.refreshSessionFor(principal.getUserId(), principal.getDeviceId())));
     }
 }

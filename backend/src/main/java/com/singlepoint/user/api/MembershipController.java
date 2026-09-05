@@ -37,6 +37,7 @@ public class MembershipController {
         UserTenantMembership m = membershipService.join(principal.getUserId(),
                 UUID.fromString(body.tenantId()), body.inviteCode(), body.requestedFlatLabel());
         // Re-issue the session so the token carries the new (or still-pending) tenant scope.
-        return ResponseEntity.ok(AuthDtos.SessionResponse.from(authService.refreshSessionFor(principal.getUserId())));
+        return ResponseEntity.ok(AuthDtos.SessionResponse.from(
+                authService.refreshSessionFor(principal.getUserId(), principal.getDeviceId())));
     }
 }

@@ -133,7 +133,7 @@ public class MeController {
         }
         userService.setCurrentTenant(principal.getUserId(), tenantId);
         return ResponseEntity.ok(AuthDtos.SessionResponse.from(
-                authService.refreshSessionFor(principal.getUserId())));
+                authService.refreshSessionFor(principal.getUserId(), principal.getDeviceId())));
     }
 
     @PostMapping("/stop-acting")
@@ -143,7 +143,7 @@ public class MeController {
     public ResponseEntity<AuthDtos.SessionResponse> stopActing(@AuthenticationPrincipal AppPrincipal principal) {
         userService.setCurrentTenant(principal.getUserId(), null);
         return ResponseEntity.ok(AuthDtos.SessionResponse.from(
-                authService.refreshSessionFor(principal.getUserId())));
+                authService.refreshSessionFor(principal.getUserId(), principal.getDeviceId())));
     }
 
     @PostMapping("/memberships/{tenantId}/leave")
@@ -160,7 +160,7 @@ public class MeController {
             userService.setCurrentTenant(u.getId(), next);
         }
         return ResponseEntity.ok(AuthDtos.SessionResponse.from(
-                authService.refreshSessionFor(principal.getUserId())));
+                authService.refreshSessionFor(principal.getUserId(), principal.getDeviceId())));
     }
 
     @PutMapping("/away-until")

@@ -45,7 +45,7 @@ public class JwtService {
         this.key = Keys.hmacShaKeyFor(bytes);
     }
 
-    public String issue(UUID userId, Role role, UUID tenantId, String name) {
+    public String issue(UUID userId, Role role, UUID tenantId, String name, String deviceId) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .setIssuer(issuer)
@@ -53,6 +53,7 @@ public class JwtService {
                 .claim("role", role.name())
                 .claim("tenantId", tenantId != null ? tenantId.toString() : null)
                 .claim("name", name)
+                .claim("deviceId", deviceId)
                 .setIssuedAt(Date.from(now))
                 .setExpiration(Date.from(now.plusSeconds(ttlSeconds)))
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -68,7 +69,8 @@ public class JwtService {
                     UUID.fromString(c.getSubject()),
                     Role.valueOf(c.get("role", String.class)),
                     tid != null ? UUID.fromString(tid) : null,
-                    c.get("name", String.class));
+                    c.get("name", String.class),
+                    c.get("deviceId", String.class));
         } catch (ExpiredJwtException e) {
             throw new AppException(ErrorCode.TOKEN_EXPIRED, null);
         } catch (Exception e) {

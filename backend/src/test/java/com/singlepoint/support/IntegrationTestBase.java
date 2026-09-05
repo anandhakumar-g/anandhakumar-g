@@ -132,6 +132,29 @@ public abstract class IntegrationTestBase {
         return r.getBody();
     }
 
+    /** MVP-10 (B): a variant carrying an X-Device-Id header, for device-binding tests. */
+    protected ResponseEntity<JsonNode> httpWithDevice(HttpMethod method, String path, String token, Object body,
+                                                      String deviceId) {
+        HttpHeaders h = new HttpHeaders();
+        h.setContentType(MediaType.APPLICATION_JSON);
+        if (token != null) h.setBearerAuth(token);
+        if (deviceId != null) h.add("X-Device-Id", deviceId);
+        return rest.exchange(path, method, new HttpEntity<>(body, h), JsonNode.class);
+    }
+
+    protected JsonNode postWithDevice(String path, String token, Object body, String deviceId) {
+        ResponseEntity<JsonNode> r = httpWithDevice(HttpMethod.POST, path, token, body, deviceId);
+        assertTrue(r.getStatusCode().is2xxSuccessful(), path + " -> " + r.getStatusCode() + " " + r.getBody());
+        return r.getBody();
+    }
+
+    protected Session loginWithDevice(String phone, String deviceId) {
+        JsonNode otp = post("/api/v1/auth/otp/request", null, Map.of("phone", phone));
+        String code = otp.get("devCode").asText();
+        JsonNode s = postWithDevice("/api/v1/auth/otp/verify", null, Map.of("phone", phone, "code", code), deviceId);
+        return toSession(s);
+    }
+
     protected ResponseEntity<JsonNode> multipart(String path, String token, Map<String, String> parts,
                                                  String fileField, String filename, byte[] bytes) {
         HttpHeaders h = new HttpHeaders();
