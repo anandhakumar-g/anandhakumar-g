@@ -1,7 +1,7 @@
 import { api, uploadFile } from "./client";
 import {
-  AdminAssignment, AdminVendorCategory, AttachmentView, AuditLogView, BroadcastScope, BroadcastView,
-  Category, CommunitySettings, DashboardView, FlatView, InvoiceView,
+  AdminAssignment, AdminVendorCategory, AnalyticsView, AttachmentView, AuditLogView, BroadcastScope, BroadcastView,
+  Category, CommunitySettings, DashboardView, FlatView, InvoiceView, MyCommunityRequest,
   InviteView, JoinRequestView, KycDocView, LocationView, MeResponse, MemberView, MyBillingView,
   NotificationPreferences, OfferFeedbackList, OfferFeedbackView, OfferStatus, OfferView, HouseholdMember,
   MyFlat, Page, PaymentView, PlanView,
@@ -337,4 +337,15 @@ export const providerProfile = {
 
 export const dashboard = {
   get: () => api.get<DashboardView>("/dashboard"),
+};
+
+export const onboarding = {
+  submitCommunity: (body: { name: string; city?: string; locality?: string; address?: string; pincode?: string }) =>
+    api.post<MyCommunityRequest>("/onboarding/community", body),
+  myRequest: () => api.get<MyCommunityRequest | null>("/me/community-request"),
+};
+
+export const analytics = {
+  get: (bucket: "WEEK" | "MONTH" = "WEEK", points = 12) =>
+    api.get<AnalyticsView>("/superadmin/analytics", { query: { bucket, points } }),
 };

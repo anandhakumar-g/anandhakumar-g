@@ -617,3 +617,35 @@ export interface DashboardView {
   offersPendingApprovalCount: number | null;
   communityCount: number | null;
 }
+
+/** MVP-11 (A): the caller's latest self-onboarding request. */
+export type CommunityRequestStatus = "PENDING_REVIEW" | "ACTIVE" | "SUSPENDED" | "ARCHIVED";
+export interface MyCommunityRequest {
+  tenantId: string;
+  name: string;
+  status: CommunityRequestStatus;
+  at: string;
+}
+
+/** MVP-11 (B): platform analytics. */
+export interface AnalyticsPoint {
+  periodStart: string;
+  ticketsCreated: number;
+  ticketsResolved: number;
+  offersRedeemed: number;
+  newUsers: number;
+  revenue: number;
+}
+export interface AnalyticsTotals {
+  communities: number;
+  activeCommunities: number;
+  residents: number;
+  providers: number;
+  openTickets: number;
+  mrr: number;
+}
+export interface AnalyticsView {
+  bucket: "WEEK" | "MONTH";
+  series: AnalyticsPoint[];
+  totals: AnalyticsTotals;
+}

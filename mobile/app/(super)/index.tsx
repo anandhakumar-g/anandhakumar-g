@@ -1,7 +1,7 @@
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { View } from "react-native";
-import { me as meApi, superadmin } from "@/api/endpoints";
+import { analytics, me as meApi, superadmin } from "@/api/endpoints";
 import { Button } from "@/components/Button";
 import { Divider, EmptyState, KeyValue, Pill } from "@/components/Bits";
 import { DashboardSummary } from "@/components/DashboardSummary";
@@ -16,6 +16,7 @@ export default function SuperHome() {
   const router = useRouter();
   const { signOut, signIn } = useSession();
   const health = useAsync(() => superadmin.tenantHealth(), []);
+  const trends = useAsync(() => analytics.get("WEEK", 6), []);
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
   const [adminPhone, setAdminPhone] = useState("");
@@ -76,6 +77,31 @@ export default function SuperHome() {
       </View>
 
       <DashboardSummary />
+
+      {trends.data ? (
+        <Card style={{ gap: theme.space(1.5) }}>
+          <AppText size="sm" weight="700" tone="muted">
+            Platform trends · this week
+          </AppText>
+          {(() => {
+            const s = trends.data.series;
+            const now = s[s.length - 1];
+            const t = trends.data.totals;
+            return (
+              <>
+                <KeyValue k="New tickets" v={String(now?.ticketsCreated ?? 0)} />
+                <KeyValue k="New users" v={String(now?.newUsers ?? 0)} />
+                <KeyValue k="Offers redeemed" v={String(now?.offersRedeemed ?? 0)} />
+                <KeyValue k="Revenue (paid invoices)" v={`₹${now?.revenue ?? 0}`} />
+                <Divider />
+                <KeyValue k="Communities" v={`${t.activeCommunities} active / ${t.communities}`} />
+                <KeyValue k="Residents · providers" v={`${t.residents} · ${t.providers}`} />
+                <KeyValue k="Open tickets · MRR" v={`${t.openTickets} · ₹${t.mrr}`} />
+              </>
+            );
+          })()}
+        </Card>
+      ) : null}
 
       {health.loading ? (
         <Loading />

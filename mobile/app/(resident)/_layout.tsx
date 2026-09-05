@@ -23,6 +23,7 @@ export default function ResidentLayout() {
       <Tabs.Screen name="offer/[id]" options={{ href: null }} />
       <Tabs.Screen name="community" options={{ href: null }} />
       <Tabs.Screen name="household" options={{ href: null }} />
+      <Tabs.Screen name="register-community" options={{ href: null }} />
     </Tabs>
   );
 }
