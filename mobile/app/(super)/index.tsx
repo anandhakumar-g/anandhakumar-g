@@ -4,6 +4,7 @@ import { View } from "react-native";
 import { me as meApi, superadmin } from "@/api/endpoints";
 import { Button } from "@/components/Button";
 import { Divider, EmptyState, KeyValue, Pill } from "@/components/Bits";
+import { DashboardSummary } from "@/components/DashboardSummary";
 import { Field } from "@/components/Field";
 import { AppText, Card, Loading, Screen } from "@/components/Themed";
 import { useAsync } from "@/hooks/useAsync";
@@ -73,6 +74,8 @@ export default function SuperHome() {
         <Button label="Audit log" variant="secondary" fullWidth={false} onPress={() => router.push("/(super)/audit")} />
         <Button label="Announcement" variant="secondary" fullWidth={false} onPress={() => router.push("/(super)/broadcast")} />
       </View>
+
+      <DashboardSummary />
 
       {health.loading ? (
         <Loading />

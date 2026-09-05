@@ -4,6 +4,7 @@ import { View } from "react-native";
 import { catalog, tickets } from "@/api/endpoints";
 import { EmptyState, Segmented } from "@/components/Bits";
 import { Button } from "@/components/Button";
+import { DashboardSummary } from "@/components/DashboardSummary";
 import { AppText, Loading, Screen } from "@/components/Themed";
 import { TicketRow } from "@/components/TicketRow";
 import { useAsync } from "@/hooks/useAsync";
@@ -36,6 +37,7 @@ export default function AdminQueue() {
         </AppText>
         <Button label="📣 Announce" variant="secondary" fullWidth={false} onPress={() => router.push("/(admin)/broadcast")} />
       </View>
+      <DashboardSummary />
       <Segmented
         value={filter}
         onChange={setFilter}

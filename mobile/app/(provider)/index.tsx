@@ -4,6 +4,7 @@ import { View } from "react-native";
 import { catalog, tickets } from "@/api/endpoints";
 import { AppText, Loading, Screen } from "@/components/Themed";
 import { EmptyState } from "@/components/Bits";
+import { DashboardSummary } from "@/components/DashboardSummary";
 import { TicketRow } from "@/components/TicketRow";
 import { useAsync } from "@/hooks/useAsync";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -35,6 +36,7 @@ export default function ProviderJobs() {
       <AppText size="xl" weight="700">
         My jobs
       </AppText>
+      <DashboardSummary />
       {items.length === 0 ? (
         <EmptyState title="No jobs yet" body="Tickets a community admin assigns to you will appear here." />
       ) : (

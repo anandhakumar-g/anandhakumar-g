@@ -591,3 +591,29 @@ export function subscriptionTone(
   if (status === "EXPIRED") return "danger";
   return "muted";
 }
+
+/** MVP-10 (A): one flexible view, only the caller's-role fields populated. */
+export interface DashboardView {
+  role: "RESIDENT" | "PROVIDER" | "ADMIN" | "SUPER_ADMIN";
+  ticketsByStatus: Record<string, number>;
+
+  pendingApprovalCount: number | null;
+  resolvedAwaitingCloseCount: number | null;
+  pendingPaymentCount: number | null;
+  activeOffersCount: number | null;
+
+  awaitingAcceptCount: number | null;
+  ratingAvg: number | null;
+  ratingCount: number | null;
+
+  unassignedCount: number | null;
+  slaBreachedCount: number | null;
+  pendingJoinRequestsCount: number | null;
+
+  totalOpenTickets: number | null;
+  totalTickets: number | null;
+  communityLessOpenTickets: number | null;
+  providersPendingVerificationCount: number | null;
+  offersPendingApprovalCount: number | null;
+  communityCount: number | null;
+}

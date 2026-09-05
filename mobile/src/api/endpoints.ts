@@ -1,7 +1,7 @@
 import { api, uploadFile } from "./client";
 import {
   AdminAssignment, AdminVendorCategory, AttachmentView, AuditLogView, BroadcastScope, BroadcastView,
-  Category, CommunitySettings, FlatView, InvoiceView,
+  Category, CommunitySettings, DashboardView, FlatView, InvoiceView,
   InviteView, JoinRequestView, KycDocView, LocationView, MeResponse, MemberView, MyBillingView,
   NotificationPreferences, OfferFeedbackList, OfferFeedbackView, OfferStatus, OfferView, HouseholdMember,
   MyFlat, Page, PaymentView, PlanView,
@@ -333,4 +333,8 @@ export const providerProfile = {
   get: () => api.get<ProviderProfile>("/provider/profile"),
   update: (body: Partial<{ contactEmail: string; serviceArea: string; availability: string; availabilityNote: string }>) =>
     api.put<ProviderProfile>("/provider/profile", body),
+};
+
+export const dashboard = {
+  get: () => api.get<DashboardView>("/dashboard"),
 };

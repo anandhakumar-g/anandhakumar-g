@@ -4,6 +4,7 @@ import { View } from "react-native";
 import { catalog, tickets } from "@/api/endpoints";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/Bits";
+import { DashboardSummary } from "@/components/DashboardSummary";
 import { AppText, Card, Loading, Screen } from "@/components/Themed";
 import { TicketRow } from "@/components/TicketRow";
 import { useAsync } from "@/hooks/useAsync";
@@ -36,6 +37,8 @@ export default function ResidentHome() {
           {me?.activeTenantBranding?.name ?? "Single Point"}
         </AppText>
       </View>
+
+      <DashboardSummary />
 
       {noCommunity ? (
         <Card style={{ gap: theme.space(2) }}>
