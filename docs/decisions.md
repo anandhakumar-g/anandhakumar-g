@@ -4,6 +4,61 @@ Short ADRs. Newest first.
 
 ---
 
+## ADR-037 — Dashboards, device-bound sessions, paid community-less bookings
+**Decision (MVP-10):**
+
+- **Per-role dashboards.** One endpoint, `GET /api/v1/dashboard`, one flexible
+  `DashboardDtos.DashboardView` — mirrors `MeResponse`'s existing style of a single shape
+  whose fields carry different meaning per role, so the mobile client calls the same
+  `dashboard.get()` everywhere. `DashboardService.forPrincipal` branches on
+  `principal.getRole()`: RESIDENT gets ticket buckets + `pendingApprovalCount` /
+  `resolvedAwaitingCloseCount` / `pendingPaymentCount` (a tenant-agnostic
+  `TicketPaymentRepository.findUnsettledForRaiserAcrossTenants`, so it also covers a
+  community-less resident once ADR paid-bookings below lands) / `activeOffersCount`
+  (reuses `OfferService.feedForResident`, `.size()`); PROVIDER gets `awaitingAcceptCount`
+  + rating; ADMIN (tenant-scoped, 403 with no active community) gets `unassignedCount` /
+  `slaBreachedCount` / `pendingJoinRequestsCount`; SUPER_ADMIN gets platform-wide totals
+  incl. a `communityLessOpenTickets` bucket, providers pending verification, offers
+  pending approval, community count. Every new count query mirrors an existing finder in
+  the same repository — no new query infrastructure. Mobile: one `DashboardSummary`
+  component (self-fetching) mounted on all four existing home screens — no new screens.
+
+- **Device-bound sessions.** A session JWT can carry a `deviceId` claim
+  (`JwtService.issue`/`parse`, `AppPrincipal.deviceId`) — no new table, no "known devices"
+  registry. `JwtAuthFilter` rejects a request when the token's claim doesn't match the
+  `X-Device-Id` header (missing or different) with a new `SP-401-DEVICE`, forcing a fresh
+  OTP sign-in on that device, which mints a token bound there instead. A token with **no**
+  claim is never gated, so every pre-MVP-10 client and test keeps working unmodified —
+  only a client that sends the header opts into the protection. `AuthService.buildSession`
+  (the single call site of `issue`) threads `deviceId` through `verifyOtp` and
+  `refreshSessionFor`; every re-mint call site (`/auth/profile`, `/auth/refresh`,
+  `/me/active-community`, `/me/stop-acting`, `/me/memberships/leave`, community join)
+  passes `principal.getDeviceId()` through unchanged. Mobile generates one id per install
+  (a binding tag, not a secret — the JWT signature is the real security boundary),
+  persists it in `expo-secure-store` (which also now holds the session token itself,
+  replacing `AsyncStorage`), and sends it as `X-Device-Id` on every request.
+
+- **Biometric unlock is opt-in, default off**, gated on `hasHardwareAsync() &&
+  isEnrolledAsync()`. A lock screen renders in place of the whole app (before any route)
+  whenever it's on and a token was restored at boot; a failed attempt offers retry and
+  never signs the user out. **OTP autofill uses only built-in React Native `TextInput`
+  props** (`textContentType="oneTimeCode"`, `autoComplete="sms-otp"`) — no SMS Retriever
+  native module, no extra Android permission.
+
+- **Paid community-less bookings.** `ticket_payment` / `payment_receipt` / `payment_event`
+  lose their `tenant_id NOT NULL` (mirrors `ticket`, ADR-034) and gain a null-tenant RLS
+  branch (`V29`): `ticket_payment` resolves via its own `charged_by_user_id` or one hop to
+  `ticket` (raiser / assigned provider); `payment_receipt` / `payment_event` resolve two
+  hops further, through `ticket_payment` into `ticket` — the deepest RLS nesting in the
+  schema so far, same "nested policy evaluation, not recursion" category as ADR-034's
+  precedent. `PaymentService.requireTicket` tries the tenant-scoped lookup first (zero
+  behaviour change for every existing tenant-bound flow) and only falls back to a
+  null-tenant path when that comes up empty — necessary because a **PROVIDER's**
+  `principal.tenantId` is never null even when the ticket is, so the tenant-scoped lookup
+  alone could never reach a community-less ticket. `adjust()` stays ADMIN-only and so
+  stays unreachable for a community-less ticket (no admin exists there) — not a
+  regression, just unused for that ticket shape.
+
 ## ADR-036 — Audit read-model & broadcast announcements
 **Decision (MVP-9):**
 

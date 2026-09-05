@@ -121,6 +121,10 @@
   {
    "key": "tenantId2",
    "value": ""
+  },
+  {
+   "key": "deviceId",
+   "value": "demo-device-1"
   }
  ],
  "item": [
@@ -3725,6 +3729,269 @@
        "raw": "{\n  \"broadcastEnabled\": false\n}"
       },
       "description": "Announcements are opt-out (default on). A muted resident's next broadcast is recorded SKIPPED (\"broadcasts muted\"), never pushed."
+     }
+    }
+   ]
+  },
+  {
+   "name": "15 · Dashboards, device security & paid bookings (MVP-10)",
+   "item": [
+    {
+     "name": "Dashboard · resident",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "url": "{{baseUrl}}/dashboard",
+      "description": "Tickets bucketed by status + resident action items: pendingApprovalCount, resolvedAwaitingCloseCount, pendingPaymentCount, activeOffersCount."
+     }
+    },
+    {
+     "name": "Dashboard · provider",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{providerToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/dashboard",
+      "description": "awaitingAcceptCount (ASSIGNED, not yet accepted) + ratingAvg/ratingCount."
+     }
+    },
+    {
+     "name": "Dashboard · admin",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{adminToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/dashboard",
+      "description": "Tenant-scoped ticket buckets + unassignedCount + slaBreachedCount + pendingJoinRequestsCount."
+     }
+    },
+    {
+     "name": "Dashboard · Super Admin",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/dashboard",
+      "description": "Platform-wide totals incl. communityLessOpenTickets, providersPendingVerificationCount, offersPendingApprovalCount, communityCount."
+     }
+    },
+    {
+     "name": "Device binding · verify OTP on this device",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "X-Device-Id",
+        "value": "{{deviceId}}"
+       }
+      ],
+      "url": "{{baseUrl}}/auth/otp/verify",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"phone\": \"{{residentPhone}}\",\n  \"code\": \"{{devCode}}\"\n}"
+      },
+      "description": "X-Device-Id is optional but, when sent, gets baked into the minted token's deviceId claim."
+     }
+    },
+    {
+     "name": "Device binding · call with the matching device",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       },
+       {
+        "key": "X-Device-Id",
+        "value": "{{deviceId}}"
+       }
+      ],
+      "url": "{{baseUrl}}/me",
+      "description": "Succeeds — the header matches the token's claim."
+     }
+    },
+    {
+     "name": "Device binding · call with no / a different device → 401",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "url": "{{baseUrl}}/me",
+      "description": "A token minted with a deviceId claim is rejected (SP-401-DEVICE) when the header is missing or different — the client falls back to a fresh OTP sign-in, which binds a new token to this device. A token with no claim (no header was ever sent) is never gated."
+     }
+    },
+    {
+     "name": "Device binding · refresh preserves the binding",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       },
+       {
+        "key": "X-Device-Id",
+        "value": "{{deviceId}}"
+       }
+      ],
+      "url": "{{baseUrl}}/auth/refresh",
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      },
+      "description": "The re-minted token is still bound to the same device."
+     }
+    },
+    {
+     "name": "Paid community-less · provider charges a resolved booking",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{providerToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/charge",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"amount\": 300,\n  \"note\": \"parts + labour\"\n}"
+      },
+      "description": "Only the assigned provider can charge — there is no admin for a community-less ticket. Works now that PaymentService.requireTicket has a null-tenant fallback."
+     }
+    },
+    {
+     "name": "Paid community-less · individual chooses cash",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/mode",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"mode\": \"CASH\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Paid community-less · provider collects cash (OTP to resident)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{providerToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/cash/collect"
+     }
+    },
+    {
+     "name": "Paid community-less · confirm cash OTP",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/cash/confirm",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"otp\": \"{{cashOtp}}\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Paid community-less · digital receipt (tenant_id is null)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "url": "{{baseUrl}}/tickets/{{ticketId}}/payment/receipt"
      }
     }
    ]

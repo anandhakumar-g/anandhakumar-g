@@ -11,7 +11,9 @@ provider onboarding, `admin_tenant` + Super-Admin-as-admin, community locations,
 raise, gated user removal) · MVP-8 Community-less users & offers depth (READY-without-community,
 tenant-less booking, `USER_LIST`/`TENANT_LIST` offer targeting, redemption-cap hardening,
 offer feedback) · MVP-9 Audit visibility & broadcasts (Super-Admin audit-log view; admin /
-Super-Admin announcements over the outbox). See `roadmap.md` and `decisions.md`.
+Super-Admin announcements over the outbox) · MVP-10 Dashboards, device security & paid
+bookings (per-role `GET /dashboard`, device-bound sessions + biometric unlock + OTP
+autofill, paid community-less bookings). See `roadmap.md` and `decisions.md`.
 
 ---
 
@@ -20,8 +22,8 @@ Super-Admin announcements over the outbox). See `roadmap.md` and `decisions.md`.
 | # | Responsibility | State | MVP |
 |---|---|---|---|
 | I1 | Mobile number is the **unique identifier**; OTP login on first use | ✅ `app_user.phone_hash` unique, phone is the identity anchor (ADR-004/007) | — |
-| I2 | **Biometric / fingerprint** unlock on subsequent logins (token already persisted) | ❌ `expo-local-authentication` gate before the app opens | **MVP-9** (deferred from MVP-8) |
-| I3 | **Device binding** — a new/changed device forces OTP again; **auto-read** the OTP | ❌ bind a device fingerprint to the session; Android SMS Retriever / iOS autofill for the code | **MVP-9** (deferred from MVP-8) |
+| I2 | **Biometric / fingerprint** unlock on subsequent logins (token already persisted) | ✅ (MVP-10) — opt-in, default off, gated on hardware + enrollment; a lock screen gates the whole app before any route renders. `expo-local-authentication`. ADR-037 | — |
+| I3 | **Device binding** — a new/changed device forces OTP again; **auto-read** the OTP | ✅ (MVP-10) — a JWT `deviceId` claim + `X-Device-Id` header (`JwtAuthFilter`, `SP-401-DEVICE` on mismatch) rejects a replayed token on another device, forcing a fresh OTP sign-in there; OTP autofill via built-in `TextInput` props (`textContentType`/`autoComplete`), no native module. ADR-037 | — |
 | I4 | Use the app and **book a service provider with no community** | ✅ (MVP-8) — a profile-complete resident with no community is READY; `POST /tickets` with a `providerId` books tenant-free (nullable `ticket.tenant_id` + a user-scoped RLS branch, ADR-034). Payment on such bookings is MVP-9. | — |
 | I5 | Raise **enquiry / feedback** on a service **or on an offer** | ✅ (MVP-8) — `offer_feedback` + `POST /offers/{id}/feedback` (ADR-035); ticket ENQUIRY/FEEDBACK already existed | — |
 | I6 | Receive offers / promo codes — issued **only via the Super Admin** | ✅ Super Admin approves every offer (ADR-014); providers submit drafts | — |
@@ -66,7 +68,7 @@ Super-Admin announcements over the outbox). See `roadmap.md` and `decisions.md`.
 | # | Concern | State | Track |
 |---|---|---|---|
 | X1 | **Audit log of all onboarding** | ✅ (MVP-9) — `AuditAspect` capture (since MVP-1) + `@AuditRead` (MVP-5) + the Super-Admin **audit view**: `GET /superadmin/audit-logs[/actions]` with filters + a mobile viewer. ADR-036 | — |
-| X2 | **Dashboards** for every role — info / action items, completed, in-progress | ❌ only a tiny `tenantHealth` aggregate | MVP-9 |
+| X2 | **Dashboards** for every role — info / action items, completed, in-progress | ✅ (MVP-10) — `GET /api/v1/dashboard`, one flexible view shaped by the caller's role, mounted on each existing home screen. `tenantHealth` (Super Admin) untouched, still used for the per-community list. ADR-037 | — |
 | X3 | **Archival & backup** configuration | ❌ ops — scheduled `pg_dump` + S3 lifecycle rules; documented, not app code | ops |
 | X4 | **Performance monitoring** | ◐ Actuator `/health` + an access-log filter with timings; add Micrometer metrics + an APM hook | ops |
 | X5 | **Look & feel** — fancy icons, loading states, images, contextual notifications | ◐ custom fonts (MVP-2), base component kit; needs a dedicated polish pass | continuous UX track |
@@ -109,5 +111,6 @@ Super-Admin announcements over the outbox). See `roadmap.md` and `decisions.md`.
 | **MVP-7** ✅ | **Actor authority & multi-community** | Super-Admin provider onboarding (re-eng #1) · community → multiple **locations** (re-eng #2) · **admin ↔ many communities** + switcher + Super-Admin-as-admin (re-eng #3) · **admin/provider raise for their own flat** (re-eng #4) · **admin/Super-Admin removes a user** with a pending-bills / open-tickets gate · Super-Admin-issued invite codes. *Deferred: mobile raise entry for flat-owning admins/providers.* |
 | **MVP-8** ✅ | **Community-less users & offers depth** | Individual user with **no community** — onboarding ends `READY` with no tenant + tenant-less service requests (nullable `ticket.tenant_id` + `app.current_user_id` GUC + null-tenant RLS branch) + direct booking of any verified provider · **offer targeting** to a set of communities (`TENANT_LIST`) or named individuals by phone (`USER_LIST`) · offer **global count cap** ("top 100") hardened with a pessimistic redeem lock + `redemptionsRemaining` · **feedback on an offer** (`offer_feedback`, encrypted comment, `ratingAvg`/`ratingCount`). *Deferred to MVP-9: biometric login / device binding / OTP auto-read; broadcast notifications; paid community-less bookings.* |
 | **MVP-9** ✅ | **Audit visibility & broadcasts** | **Super-Admin audit-log view** (`GET /superadmin/audit-logs[/actions]`, filterable + paged, over the rows `AuditAspect` already writes; `V27` read indexes) · **broadcast announcements** (`com.singlepoint.broadcast`: admin → acting community's residents, Super Admin → `ALL_ADMINS` / `ALL_USERS` / a `COMMUNITY`; one `broadcast` row + one outbox row fanned out; `kind:"broadcast"` + `notification_preference.broadcast_enabled` opt-out; 60s + 20/day rate guard; `V28`). *Deferred to MVP-10: per-role dashboards; biometric / device-binding / OTP auto-read; reporting / exports; paid community-less bookings.* |
-| **MVP-10** | **Visibility & scale (deferred pool)** | Per-role **dashboards** (open / in-progress / done, action items) · reporting / exports (CSV) · **biometric login + device binding + OTP auto-read** · paid community-less bookings · multi-tenant self-onboarding, full Super Admin web console, analytics. |
+| **MVP-10** ✅ | **Dashboards, device security & paid bookings** | Per-role **dashboards** (`GET /dashboard`, one flexible view; open / in-progress / done buckets + role-specific action items) mounted on the existing home screens · **device-bound sessions** (a JWT `deviceId` claim + `X-Device-Id`, `SP-401-DEVICE` on mismatch, fully backward compatible) · **biometric unlock** (opt-in, default off) · **OTP autofill** (built-in `TextInput` props, no native module) · **paid community-less bookings** (`ticket_payment`/`payment_receipt`/`payment_event` relaxed like `ticket`, V29). *Deferred to MVP-11: reporting/exports (CSV); a Super Admin web console; multi-tenant self-onboarding.* |
+| **MVP-11** | **Platform scale** | Reporting / exports (CSV) · multi-tenant self-onboarding · full Super Admin web console · analytics. |
 | **Continuous** | **UX & Ops** | Icon / loading / imagery polish · safe-area & responsive audit (mobile + web) · Micrometer metrics + APM · scheduled backups + S3 lifecycle. |

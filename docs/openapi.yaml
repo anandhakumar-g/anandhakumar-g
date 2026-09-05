@@ -2,7 +2,7 @@ openapi: 3.0.1
 info:
   title: Single Point API
   description: Multi-tenant gated-community ticket management platform.
-  version: MVP-9
+  version: MVP-10
 servers:
 - url: http://localhost:18080
   description: Generated server url
@@ -29,6 +29,8 @@ tags:
   description: Flats I belong to and the family members in them
 - name: Admin — Join Requests
   description: Approve or reject residents joining the community
+- name: Dashboard
+  description: "One at-a-glance summary, shaped by the caller's role"
 - name: Super Admin — Offer approval
   description: Validate every offer + assign its audience
 - name: Admin — Community settings
@@ -565,7 +567,7 @@ paths:
       tags:
       - Admin — Community settings
       summary: This community's settings
-      operationId: get_7
+      operationId: get_8
       parameters:
       - name: principal
         in: query
@@ -2556,6 +2558,12 @@ paths:
       - Auth
       summary: Verify an OTP and receive a session token
       operationId: verifyOtp
+      parameters:
+      - name: X-Device-Id
+        in: header
+        required: false
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -3612,6 +3620,25 @@ paths:
               schema:
                 type: string
                 format: binary
+  /api/v1/dashboard:
+    get:
+      tags:
+      - Dashboard
+      summary: Tickets by status + the action items that need this caller
+      operationId: get_7
+      parameters:
+      - name: principal
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/DashboardView'
   /api/v1/categories:
     get:
       tags:
@@ -3826,13 +3853,15 @@ components:
           format: uuid
         name:
           type: string
+        deviceId:
+          type: string
         superAdmin:
           type: boolean
         provider:
           type: boolean
-        admin:
-          type: boolean
         resident:
+          type: boolean
+        admin:
           type: boolean
     ChargeRequest:
       required:
@@ -5606,6 +5635,63 @@ components:
           type: integer
           format: int64
         used:
+          type: integer
+          format: int64
+    DashboardView:
+      type: object
+      properties:
+        role:
+          type: string
+        ticketsByStatus:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        pendingApprovalCount:
+          type: integer
+          format: int64
+        resolvedAwaitingCloseCount:
+          type: integer
+          format: int64
+        pendingPaymentCount:
+          type: integer
+          format: int64
+        activeOffersCount:
+          type: integer
+          format: int64
+        awaitingAcceptCount:
+          type: integer
+          format: int64
+        ratingAvg:
+          type: number
+        ratingCount:
+          type: integer
+          format: int32
+        unassignedCount:
+          type: integer
+          format: int64
+        slaBreachedCount:
+          type: integer
+          format: int64
+        pendingJoinRequestsCount:
+          type: integer
+          format: int64
+        totalOpenTickets:
+          type: integer
+          format: int64
+        totalTickets:
+          type: integer
+          format: int64
+        communityLessOpenTickets:
+          type: integer
+          format: int64
+        providersPendingVerificationCount:
+          type: integer
+          format: int64
+        offersPendingApprovalCount:
+          type: integer
+          format: int64
+        communityCount:
           type: integer
           format: int64
     MemberView:
