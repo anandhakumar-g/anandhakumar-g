@@ -34,4 +34,7 @@ public interface OfferRepository extends JpaRepository<Offer, UUID> {
 
     /** MVP-10 (A): Super Admin dashboard — offers awaiting approval. */
     long countByStatus(Offer.Status status);
+
+    /** MVP-12 (A): CSV export — every offer, oldest-first. */
+    List<Offer> findAllByOrderByCreatedAtAsc();
 }

@@ -15,6 +15,9 @@ public interface TicketPaymentRepository extends JpaRepository<TicketPayment, UU
 
     Optional<TicketPayment> findByGatewayRef(String gatewayRef);
 
+    /** MVP-12 (A): CSV export — a community's payments, oldest-first. */
+    List<TicketPayment> findByTenantIdOrderByCreatedAtAsc(UUID tenantId);
+
     /**
      * MVP-7: service charges on tickets a user raised in a community whose status is not in
      * {@code settledStatuses} — the "pending bills" gate for admin-initiated removal.

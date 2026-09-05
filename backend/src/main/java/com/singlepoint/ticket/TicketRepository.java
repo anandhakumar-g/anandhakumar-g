@@ -80,4 +80,10 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
     long countByTenantIdIsNullAndStatusNot(TicketStatus status);
 
     long countByStatusNot(TicketStatus status);
+
+    // ---- MVP-12 (A): CSV export sources (unbounded, oldest-first) ----------
+
+    List<Ticket> findByTenantIdOrderByCreatedAtAsc(UUID tenantId);
+
+    List<Ticket> findAllByOrderByCreatedAtAsc();
 }
