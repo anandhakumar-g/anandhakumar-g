@@ -52,7 +52,7 @@ public class AdminCommunitySettingsController {
     public ResponseEntity<TenantDtos.TenantSettingsView> update(@AuthenticationPrincipal AppPrincipal principal,
             @Valid @RequestBody TenantDtos.CommunitySettingsRequest body) {
         Tenant t = tenantService.update(tenant(principal), null, null, null, null, null, null, null, null,
-                body.reopenWindowHours(), body.requireAllocationApproval(), null, body.directServiceEnabled(), null);
+                body.reopenWindowHours(), body.requireAllocationApproval(), null, body.directServiceEnabled(), null, null);
         return ResponseEntity.ok(TenantDtos.TenantSettingsView.from(t));
     }
 }

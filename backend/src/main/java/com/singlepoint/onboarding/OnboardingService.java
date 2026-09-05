@@ -41,10 +41,12 @@ public class OnboardingService {
     private final LocationService locationService;
     private final TenantScopedExecutor tenantScoped;
     private final DomainEventPublisher events;
+    private final com.singlepoint.observability.AppMetrics metrics;
 
     public OnboardingService(TenantService tenantService, TenantRepository tenants, AppUserRepository users,
                              AdminTenantRepository adminTenants, LocationService locationService,
-                             TenantScopedExecutor tenantScoped, DomainEventPublisher events) {
+                             TenantScopedExecutor tenantScoped, DomainEventPublisher events,
+                             com.singlepoint.observability.AppMetrics metrics) {
         this.tenantService = tenantService;
         this.tenants = tenants;
         this.users = users;
@@ -52,6 +54,7 @@ public class OnboardingService {
         this.locationService = locationService;
         this.tenantScoped = tenantScoped;
         this.events = events;
+        this.metrics = metrics;
     }
 
     @Transactional
@@ -112,6 +115,7 @@ public class OnboardingService {
                     "Your community is live", "\"" + t.getName() + "\" is approved — you're now its admin.",
                     Map.of("tenantId", tenantId.toString()));
         }
+        metrics.communitySelfOnboarded();
         return t;
     }
 

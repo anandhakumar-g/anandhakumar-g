@@ -78,7 +78,7 @@ public class TenantService {
     public Tenant update(UUID id, String name, String city, String locality, String address, String pincode,
                          String logoUrl, String defaultTheme, String brandPrimaryColor,
                          Integer reopenWindowHours, Boolean requireAllocationApproval, String categoryAdmin,
-                         Boolean directServiceEnabled, Boolean providerOnboardingAllowed) {
+                         Boolean directServiceEnabled, Boolean providerOnboardingAllowed, String status) {
         Tenant t = require(id);
         if (name != null) t.setName(name);
         if (city != null) t.setCity(city);
@@ -93,6 +93,7 @@ public class TenantService {
         if (categoryAdmin != null) t.setCategoryAdmin(parseCategoryAdmin(categoryAdmin));
         if (directServiceEnabled != null) t.setDirectServiceEnabled(directServiceEnabled);
         if (providerOnboardingAllowed != null) t.setProviderOnboardingAllowed(providerOnboardingAllowed);
+        if (status != null) t.setStatus(parseStatus(status));
         return repository.save(t);
     }
 
@@ -103,5 +104,24 @@ public class TenantService {
             throw new AppException(ErrorCode.VALIDATION_FAILED,
                     "categoryAdmin must be SUPER_ADMIN or COMMUNITY");
         }
+    }
+
+    /**
+     * Console lifecycle transitions only — ACTIVE / SUSPENDED / ARCHIVED. {@code PENDING_REVIEW}
+     * is reachable solely through the self-onboarding approve/reject flow, never a direct update.
+     */
+    private static TenantStatus parseStatus(String raw) {
+        TenantStatus s;
+        try {
+            s = TenantStatus.valueOf(raw.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new AppException(ErrorCode.VALIDATION_FAILED,
+                    "status must be ACTIVE, SUSPENDED or ARCHIVED");
+        }
+        if (s == TenantStatus.PENDING_REVIEW) {
+            throw new AppException(ErrorCode.VALIDATION_FAILED,
+                    "status PENDING_REVIEW is set only by the onboarding flow");
+        }
+        return s;
     }
 }

@@ -53,6 +53,7 @@ public class TicketService {
     private final StorageService storageService;
     private final com.singlepoint.entitlement.EntitlementService entitlements;
     private final com.singlepoint.user.UserTenantMembershipRepository membershipRepository;
+    private final com.singlepoint.observability.AppMetrics metrics;
 
     public TicketService(TicketRepository ticketRepository, TicketStatusHistoryRepository historyRepository,
                          TicketAttachmentRepository attachmentRepository, CategoryRepository categoryRepository,
@@ -62,7 +63,8 @@ public class TicketService {
                          TenantRepository tenantRepository, com.singlepoint.tenant.AdminDirectory adminDirectory,
                          DomainEventPublisher events, StorageService storageService,
                          com.singlepoint.entitlement.EntitlementService entitlements,
-                         com.singlepoint.user.UserTenantMembershipRepository membershipRepository) {
+                         com.singlepoint.user.UserTenantMembershipRepository membershipRepository,
+                         com.singlepoint.observability.AppMetrics metrics) {
         this.ticketRepository = ticketRepository;
         this.historyRepository = historyRepository;
         this.attachmentRepository = attachmentRepository;
@@ -78,6 +80,7 @@ public class TicketService {
         this.storageService = storageService;
         this.entitlements = entitlements;
         this.membershipRepository = membershipRepository;
+        this.metrics = metrics;
     }
 
     public static java.time.Instant monthStart() {
@@ -202,6 +205,7 @@ public class TicketService {
             notifyAdmins(t, "New ticket " + t.getReferenceCode(),
                     category.getName() + ": " + shorten(t.getDescription()));
         }
+        metrics.ticketRaised();
         return t;
     }
 

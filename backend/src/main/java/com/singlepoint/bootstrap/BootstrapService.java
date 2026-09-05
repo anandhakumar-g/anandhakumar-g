@@ -103,7 +103,7 @@ public class BootstrapService implements ApplicationRunner {
                 "5 Outer Ring Rd", "560024", null, "dark", "#1565C0", 48);
         // let the Green Meadows admin enrol verified providers in dev
         tenantService.update(green.getId(), null, null, null, null, null, null, null, null,
-                null, null, null, null, true);
+                null, null, null, null, true, null);
 
         AppUser greenAdmin = createUser(Role.ADMIN, "Green Meadows Admin", "+919000000101", green.getId());
         AppUser lakeAdmin = createUser(Role.ADMIN, "Lakeview Admin", "+919000000201", lake.getId());

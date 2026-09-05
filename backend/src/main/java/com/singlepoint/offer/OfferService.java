@@ -38,6 +38,7 @@ public class OfferService {
     private final com.singlepoint.crypto.CryptoService crypto;
     private final DomainEventPublisher events;
     private final com.singlepoint.entitlement.EntitlementService entitlements;
+    private final com.singlepoint.observability.AppMetrics metrics;
 
     public OfferService(OfferRepository offerRepository, OfferTargetRepository targetRepository,
                         OfferRedemptionRepository redemptionRepository, OfferFeedbackRepository feedbackRepository,
@@ -45,7 +46,8 @@ public class OfferService {
                         VendorCategoryRepository vendorCategoryRepository, ServiceProviderRepository providerRepository,
                         TicketRepository ticketRepository, com.singlepoint.user.AppUserRepository userRepository,
                         com.singlepoint.crypto.CryptoService crypto, DomainEventPublisher events,
-                        com.singlepoint.entitlement.EntitlementService entitlements) {
+                        com.singlepoint.entitlement.EntitlementService entitlements,
+                        com.singlepoint.observability.AppMetrics metrics) {
         this.offerRepository = offerRepository;
         this.targetRepository = targetRepository;
         this.redemptionRepository = redemptionRepository;
@@ -58,6 +60,7 @@ public class OfferService {
         this.crypto = crypto;
         this.events = events;
         this.entitlements = entitlements;
+        this.metrics = metrics;
     }
 
     public record OfferCommand(UUID vendorCategoryId, String title, String description,
@@ -245,7 +248,9 @@ public class OfferService {
         r.setCodeEntered(code);
         r.setVerifiedBy(OfferRedemption.VerifiedBy.RESIDENT);
         r.setRedeemedAt(Instant.now());
-        return redemptionRepository.save(r);
+        OfferRedemption saved = redemptionRepository.save(r);
+        metrics.offerRedeemed();
+        return saved;
     }
 
     @Transactional

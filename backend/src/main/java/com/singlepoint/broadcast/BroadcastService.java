@@ -40,13 +40,14 @@ public class BroadcastService {
     private final AppUserRepository users;
     private final TenantRepository tenants;
     private final DomainEventPublisher events;
+    private final com.singlepoint.observability.AppMetrics metrics;
 
     private final int minIntervalSeconds;
     private final int dailyCap;
 
     public BroadcastService(BroadcastRepository broadcasts, UserTenantMembershipRepository memberships,
                             AdminTenantRepository adminTenants, AppUserRepository users, TenantRepository tenants,
-                            DomainEventPublisher events,
+                            DomainEventPublisher events, com.singlepoint.observability.AppMetrics metrics,
                             @Value("${sp.broadcast.min-interval-seconds:60}") int minIntervalSeconds,
                             @Value("${sp.broadcast.daily-cap:20}") int dailyCap) {
         this.broadcasts = broadcasts;
@@ -55,6 +56,7 @@ public class BroadcastService {
         this.users = users;
         this.tenants = tenants;
         this.events = events;
+        this.metrics = metrics;
         this.minIntervalSeconds = minIntervalSeconds;
         this.dailyCap = dailyCap;
     }
@@ -81,6 +83,7 @@ public class BroadcastService {
 
         events.publishBroadcast(b.getId(), b.getTenantId(), recipients, title, body,
                 Map.of("scope", scope.name(), "broadcastId", b.getId().toString()));
+        metrics.broadcastSent();
         return b;
     }
 
