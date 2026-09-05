@@ -16,7 +16,8 @@ import java.util.UUID;
 @Setter
 public class PaymentEvent extends CreatedOnlyEntity {
 
-    @Column(name = "tenant_id", nullable = false)
+    /** MVP-10 (C): null for a community-less direct booking's event. */
+    @Column(name = "tenant_id")
     private UUID tenantId;
 
     @Column(name = "ticket_payment_id", nullable = false)

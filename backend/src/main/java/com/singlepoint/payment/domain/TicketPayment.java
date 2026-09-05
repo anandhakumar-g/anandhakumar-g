@@ -29,7 +29,8 @@ public class TicketPayment extends BaseEntity {
         public boolean isSettled() { return isPaid() || this == WAIVED; }
     }
 
-    @Column(name = "tenant_id", nullable = false)
+    /** MVP-10 (C): null for a community-less direct booking's charge. */
+    @Column(name = "tenant_id")
     private UUID tenantId;
 
     @Column(name = "ticket_id", nullable = false)

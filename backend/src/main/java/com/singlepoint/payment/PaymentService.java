@@ -279,9 +279,20 @@ public class PaymentService {
 
     private Ticket requireTicket(AppPrincipal actor, UUID ticketId) {
         UUID tenantId = actor.getTenantId();
-        if (tenantId == null) throw new AppException(ErrorCode.FORBIDDEN, "No active community");
-        return ticketRepository.findByIdAndTenantId(ticketId, tenantId)
-                .orElseThrow(() -> AppException.notFound("Ticket"));
+        if (tenantId != null) {
+            Ticket t = ticketRepository.findByIdAndTenantId(ticketId, tenantId).orElse(null);
+            if (t != null) return t;
+        }
+        // MVP-10 (C): a community-less direct booking has no tenant to scope by (and a
+        // PROVIDER's own principal.tenantId is never null, so the branch above never covers
+        // it) — reachable only by its raiser or its assigned provider; RLS still isolates the
+        // read. Mirrors TicketService.loadForActor's null-tenant path.
+        Ticket t = ticketRepository.findById(ticketId).orElseThrow(() -> AppException.notFound("Ticket"));
+        if (t.getTenantId() != null
+                || (!t.getRaisedByUserId().equals(actor.getUserId()) && !isAssignedProvider(actor, t))) {
+            throw AppException.notFound("Ticket");
+        }
+        return t;
     }
 
     private java.util.Optional<TicketPayment> activePaymentFor(UUID ticketId) {
