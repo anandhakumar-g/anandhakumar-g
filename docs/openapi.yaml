@@ -2,13 +2,15 @@ openapi: 3.0.1
 info:
   title: Single Point API
   description: Multi-tenant gated-community ticket management platform.
-  version: MVP-10
+  version: MVP-11
 servers:
 - url: http://localhost:18080
   description: Generated server url
 security:
 - bearerAuth: []
 tags:
+- name: Super Admin — Analytics
+  description: Platform metrics over time + now totals
 - name: Me
   description: "Signed-in user profile, theme, memberships, devices"
 - name: Super Admin — Announcements
@@ -51,6 +53,8 @@ tags:
   description: Broadcast to every active resident of the acting community
 - name: Provider — Profile
   description: Provider self-service (name/phone stay admin-only)
+- name: Super Admin — Community requests
+  description: Review self-onboarded communities
 - name: Tickets
   description: "Raise, triage, resolve — role-aware"
 - name: Admin — Providers
@@ -73,6 +77,8 @@ tags:
   description: Joining a community
 - name: Categories
   description: Ticket + vendor category lists
+- name: Community onboarding
+  description: Request a new community and check its review status
 - name: Super Admin — Providers
   description: "Global provider onboarding, verification and tier"
 paths:
@@ -1942,6 +1948,51 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/InvoiceView'
+  /api/v1/superadmin/community-requests/{tenantId}/reject:
+    post:
+      tags:
+      - Super Admin — Community requests
+      summary: "Reject — tenant is archived, the requester is notified with the reason"
+      operationId: reject_2
+      parameters:
+      - name: tenantId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/MyCommunityRequestView'
+  /api/v1/superadmin/community-requests/{tenantId}/approve:
+    post:
+      tags:
+      - Super Admin — Community requests
+      summary: "Approve — tenant goes ACTIVE, the requester becomes its admin"
+      operationId: approve_1
+      parameters:
+      - name: tenantId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/MyCommunityRequestView'
   /api/v1/superadmin/broadcasts:
     get:
       tags:
@@ -2073,6 +2124,30 @@ paths:
       responses:
         "200":
           description: OK
+  /api/v1/onboarding/community:
+    post:
+      tags:
+      - Community onboarding
+      summary: Submit a community for Super Admin review
+      operationId: submit
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                principal:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/CreateCommunityRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/MyCommunityRequestView'
   /api/v1/offers:
     get:
       tags:
@@ -2121,7 +2196,7 @@ paths:
       tags:
       - Offers
       summary: Submit an offer for Super Admin approval
-      operationId: submit
+      operationId: submit_1
       parameters:
       - name: id
         in: path
@@ -2881,7 +2956,7 @@ paths:
     post:
       tags:
       - Admin — Join Requests
-      operationId: reject_2
+      operationId: reject_3
       parameters:
       - name: membershipId
         in: path
@@ -2901,7 +2976,7 @@ paths:
     post:
       tags:
       - Admin — Join Requests
-      operationId: approve_1
+      operationId: approve_2
       parameters:
       - name: membershipId
         in: path
@@ -3351,6 +3426,40 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/InvoiceView'
+  /api/v1/superadmin/community-requests:
+    get:
+      tags:
+      - Super Admin — Community requests
+      summary: "The review queue (default: PENDING_REVIEW)"
+      operationId: queue
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          default: PENDING_REVIEW
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 30
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PageResponseCommunityRequestView'
   /api/v1/superadmin/audit-logs:
     get:
       tags:
@@ -3433,6 +3542,34 @@ paths:
                 type: array
                 items:
                   type: string
+  /api/v1/superadmin/analytics:
+    get:
+      tags:
+      - Super Admin — Analytics
+      summary: "Time-bucketed series (tickets, offers, users, revenue) + platform\
+        \ totals"
+      operationId: platform
+      parameters:
+      - name: bucket
+        in: query
+        required: false
+        schema:
+          type: string
+          default: WEEK
+      - name: points
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 12
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/AnalyticsView'
   /api/v1/providers:
     get:
       tags:
@@ -3582,6 +3719,25 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/MyFlat'
+  /api/v1/me/community-request:
+    get:
+      tags:
+      - Community onboarding
+      summary: My latest community request and its status (null if none)
+      operationId: mine_1
+      parameters:
+      - name: principal
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/MyCommunityRequestView'
   /api/v1/me/billing:
     get:
       tags:
@@ -3855,13 +4011,13 @@ components:
           type: string
         deviceId:
           type: string
-        superAdmin:
+        admin:
           type: boolean
         provider:
           type: boolean
         resident:
           type: boolean
-        admin:
+        superAdmin:
           type: boolean
     ChargeRequest:
       required:
@@ -4959,6 +5115,19 @@ components:
         createdAt:
           type: string
           format: date-time
+    MyCommunityRequestView:
+      type: object
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          type: string
+        at:
+          type: string
+          format: date-time
     SendRequest:
       required:
       - body
@@ -5007,6 +5176,31 @@ components:
         at:
           type: string
           format: date-time
+    CreateCommunityRequest:
+      required:
+      - name
+      type: object
+      properties:
+        name:
+          maxLength: 160
+          minLength: 0
+          type: string
+        city:
+          maxLength: 120
+          minLength: 0
+          type: string
+        locality:
+          maxLength: 160
+          minLength: 0
+          type: string
+        address:
+          maxLength: 400
+          minLength: 0
+          type: string
+        pincode:
+          maxLength: 12
+          minLength: 0
+          type: string
     SubmitRequest:
       required:
       - target
@@ -5403,6 +5597,49 @@ components:
           type: string
         active:
           type: boolean
+    CommunityRequestView:
+      type: object
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        city:
+          type: string
+        locality:
+          type: string
+        status:
+          type: string
+        requestedAt:
+          type: string
+          format: date-time
+        requestedByUserId:
+          type: string
+          format: uuid
+        requestedByName:
+          type: string
+        requestedByPhoneMasked:
+          type: string
+    PageResponseCommunityRequestView:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommunityRequestView'
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
     PageResponseBroadcastView:
       type: object
       properties:
@@ -5486,6 +5723,57 @@ components:
         totalPages:
           type: integer
           format: int32
+    AnalyticsView:
+      type: object
+      properties:
+        bucket:
+          type: string
+        series:
+          type: array
+          items:
+            $ref: '#/components/schemas/Point'
+        totals:
+          $ref: '#/components/schemas/Totals'
+    Point:
+      type: object
+      properties:
+        periodStart:
+          type: string
+          format: date-time
+        ticketsCreated:
+          type: integer
+          format: int64
+        ticketsResolved:
+          type: integer
+          format: int64
+        offersRedeemed:
+          type: integer
+          format: int64
+        newUsers:
+          type: integer
+          format: int64
+        revenue:
+          type: number
+    Totals:
+      type: object
+      properties:
+        communities:
+          type: integer
+          format: int64
+        activeCommunities:
+          type: integer
+          format: int64
+        residents:
+          type: integer
+          format: int64
+        providers:
+          type: integer
+          format: int64
+        openTickets:
+          type: integer
+          format: int64
+        mrr:
+          type: number
     PublicProviderView:
       type: object
       properties:

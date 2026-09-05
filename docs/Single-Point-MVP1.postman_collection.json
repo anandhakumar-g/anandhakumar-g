@@ -3995,6 +3995,165 @@
      }
     }
    ]
+  },
+  {
+   "name": "16 · Self-onboarding & analytics (MVP-11)",
+   "item": [
+    {
+     "name": "Onboarding · resident submits a community",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "url": "{{baseUrl}}/onboarding/community",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"name\": \"Palm Grove Residency\",\n  \"city\": \"Bengaluru\",\n  \"locality\": \"Whitefield\"\n}"
+      },
+      "description": "Creates a PENDING_REVIEW tenant (invisible to residents / tenantHealth). 409 if the caller already has one pending or already manages a community."
+     }
+    },
+    {
+     "name": "Onboarding · my request + status",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "url": "{{baseUrl}}/me/community-request",
+      "description": "The caller's latest request, or null."
+     }
+    },
+    {
+     "name": "Onboarding · Super Admin review queue",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/community-requests?status=PENDING_REVIEW",
+      "description": "Requester hydrated + phone masked."
+     }
+    },
+    {
+     "name": "Onboarding · approve",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/community-requests/{{tenantId}}/approve",
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      },
+      "description": "Tenant -> ACTIVE, the requester becomes ADMIN (+ admin_tenant link, a \"Main\" location), COMMUNITY_APPROVED notification. They pick up the ADMIN role on their next /auth/refresh."
+     }
+    },
+    {
+     "name": "Onboarding · reject",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/community-requests/{{tenantId}}/reject",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"reason\": \"duplicate of an existing community\"\n}"
+      },
+      "description": "Tenant -> ARCHIVED, requester stays RESIDENT, notified with the reason."
+     }
+    },
+    {
+     "name": "Analytics · weekly series + totals",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/analytics?bucket=WEEK&points=12",
+      "description": "12 weekly points {ticketsCreated, ticketsResolved, offersRedeemed, newUsers, revenue} + now-totals {communities, activeCommunities, residents, providers, openTickets, mrr}. SUPER_ADMIN only."
+     }
+    },
+    {
+     "name": "Analytics · monthly",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/analytics?bucket=MONTH&points=6"
+     }
+    },
+    {
+     "name": "Analytics · unknown bucket -> 400",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{superToken}}"
+       }
+      ],
+      "url": "{{baseUrl}}/superadmin/analytics?bucket=DAILY"
+     }
+    }
+   ]
   }
  ]
 }

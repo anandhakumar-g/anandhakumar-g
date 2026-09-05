@@ -13,7 +13,9 @@ tenant-less booking, `USER_LIST`/`TENANT_LIST` offer targeting, redemption-cap h
 offer feedback) · MVP-9 Audit visibility & broadcasts (Super-Admin audit-log view; admin /
 Super-Admin announcements over the outbox) · MVP-10 Dashboards, device security & paid
 bookings (per-role `GET /dashboard`, device-bound sessions + biometric unlock + OTP
-autofill, paid community-less bookings). See `roadmap.md` and `decisions.md`.
+autofill, paid community-less bookings) · MVP-11 Platform scale (community self-onboarding
+with a Super-Admin review queue, `GET /superadmin/analytics`, a standalone Super Admin web
+console in `admin-web/`). See `roadmap.md` and `decisions.md`.
 
 ---
 
@@ -55,7 +57,7 @@ autofill, paid community-less bookings). See `roadmap.md` and `decisions.md`.
 
 | # | Responsibility | State | MVP |
 |---|---|---|---|
-| S1 | Add a **community by location**; **one community may span multiple places**, each labelled | ✅ (MVP-7) — `V23` `location` child table + `flat.location_id`; `AdminLocationController` | — |
+| S1 | Add a **community by location**; **one community may span multiple places**, each labelled | ✅ (MVP-7) — `V23` `location` child table + `flat.location_id`; `AdminLocationController`. ✅ (MVP-11) — communities can now also **self-onboard**: `POST /onboarding/community` → a `PENDING_REVIEW` tenant a Super Admin approves (`/superadmin/community-requests/{id}/approve`), promoting the requester to its ADMIN. ADR-038 | — |
 | S2 | Add an **admin** for a community | ✅ `createAdmin` | — |
 | S3 | **If a community has no admin, the Super Admin performs the admin activity** and tags users | ✅ (MVP-7) — `POST /me/active-community` for SUPER_ADMIN mints a tenant-scoped token; `POST /me/stop-acting` returns to platform scope | — |
 | S4 | **Validate & onboard service providers** after document verification; manage provider maintenance | ✅ (MVP-7, see P1) | — |
@@ -68,7 +70,7 @@ autofill, paid community-less bookings). See `roadmap.md` and `decisions.md`.
 | # | Concern | State | Track |
 |---|---|---|---|
 | X1 | **Audit log of all onboarding** | ✅ (MVP-9) — `AuditAspect` capture (since MVP-1) + `@AuditRead` (MVP-5) + the Super-Admin **audit view**: `GET /superadmin/audit-logs[/actions]` with filters + a mobile viewer. ADR-036 | — |
-| X2 | **Dashboards** for every role — info / action items, completed, in-progress | ✅ (MVP-10) — `GET /api/v1/dashboard`, one flexible view shaped by the caller's role, mounted on each existing home screen. `tenantHealth` (Super Admin) untouched, still used for the per-community list. ADR-037 | — |
+| X2 | **Dashboards** for every role — info / action items, completed, in-progress | ✅ (MVP-10) — `GET /api/v1/dashboard`, one flexible view shaped by the caller's role, mounted on each existing home screen. ✅ (MVP-11) — **platform analytics**: `GET /superadmin/analytics` time-bucketed series + totals, surfaced richly in the new Super Admin console and as a compact tile in the Expo `(super)` home. ADR-037, ADR-038 | — |
 | X3 | **Archival & backup** configuration | ❌ ops — scheduled `pg_dump` + S3 lifecycle rules; documented, not app code | ops |
 | X4 | **Performance monitoring** | ◐ Actuator `/health` + an access-log filter with timings; add Micrometer metrics + an APM hook | ops |
 | X5 | **Look & feel** — fancy icons, loading states, images, contextual notifications | ◐ custom fonts (MVP-2), base component kit; needs a dedicated polish pass | continuous UX track |
@@ -112,5 +114,6 @@ autofill, paid community-less bookings). See `roadmap.md` and `decisions.md`.
 | **MVP-8** ✅ | **Community-less users & offers depth** | Individual user with **no community** — onboarding ends `READY` with no tenant + tenant-less service requests (nullable `ticket.tenant_id` + `app.current_user_id` GUC + null-tenant RLS branch) + direct booking of any verified provider · **offer targeting** to a set of communities (`TENANT_LIST`) or named individuals by phone (`USER_LIST`) · offer **global count cap** ("top 100") hardened with a pessimistic redeem lock + `redemptionsRemaining` · **feedback on an offer** (`offer_feedback`, encrypted comment, `ratingAvg`/`ratingCount`). *Deferred to MVP-9: biometric login / device binding / OTP auto-read; broadcast notifications; paid community-less bookings.* |
 | **MVP-9** ✅ | **Audit visibility & broadcasts** | **Super-Admin audit-log view** (`GET /superadmin/audit-logs[/actions]`, filterable + paged, over the rows `AuditAspect` already writes; `V27` read indexes) · **broadcast announcements** (`com.singlepoint.broadcast`: admin → acting community's residents, Super Admin → `ALL_ADMINS` / `ALL_USERS` / a `COMMUNITY`; one `broadcast` row + one outbox row fanned out; `kind:"broadcast"` + `notification_preference.broadcast_enabled` opt-out; 60s + 20/day rate guard; `V28`). *Deferred to MVP-10: per-role dashboards; biometric / device-binding / OTP auto-read; reporting / exports; paid community-less bookings.* |
 | **MVP-10** ✅ | **Dashboards, device security & paid bookings** | Per-role **dashboards** (`GET /dashboard`, one flexible view; open / in-progress / done buckets + role-specific action items) mounted on the existing home screens · **device-bound sessions** (a JWT `deviceId` claim + `X-Device-Id`, `SP-401-DEVICE` on mismatch, fully backward compatible) · **biometric unlock** (opt-in, default off) · **OTP autofill** (built-in `TextInput` props, no native module) · **paid community-less bookings** (`ticket_payment`/`payment_receipt`/`payment_event` relaxed like `ticket`, V29). *Deferred to MVP-11: reporting/exports (CSV); a Super Admin web console; multi-tenant self-onboarding.* |
-| **MVP-11** | **Platform scale** | Reporting / exports (CSV) · multi-tenant self-onboarding · full Super Admin web console · analytics. |
+| **MVP-11** ✅ | **Platform scale** | **Community self-onboarding** (`POST /onboarding/community` → `PENDING_REVIEW` tenant, `V30`; Super-Admin approve/reject queue; approve promotes the requester to ADMIN) · **platform analytics** (`GET /superadmin/analytics`, week/month time-bucketed series + now-totals, Java bucketing) · a **standalone Super Admin web console** in `admin-web/` (Vite + React; login, dashboard, communities, onboarding queue, providers + KYC, offers, billing; the Expo `(super)` group untouched). *Deferred to MVP-12: reporting / CSV exports; console parity for taxonomy CRUD / audit viewer / broadcasts / plan CRUD.* |
+| **MVP-12** | **Reporting & polish** | Reporting / exports (CSV) · console parity for the remaining Expo `(super)` surfaces · the continuous UX & Ops track. |
 | **Continuous** | **UX & Ops** | Icon / loading / imagery polish · safe-area & responsive audit (mobile + web) · Micrometer metrics + APM · scheduled backups + S3 lifecycle. |

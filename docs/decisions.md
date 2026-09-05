@@ -4,6 +4,46 @@ Short ADRs. Newest first.
 
 ---
 
+## ADR-038 — Community self-onboarding, platform analytics, a Super Admin console
+**Decision (MVP-11):**
+
+- **Community self-onboarding.** `POST /api/v1/onboarding/community` (any authenticated
+  user) creates a `tenant` in a new `PENDING_REVIEW` status (`V30` widens the `tenant.status`
+  CHECK, adds `tenant.requested_by_user_id`). `tenant` is the root table — never RLS'd — so a
+  pending row is automatically excluded by every ACTIVE-only query (`TenantRepository.search`,
+  `tenantHealth`) with no extra code. `GET /api/v1/superadmin/community-requests` is the
+  review queue; `POST /.../{tenantId}/approve` flips the tenant to `ACTIVE`, promotes the
+  requester **RESIDENT → ADMIN** (`app_user.role` + an `admin_tenant` link +
+  `current_tenant_id`), seeds a "Main" `location` (same call BootstrapService makes), and
+  notifies them; `POST /.../{tenantId}/reject {reason}` archives it and notifies. The
+  requester picks up the new role on their next `/auth/refresh`. Reject reuses
+  `TenantStatus.ARCHIVED` (no new `REJECTED` value); the reason lives only in the
+  notification. 409 if the caller already has a pending request or already manages a
+  community.
+
+- **Platform analytics.** `GET /api/v1/superadmin/analytics?bucket=WEEK|MONTH&points=12`
+  (SUPER_ADMIN) → a fixed-length series `{periodStart, ticketsCreated, ticketsResolved,
+  offersRedeemed, newUsers, revenue}` + "now" totals `{communities, activeCommunities,
+  residents, providers, openTickets, mrr}`. `AnalyticsRepository` runs windowed **native
+  projections** (`select created_at ... where created_at >= :since`) and `AnalyticsService`
+  buckets them in Java (week = Monday, month = 1st, UTC) — deliberately **no `date_trunc`**,
+  so timezone semantics can't drift between the DB and the zip. `bucket` is validated to
+  `WEEK`/`MONTH` and `points` clamped `1..52` before any query. Revenue = `SUM(amount)` over
+  `subscription_invoice` rows with `status = 'PAID'`. No migration.
+
+- **Super Admin web console** (`admin-web/`). The long-deferred "dedicated React admin
+  console" is finally started — a **standalone Vite + React + TypeScript app**, not folded
+  into Expo-web, consuming the same `/api/v1/superadmin/*` surface. It is **Super-Admin-only
+  and deliberately scoped** to the platform review surfaces: login, a dashboard (the
+  analytics above + totals + inline-SVG charts), communities (read-only list + health), the
+  self-onboarding approval queue, providers (verify / KYC review / tier), the offer approval
+  queue, and billing (subscriptions comp/cancel, invoices mark-paid). **Community-admin work,
+  taxonomy/category CRUD, the audit-log viewer, broadcasts, plan CRUD, per-ticket drill-down,
+  and offer audience overrides all stay in the Expo `(super)` group** — the Expo app is left
+  entirely intact (only a small "Platform trends" tile added). Gate is `npm run build`
+  (`tsc --noEmit` + `vite build`); no unit tests, matching the Expo side's `tsc`-only
+  discipline.
+
 ## ADR-037 — Dashboards, device-bound sessions, paid community-less bookings
 **Decision (MVP-10):**
 
