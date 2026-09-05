@@ -24,7 +24,7 @@ export function SettingsScreen({
 }) {
   const { theme, themeName, isExplicit, setTheme } = useTheme();
   const router = useRouter();
-  const { me, user, signIn, signOut, refreshMe } = useSession();
+  const { me, user, signIn, signOut, refreshMe, biometricAvailable, biometricEnabled, setBiometricEnabled } = useSession();
   const [pushMsg, setPushMsg] = useState<string | null>(null);
 
   async function backToPlatform() {
@@ -134,6 +134,27 @@ export function SettingsScreen({
           </AppText>
         ) : null}
       </Card>
+
+      {biometricAvailable ? (
+        <Card style={{ gap: theme.space(2) }}>
+          <AppText size="sm" weight="700" tone="muted">
+            Security
+          </AppText>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            <View style={{ flex: 1, paddingRight: theme.space(2) }}>
+              <AppText>Face ID / fingerprint unlock</AppText>
+              <AppText size="xs" tone="faint">
+                Require it to open the app
+              </AppText>
+            </View>
+            <Switch
+              value={biometricEnabled}
+              onValueChange={setBiometricEnabled}
+              trackColor={{ true: theme.color.primary }}
+            />
+          </View>
+        </Card>
+      ) : null}
 
       <Divider />
       {user?.role === "SUPER_ADMIN" ? (

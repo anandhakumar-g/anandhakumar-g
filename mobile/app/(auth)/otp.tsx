@@ -57,6 +57,8 @@ export default function Otp() {
           error={error}
           onSubmitEditing={verify}
           returnKeyType="go"
+          textContentType="oneTimeCode"
+          autoComplete="sms-otp"
           style={{ fontSize: theme.font.xl, letterSpacing: 8, textAlign: "center" }}
         />
 

@@ -1,11 +1,14 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as LocalAuthentication from "expo-local-authentication";
+import * as SecureStore from "expo-secure-store";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, configureClient } from "@/api/client";
 import { me as meApi } from "@/api/endpoints";
 import { MeResponse, OnboardingState, SessionResponse, UserSummary } from "@/api/types";
+import { ensureDeviceId, getCachedDeviceId } from "@/lib/deviceId";
 import { useTheme } from "@/theme/ThemeProvider";
 
 const TOKEN_KEY = "sp.token";
+const BIOMETRIC_KEY = "sp.biometric.enabled";
 
 interface SessionValue {
   ready: boolean;
@@ -18,6 +21,12 @@ interface SessionValue {
   refreshMe: () => Promise<void>;
   switchCommunity: (tenantId: string) => Promise<void>;
   leaveCommunity: (tenantId: string) => Promise<void>;
+  // MVP-10 (B): biometric unlock (opt-in, default off).
+  locked: boolean;
+  unlock: () => Promise<boolean>;
+  biometricAvailable: boolean;
+  biometricEnabled: boolean;
+  setBiometricEnabled: (v: boolean) => Promise<void>;
 }
 
 const SessionContext = createContext<SessionValue | undefined>(undefined);
@@ -29,6 +38,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserSummary | null>(null);
   const [meData, setMeData] = useState<MeResponse | null>(null);
   const [onboardingState, setOnboardingState] = useState<OnboardingState | null>(null);
+  const [locked, setLocked] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabledState] = useState(false);
   const tokenRef = useRef<string | null>(null);
 
   const applyToken = useCallback((t: string | null) => {
@@ -42,14 +54,34 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setMeData(null);
     setOnboardingState(null);
+    setLocked(false);
     setBrand({ defaultTheme: null, brandPrimaryColor: null });
-    AsyncStorage.removeItem(TOKEN_KEY);
+    SecureStore.deleteItemAsync(TOKEN_KEY);
   }, [setBrand]);
 
   configureClient({
     getToken: () => tokenRef.current,
     onUnauthorized: clearSession,
+    getDeviceId: getCachedDeviceId,
   });
+
+  const unlock = useCallback(async () => {
+    try {
+      const result = await LocalAuthentication.authenticateAsync({ promptMessage: "Unlock Single Point" });
+      if (result.success) {
+        setLocked(false);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const setBiometricEnabled = useCallback(async (v: boolean) => {
+    setBiometricEnabledState(v);
+    await SecureStore.setItemAsync(BIOMETRIC_KEY, v ? "1" : "0");
+  }, []);
 
   const refreshMe = useCallback(
     async (opts?: { dropStaleToken?: boolean }) => {
@@ -86,7 +118,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       applyToken(s.token);
       setUser(s.user);
       setOnboardingState(s.onboardingState);
-      await AsyncStorage.setItem(TOKEN_KEY, s.token);
+      await SecureStore.setItemAsync(TOKEN_KEY, s.token);
       await refreshMe();
     },
     [applyToken, refreshMe]
@@ -106,10 +138,21 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      const t = await AsyncStorage.getItem(TOKEN_KEY);
+      await ensureDeviceId();
+      const [t, bioFlag, hasHardware, isEnrolled] = await Promise.all([
+        SecureStore.getItemAsync(TOKEN_KEY),
+        SecureStore.getItemAsync(BIOMETRIC_KEY),
+        LocalAuthentication.hasHardwareAsync(),
+        LocalAuthentication.isEnrolledAsync(),
+      ]);
+      const available = hasHardware && isEnrolled;
+      const enabled = bioFlag === "1";
+      setBiometricAvailable(available);
+      setBiometricEnabledState(enabled);
       if (t) {
         applyToken(t);
         await refreshMe({ dropStaleToken: true });
+        if (available && enabled) setLocked(true);
       }
       setReady(true);
     })();
@@ -134,8 +177,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<SessionValue>(
     () => ({ ready, token, user, me: meData, onboardingState, signIn, signOut, refreshMe,
-             switchCommunity, leaveCommunity }),
-    [ready, token, user, meData, onboardingState, signIn, signOut, refreshMe, switchCommunity, leaveCommunity]
+             switchCommunity, leaveCommunity,
+             locked, unlock, biometricAvailable, biometricEnabled, setBiometricEnabled }),
+    [ready, token, user, meData, onboardingState, signIn, signOut, refreshMe, switchCommunity, leaveCommunity,
+     locked, unlock, biometricAvailable, biometricEnabled, setBiometricEnabled]
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

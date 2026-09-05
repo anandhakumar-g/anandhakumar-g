@@ -14,10 +14,16 @@ export class ApiError extends Error {
 
 let tokenGetter: () => string | null = () => null;
 let onUnauthorized: () => void = () => {};
+let deviceIdGetter: () => string | null = () => null;
 
-export function configureClient(opts: { getToken: () => string | null; onUnauthorized: () => void }) {
+export function configureClient(opts: {
+  getToken: () => string | null;
+  onUnauthorized: () => void;
+  getDeviceId?: () => string | null;
+}) {
   tokenGetter = opts.getToken;
   onUnauthorized = opts.onUnauthorized;
+  if (opts.getDeviceId) deviceIdGetter = opts.getDeviceId;
 }
 
 interface RequestOpts {
@@ -41,6 +47,10 @@ async function request<T>(method: string, path: string, body?: any, opts: Reques
     const t = tokenGetter();
     if (t) headers.Authorization = `Bearer ${t}`;
   }
+  // MVP-10 (B): sent whenever a device id exists — including on /auth/otp/verify (unauthenticated),
+  // which is where the id gets bound into a fresh token.
+  const deviceId = deviceIdGetter();
+  if (deviceId) headers["X-Device-Id"] = deviceId;
 
   let res: Response;
   try {
@@ -74,6 +84,8 @@ export async function uploadFile<T>(
   const headers: Record<string, string> = {};
   const t = tokenGetter();
   if (t) headers.Authorization = `Bearer ${t}`;
+  const deviceId = deviceIdGetter();
+  if (deviceId) headers["X-Device-Id"] = deviceId;
   const res = await fetch(`${API_BASE}${path}`, { method: "POST", headers, body: form as any });
   const text = await res.text();
   const data = text ? JSON.parse(text) : undefined;

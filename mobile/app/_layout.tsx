@@ -5,6 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { BiometricLockScreen } from "@/components/BiometricLockScreen";
 import { Loading } from "@/components/Themed";
 import { SessionProvider, useSession } from "@/store/SessionProvider";
 import { FONT_ASSETS } from "@/theme/fonts";
@@ -27,7 +28,7 @@ function homeFor(role?: string | null, actingTenantId?: string | null): string {
 }
 
 function Gate() {
-  const { ready, token, user, onboardingState } = useSession();
+  const { ready, token, user, onboardingState, locked } = useSession();
   const segments = useSegments();
   const router = useRouter();
 
@@ -53,6 +54,7 @@ function Gate() {
   }, [ready, token, user?.role, user?.activeTenantId, onboardingState, segments, router]);
 
   if (!ready) return <Loading label="Starting Single Point…" />;
+  if (locked) return <BiometricLockScreen />;
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "transparent" } }}>
       <Stack.Screen name="(auth)" />
