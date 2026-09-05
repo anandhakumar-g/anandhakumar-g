@@ -31,4 +31,7 @@ public interface OfferRepository extends JpaRepository<Offer, UUID> {
     long countByServiceProviderIdAndCreatedAtAfter(UUID serviceProviderId, Instant after);
 
     long countByTenantIdAndCreatedAtAfter(UUID tenantId, Instant after);
+
+    /** MVP-10 (A): Super Admin dashboard — offers awaiting approval. */
+    long countByStatus(Offer.Status status);
 }

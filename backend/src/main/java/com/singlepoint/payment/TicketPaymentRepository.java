@@ -24,4 +24,15 @@ public interface TicketPaymentRepository extends JpaRepository<TicketPayment, UU
             + "and p.status not in :settledStatuses")
     List<TicketPayment> findUnsettledForRaiser(UUID tenantId, UUID userId,
                                                Collection<TicketPayment.Status> settledStatuses);
+
+    /**
+     * MVP-10 (A): the resident dashboard's pending-payment count — same as
+     * {@link #findUnsettledForRaiser} minus the tenant filter, so it also covers a
+     * community-less resident's payments (MVP-10 (C)).
+     */
+    @Query("select p from TicketPayment p, com.singlepoint.ticket.domain.Ticket t "
+            + "where p.ticketId = t.id and t.raisedByUserId = :userId "
+            + "and p.status not in :settledStatuses")
+    List<TicketPayment> findUnsettledForRaiserAcrossTenants(UUID userId,
+                                                            Collection<TicketPayment.Status> settledStatuses);
 }

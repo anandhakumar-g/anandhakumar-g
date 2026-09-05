@@ -58,4 +58,26 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
     boolean existsByRaisedByUserIdAndCategoryId(UUID raisedByUserId, UUID categoryId);
 
     long countByTenantIdAndCreatedAtAfter(UUID tenantId, Instant after);
+
+    // ---- MVP-10 (A): per-role dashboard counters ----------------------------
+
+    @Query("select t.status, count(t) from Ticket t where t.raisedByUserId = :userId group by t.status")
+    List<Object[]> countByStatusForRaiser(UUID userId);
+
+    @Query("select t.status, count(t) from Ticket t where t.assignedProviderId = :providerId group by t.status")
+    List<Object[]> countByStatusForProvider(UUID providerId);
+
+    @Query("select t.status, count(t) from Ticket t where t.tenantId = :tenantId group by t.status")
+    List<Object[]> countByStatusForTenant(UUID tenantId);
+
+    long countByTenantIdAndStatusInAndAssignedProviderIdIsNull(UUID tenantId,
+                                                               java.util.Collection<TicketStatus> statuses);
+
+    @Query("select count(t) from Ticket t where t.tenantId = :tenantId "
+            + "and t.slaBreachedAt is not null and t.status <> :closed")
+    long countSlaBreachedForTenant(UUID tenantId, TicketStatus closed);
+
+    long countByTenantIdIsNullAndStatusNot(TicketStatus status);
+
+    long countByStatusNot(TicketStatus status);
 }
