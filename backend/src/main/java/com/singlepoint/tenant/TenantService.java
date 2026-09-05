@@ -48,6 +48,28 @@ public class TenantService {
         return repository.save(t);
     }
 
+    /** MVP-11 (A): a self-onboarded community, held in PENDING_REVIEW until a Super Admin approves it. */
+    @Transactional
+    public Tenant createPending(String name, String city, String locality, String address, String pincode,
+                                UUID requestedByUserId) {
+        Tenant t = new Tenant();
+        t.setName(name);
+        t.setCity(city);
+        t.setLocality(locality);
+        t.setAddress(address);
+        t.setPincode(pincode);
+        t.setStatus(TenantStatus.PENDING_REVIEW);
+        t.setRequestedByUserId(requestedByUserId);
+        return repository.save(t);
+    }
+
+    @Transactional
+    public Tenant setStatus(UUID id, TenantStatus status) {
+        Tenant t = require(id);
+        t.setStatus(status);
+        return repository.save(t);
+    }
+
     /**
      * Sparse update. Any null argument is left untouched. {@code categoryAdmin} is Super-Admin
      * territory — pass null from the community-admin path.

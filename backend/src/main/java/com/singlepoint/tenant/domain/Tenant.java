@@ -74,4 +74,8 @@ public class Tenant extends BaseEntity {
 
     @Column(name = "brand_primary_color", length = 9)
     private String brandPrimaryColor;
+
+    /** MVP-11: the resident who self-onboarded this community (null for admin/seed-created ones). */
+    @Column(name = "requested_by_user_id")
+    private java.util.UUID requestedByUserId;
 }

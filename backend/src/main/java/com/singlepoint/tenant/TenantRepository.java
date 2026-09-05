@@ -21,4 +21,11 @@ public interface TenantRepository extends JpaRepository<Tenant, UUID> {
            order by t.name asc
            """)
     Page<Tenant> search(@Param("q") String q, @Param("status") TenantStatus status, Pageable pageable);
+
+    /** MVP-11: the self-onboarding review queue. */
+    Page<Tenant> findByStatusOrderByCreatedAtDesc(TenantStatus status, Pageable pageable);
+
+    java.util.Optional<Tenant> findFirstByRequestedByUserIdOrderByCreatedAtDesc(UUID requestedByUserId);
+
+    boolean existsByRequestedByUserIdAndStatus(UUID requestedByUserId, TenantStatus status);
 }
