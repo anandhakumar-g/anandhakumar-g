@@ -1,10 +1,10 @@
 import * as LocalAuthentication from "expo-local-authentication";
-import * as SecureStore from "expo-secure-store";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, configureClient } from "@/api/client";
 import { me as meApi } from "@/api/endpoints";
 import { MeResponse, OnboardingState, SessionResponse, UserSummary } from "@/api/types";
 import { ensureDeviceId, getCachedDeviceId } from "@/lib/deviceId";
+import { secureDelete, secureGet, secureSet } from "@/lib/secureStorage";
 import { useTheme } from "@/theme/ThemeProvider";
 
 const TOKEN_KEY = "sp.token";
@@ -56,7 +56,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setOnboardingState(null);
     setLocked(false);
     setBrand({ defaultTheme: null, brandPrimaryColor: null });
-    SecureStore.deleteItemAsync(TOKEN_KEY);
+    secureDelete(TOKEN_KEY);
   }, [setBrand]);
 
   configureClient({
@@ -80,7 +80,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const setBiometricEnabled = useCallback(async (v: boolean) => {
     setBiometricEnabledState(v);
-    await SecureStore.setItemAsync(BIOMETRIC_KEY, v ? "1" : "0");
+    await secureSet(BIOMETRIC_KEY, v ? "1" : "0");
   }, []);
 
   const refreshMe = useCallback(
@@ -118,7 +118,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       applyToken(s.token);
       setUser(s.user);
       setOnboardingState(s.onboardingState);
-      await SecureStore.setItemAsync(TOKEN_KEY, s.token);
+      await secureSet(TOKEN_KEY, s.token);
       await refreshMe();
     },
     [applyToken, refreshMe]
@@ -140,10 +140,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       await ensureDeviceId();
       const [t, bioFlag, hasHardware, isEnrolled] = await Promise.all([
-        SecureStore.getItemAsync(TOKEN_KEY),
-        SecureStore.getItemAsync(BIOMETRIC_KEY),
-        LocalAuthentication.hasHardwareAsync(),
-        LocalAuthentication.isEnrolledAsync(),
+        secureGet(TOKEN_KEY),
+        secureGet(BIOMETRIC_KEY),
+        LocalAuthentication.hasHardwareAsync().catch(() => false),
+        LocalAuthentication.isEnrolledAsync().catch(() => false),
       ]);
       const available = hasHardware && isEnrolled;
       const enabled = bioFlag === "1";

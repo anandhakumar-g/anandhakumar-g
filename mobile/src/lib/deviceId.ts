@@ -1,4 +1,4 @@
-import * as SecureStore from "expo-secure-store";
+import { secureGet, secureSet } from "./secureStorage";
 
 const DEVICE_ID_KEY = "sp.deviceId";
 let cached: string | null = null;
@@ -16,10 +16,10 @@ function generate(): string {
 /** Resolves (and persists) this install's device id. Call once at bootstrap. */
 export async function ensureDeviceId(): Promise<string> {
   if (cached) return cached;
-  let id = await SecureStore.getItemAsync(DEVICE_ID_KEY);
+  let id = await secureGet(DEVICE_ID_KEY);
   if (!id) {
     id = generate();
-    await SecureStore.setItemAsync(DEVICE_ID_KEY, id);
+    await secureSet(DEVICE_ID_KEY, id);
   }
   cached = id;
   return id;
