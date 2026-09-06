@@ -1,5 +1,6 @@
 package com.singlepoint.billing;
 
+import com.singlepoint.billing.domain.PaymentMethod;
 import com.singlepoint.billing.domain.SubjectType;
 import com.singlepoint.billing.domain.Subscription;
 import com.singlepoint.billing.domain.SubscriptionInvoice;
@@ -8,6 +9,7 @@ import com.singlepoint.common.error.AppException;
 import com.singlepoint.common.error.ErrorCode;
 import com.singlepoint.notification.DomainEventPublisher;
 import com.singlepoint.payment.gateway.PaymentGateway;
+import com.singlepoint.payment.gateway.RecurringGateway;
 import com.singlepoint.payment.gateway.WebhookFallback;
 import com.singlepoint.provider.ServiceProviderRepository;
 import com.singlepoint.user.AppUserRepository;
@@ -29,6 +31,8 @@ public class BillingService implements WebhookFallback {
     private final SubscriptionRepository subscriptions;
     private final SubscriptionInvoiceRepository invoices;
     private final PaymentGateway gateway;
+    private final RecurringGateway recurringGateway;
+    private final PaymentMethodRepository paymentMethods;
     private final DomainEventPublisher events;
     private final AppUserRepository users;
     private final ServiceProviderRepository providers;
@@ -38,6 +42,8 @@ public class BillingService implements WebhookFallback {
 
     public BillingService(SubscriptionPlanRepository plans, SubscriptionRepository subscriptions,
                           SubscriptionInvoiceRepository invoices, PaymentGateway gateway,
+                          RecurringGateway recurringGateway,
+                          PaymentMethodRepository paymentMethods,
                           DomainEventPublisher events, AppUserRepository users,
                           ServiceProviderRepository providers,
                           com.singlepoint.tenant.AdminDirectory adminDirectory,
@@ -47,6 +53,8 @@ public class BillingService implements WebhookFallback {
         this.subscriptions = subscriptions;
         this.invoices = invoices;
         this.gateway = gateway;
+        this.recurringGateway = recurringGateway;
+        this.paymentMethods = paymentMethods;
         this.events = events;
         this.users = users;
         this.providers = providers;
@@ -183,6 +191,16 @@ public class BillingService implements WebhookFallback {
 
     @Transactional
     public Subscription assignPlan(SubjectType type, UUID subjectId, String planCode, boolean comp) {
+        return assignPlan(type, subjectId, planCode, comp, null);
+    }
+
+    /**
+     * @param payingUserId the user whose saved payment method should auto-charge this plan
+     *                     (from {@code selfUpgrade}); null for a Super-Admin-assigned plan,
+     *                     which stays on the manual pay-link flow.
+     */
+    @Transactional
+    public Subscription assignPlan(SubjectType type, UUID subjectId, String planCode, boolean comp, UUID payingUserId) {
         SubscriptionPlan plan = requirePlan(planCode);
         if (plan.getTarget() != type) {
             throw new AppException(ErrorCode.VALIDATION_FAILED, "Plan " + planCode + " does not apply to a " + type);
@@ -203,18 +221,36 @@ public class BillingService implements WebhookFallback {
         if (plan.isFree()) {
             sub.setStatus(Subscription.Status.ACTIVE);
             sub.setGraceUntil(null);
+            releaseGatewaySubscription(sub);
             voidDueInvoices(sub);
             return subscriptions.save(sub);
         }
         if (comp) {
             sub.setStatus(Subscription.Status.COMPED);
             sub.setGraceUntil(null);
+            releaseGatewaySubscription(sub);
             voidDueInvoices(sub);
             return subscriptions.save(sub);
         }
         // paid, not comped: limits apply now, but there's a grace window to pay
         sub.setStatus(Subscription.Status.PAST_DUE);
         sub.setGraceUntil(now.plusSeconds(graceDays * 86400L));
+
+        // MVP-13 (A2): with a saved payment method, create a gateway mandate — the
+        // subscription.charged webhook then settles the invoice and flips it ACTIVE.
+        PaymentMethod pm = payingUserId == null ? null
+                : paymentMethods.findFirstByUserIdAndStatusOrderByCreatedAtDesc(
+                        payingUserId, PaymentMethod.Status.ACTIVE).orElse(null);
+        if (pm != null && sub.getGatewaySubscriptionId() == null) {
+            long amountMinor = plan.getPriceAmount().movePointRight(2).longValueExact();
+            RecurringGateway.Mandate m = recurringGateway.createSubscription(
+                    pm.getGatewayCustomerId() != null ? pm.getGatewayCustomerId() : pm.getGatewayToken(),
+                    plan.getCode(), amountMinor, currency);
+            sub.setGatewaySubscriptionId(m.gatewaySubscriptionId());
+            sub.setGatewayCustomerId(m.gatewayCustomerId());
+            sub.setPendingMandateUrl(m.authUrl());
+        }
+
         subscriptions.save(sub);
         createInvoice(sub, plan, sub.getCurrentPeriodStart(), sub.getCurrentPeriodEnd());
         return sub;
@@ -285,14 +321,58 @@ public class BillingService implements WebhookFallback {
         return inv.getGatewayPaymentLink();
     }
 
-    /** Called from the payment webhook fall-through. Returns true if it was a subscription invoice. */
+    /** Called from the payment webhook fall-through. Returns true if this module recognised the ref. */
     @Override
     @Transactional
-    public boolean tryHandle(String gatewayRef, boolean paid) {
+    public boolean tryHandle(String gatewayRef, boolean paid, String event) {
+        if (event != null && event.startsWith("subscription.")) {
+            Subscription sub = subscriptions.findByGatewaySubscriptionId(gatewayRef).orElse(null);
+            if (sub == null) return false;
+            switch (event) {
+                case "subscription.charged" -> {
+                    if (paid) {
+                        SubscriptionInvoice open = invoices
+                                .findFirstBySubscriptionIdAndStatusOrderByPeriodStartAsc(
+                                        sub.getId(), SubscriptionInvoice.Status.DUE)
+                                .orElse(null);
+                        if (open != null) activate(open);
+                        else if (!sub.getStatus().planActive() || sub.getStatus() != Subscription.Status.ACTIVE) {
+                            sub.setStatus(Subscription.Status.ACTIVE);
+                            sub.setGraceUntil(null);
+                            subscriptions.save(sub);
+                        }
+                    }
+                }
+                case "subscription.halted" -> {
+                    sub.setStatus(Subscription.Status.PAST_DUE);
+                    sub.setGraceUntil(Instant.now().plusSeconds(graceDays * 86400L));
+                    subscriptions.save(sub);
+                }
+                case "subscription.cancelled" -> {
+                    sub.setStatus(Subscription.Status.CANCELLED);
+                    sub.setCancelledAt(Instant.now());
+                    subscriptions.save(sub);
+                }
+                default -> { }
+            }
+            return true;
+        }
         SubscriptionInvoice inv = invoices.findByGatewayRef(gatewayRef).orElse(null);
         if (inv == null) return false;
         if (paid && inv.getStatus() != SubscriptionInvoice.Status.PAID) activate(inv);
         return true;
+    }
+
+    /** MVP-13 (A2): tell the gateway to stop charging when a subscription goes free / comped / cancelled. */
+    private void releaseGatewaySubscription(Subscription sub) {
+        if (sub.getGatewaySubscriptionId() != null) {
+            try {
+                recurringGateway.cancelSubscription(sub.getGatewaySubscriptionId());
+            } catch (RuntimeException ignored) {
+                // best effort — the daily renewal / webhook path is the backstop
+            }
+            sub.setGatewaySubscriptionId(null);
+        }
     }
 
     @Transactional

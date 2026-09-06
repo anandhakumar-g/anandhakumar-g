@@ -54,4 +54,15 @@ public class Subscription extends BaseEntity {
 
     @Column(name = "cancelled_at")
     private Instant cancelledAt;
+
+    /** MVP-13 (A2): set when a gateway mandate drives the charges; a {@code subscription.charged} webhook finds the row by this. */
+    @Column(name = "gateway_subscription_id", length = 80)
+    private String gatewaySubscriptionId;
+
+    @Column(name = "gateway_customer_id", length = 80)
+    private String gatewayCustomerId;
+
+    /** Transient: the mandate-confirmation URL, set only on the response to a just-created recurring plan. */
+    @javax.persistence.Transient
+    private String pendingMandateUrl;
 }

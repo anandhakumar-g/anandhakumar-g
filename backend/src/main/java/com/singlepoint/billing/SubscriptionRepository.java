@@ -19,4 +19,6 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
     List<Subscription> findByStatusInAndCurrentPeriodEndBefore(List<Subscription.Status> statuses, Instant cutoff);
 
     List<Subscription> findByStatusAndGraceUntilBefore(Subscription.Status status, Instant cutoff);
+
+    Optional<Subscription> findByGatewaySubscriptionId(String gatewaySubscriptionId);
 }

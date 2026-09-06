@@ -75,12 +75,18 @@ public class RazorpayGateway implements PaymentGateway {
             JsonNode n = mapper.readTree(rawBody);
             String event = n.path("event").asText("");
             JsonNode payload = n.path("payload");
+            if (event.startsWith("subscription.")) {
+                // MVP-13 (A2): a mandate charge / halt / cancel — keyed by the gateway subscription id.
+                String subId = payload.path("subscription").path("entity").path("id").asText(null);
+                boolean charged = event.equals("subscription.charged");
+                return new WebhookResult(subId, null, charged, event);
+            }
             String plinkId = payload.path("payment_link").path("entity").path("id").asText(null);
             String paymentId = payload.path("payment").path("entity").path("id").asText(null);
             boolean paid = event.equals("payment_link.paid")
                     || event.equals("payment.captured")
                     || "paid".equals(payload.path("payment_link").path("entity").path("status").asText());
-            return new WebhookResult(plinkId, paymentId, paid);
+            return new WebhookResult(plinkId, paymentId, paid, null);
         } catch (Exception e) {
             throw new AppException(ErrorCode.BAD_REQUEST, "unparseable webhook body");
         }

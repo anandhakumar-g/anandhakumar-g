@@ -45,11 +45,14 @@ public class StubGateway implements PaymentGateway {
         if (sig == null || !sign(rawBody).equals(sig)) {
             throw new AppException(ErrorCode.BAD_REQUEST, "invalid webhook signature");
         }
-        // rawBody: {"ref":"stub_xxx","paymentId":"pay_xxx","paid":true}
-        String ref = extract(rawBody, "ref");
-        String pid = extract(rawBody, "paymentId");
+        // payment link:  {"ref":"stub_xxx","paymentId":"pay_xxx","paid":true}
+        // subscription:  {"subscriptionRef":"stub_sub_xxx","event":"subscription.charged","paid":true}
         boolean paid = rawBody.contains("\"paid\":true") || rawBody.contains("\"paid\": true");
-        return new WebhookResult(ref, pid, paid);
+        String subRef = extract(rawBody, "subscriptionRef");
+        if (subRef != null) {
+            return new WebhookResult(subRef, null, paid, extract(rawBody, "event"));
+        }
+        return new WebhookResult(extract(rawBody, "ref"), extract(rawBody, "paymentId"), paid, null);
     }
 
     /** Exposed so DevPaymentController can produce a valid synthetic webhook. */

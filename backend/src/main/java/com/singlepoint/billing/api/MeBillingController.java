@@ -1,6 +1,8 @@
 package com.singlepoint.billing.api;
 
 import com.singlepoint.billing.BillingService;
+import com.singlepoint.billing.PaymentMethodRepository;
+import com.singlepoint.billing.domain.PaymentMethod;
 import com.singlepoint.billing.domain.SubjectType;
 import com.singlepoint.billing.domain.Subscription;
 import com.singlepoint.billing.domain.SubscriptionPlan;
@@ -39,16 +41,19 @@ public class MeBillingController {
     private final AppUserRepository users;
     private final ServiceProviderRepository providers;
     private final com.singlepoint.tenant.AdminDirectory adminDirectory;
+    private final PaymentMethodRepository paymentMethods;
 
     public MeBillingController(BillingService billing, TicketRepository tickets, OfferRepository offers,
                               AppUserRepository users, ServiceProviderRepository providers,
-                              com.singlepoint.tenant.AdminDirectory adminDirectory) {
+                              com.singlepoint.tenant.AdminDirectory adminDirectory,
+                              PaymentMethodRepository paymentMethods) {
         this.billing = billing;
         this.tickets = tickets;
         this.offers = offers;
         this.users = users;
         this.providers = providers;
         this.adminDirectory = adminDirectory;
+        this.paymentMethods = paymentMethods;
     }
 
     /** Resolve (subjectType, subjectId) for the caller. */
@@ -103,8 +108,15 @@ public class MeBillingController {
         var subView = sub != null ? BillingDtos.SubscriptionView.of(sub, billing.planById(sub.getPlanId())) : null;
         String tier = ref.type() == SubjectType.PROVIDER
                 ? providers.findById(ref.id()).map(sp -> sp.getTier().name()).orElse(null) : null;
+
+        PaymentMethod pm = paymentMethods
+                .findFirstByUserIdAndStatusOrderByCreatedAtDesc(p.getUserId(), PaymentMethod.Status.ACTIVE).orElse(null);
+        boolean recurring = sub != null && sub.getGatewaySubscriptionId() != null;
+        var nextChargeAt = recurring ? sub.getCurrentPeriodEnd() : null;
+
         return ResponseEntity.ok(new BillingDtos.MyBillingView(ref.type().name(), ref.id(), tier,
-                BillingDtos.PlanView.of(plan), subView, usage, due, upgrades));
+                BillingDtos.PlanView.of(plan), subView, usage, due, upgrades,
+                pm != null ? BillingDtos.PaymentMethodView.of(pm) : null, recurring, nextChargeAt));
     }
 
     @PostMapping("/plan")
@@ -115,7 +127,7 @@ public class MeBillingController {
         if (ref.type() == SubjectType.RESIDENT) {
             throw new AppException(ErrorCode.VALIDATION_FAILED, "No resident plans are available yet");
         }
-        Subscription s = billing.assignPlan(ref.type(), ref.id(), body.planCode(), false);
+        Subscription s = billing.assignPlan(ref.type(), ref.id(), body.planCode(), false, p.getUserId());
         return ResponseEntity.ok(BillingDtos.SubscriptionView.of(s, billing.planById(s.getPlanId())));
     }
 

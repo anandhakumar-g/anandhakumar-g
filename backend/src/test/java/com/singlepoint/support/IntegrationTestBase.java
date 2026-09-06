@@ -46,7 +46,7 @@ public abstract class IntegrationTestBase {
             TRUNCATE TABLE
               audit_log, broadcast, notification, notification_outbox, otp_challenge, device_token,
               notification_preference,
-              subscription_invoice, subscription, subscription_plan,
+              subscription_invoice, subscription, subscription_plan, payment_method,
               payment_event, payment_receipt, ticket_payment,
               offer_feedback, offer_redemption, offer_target, offer,
               provider_kyc_document,

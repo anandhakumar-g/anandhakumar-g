@@ -12,6 +12,9 @@ public interface SubscriptionInvoiceRepository extends JpaRepository<Subscriptio
 
     Optional<SubscriptionInvoice> findByGatewayRef(String gatewayRef);
 
+    Optional<SubscriptionInvoice> findFirstBySubscriptionIdAndStatusOrderByPeriodStartAsc(
+            UUID subscriptionId, SubscriptionInvoice.Status status);
+
     List<SubscriptionInvoice> findBySubjectTypeAndSubjectIdOrderByCreatedAtDesc(SubjectType subjectType, UUID subjectId);
 
     List<SubscriptionInvoice> findBySubjectTypeAndSubjectIdAndStatus(

@@ -185,7 +185,7 @@ public class PaymentService {
         if (p == null) {
             // not a ticket payment — let another module (e.g. subscription invoices) claim it
             for (WebhookFallback fb : webhookFallbacks) {
-                if (fb.tryHandle(res.gatewayRef(), res.paid())) return;
+                if (fb.tryHandle(res.gatewayRef(), res.paid(), res.event())) return;
             }
             return; // unknown ref — ignore
         }

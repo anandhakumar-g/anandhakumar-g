@@ -16,5 +16,6 @@ public interface PaymentGateway {
 
     record PaymentLink(String gatewayRef, String url) { }
 
-    record WebhookResult(String gatewayRef, String gatewayPaymentId, boolean paid) { }
+    /** {@code event} is the gateway's event name (e.g. {@code subscription.charged}), or null for a plain payment-link callback. */
+    record WebhookResult(String gatewayRef, String gatewayPaymentId, boolean paid, String event) { }
 }

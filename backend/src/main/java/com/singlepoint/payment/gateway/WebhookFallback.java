@@ -7,6 +7,10 @@ package com.singlepoint.payment.gateway;
  */
 public interface WebhookFallback {
 
-    /** @return true if this fallback recognised the reference (and applied it, when {@code paid}). */
-    boolean tryHandle(String gatewayRef, boolean paid);
+    /**
+     * @param event the gateway's event name (e.g. {@code subscription.charged} / {@code .halted}
+     *              / {@code .cancelled}), or null for a plain payment-link callback.
+     * @return true if this fallback recognised the reference (and applied it).
+     */
+    boolean tryHandle(String gatewayRef, boolean paid, String event);
 }

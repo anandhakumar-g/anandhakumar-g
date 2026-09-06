@@ -32,12 +32,13 @@ public final class BillingDtos {
 
     public record SubscriptionView(UUID id, String subjectType, UUID subjectId, UUID planId, String planCode,
                                    String planName, String status, Instant currentPeriodStart,
-                                   Instant currentPeriodEnd, Instant graceUntil, boolean autoRenew) {
+                                   Instant currentPeriodEnd, Instant graceUntil, boolean autoRenew,
+                                   String gatewaySubscriptionId, String pendingMandateUrl) {
         public static SubscriptionView of(Subscription s, SubscriptionPlan plan) {
             return new SubscriptionView(s.getId(), s.getSubjectType().name(), s.getSubjectId(), s.getPlanId(),
                     plan != null ? plan.getCode() : null, plan != null ? plan.getName() : null,
                     s.getStatus().name(), s.getCurrentPeriodStart(), s.getCurrentPeriodEnd(),
-                    s.getGraceUntil(), s.isAutoRenew());
+                    s.getGraceUntil(), s.isAutoRenew(), s.getGatewaySubscriptionId(), s.getPendingMandateUrl());
         }
     }
 
@@ -55,7 +56,19 @@ public final class BillingDtos {
 
     public record MyBillingView(String subjectType, UUID subjectId, String providerTier, PlanView plan,
                                 SubscriptionView subscription, List<UsageView> usage,
-                                List<InvoiceView> dueInvoices, List<PlanView> upgradeOptions) { }
+                                List<InvoiceView> dueInvoices, List<PlanView> upgradeOptions,
+                                PaymentMethodView savedPaymentMethod, boolean recurring, Instant nextChargeAt) { }
+
+    public record PaymentMethodView(UUID id, String gateway, String brand, String last4, String status,
+                                    Instant createdAt) {
+        public static PaymentMethodView of(com.singlepoint.billing.domain.PaymentMethod m) {
+            return new PaymentMethodView(m.getId(), m.getGateway(), m.getBrand(), m.getLast4(),
+                    m.getStatus().name(), m.getCreatedAt());
+        }
+    }
+
+    public record SavePaymentMethodRequest(@NotBlank String gatewayToken, String gatewayCustomerId,
+                                           String brand, String last4) { }
 
     // ---- requests ---------------------------------------------------
 
