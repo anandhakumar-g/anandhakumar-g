@@ -85,9 +85,20 @@ export interface AuditLogRow {
   detail: string | null;
 }
 
+export interface BackupStatus {
+  enabled: boolean;
+  retentionDays: number;
+  bucket?: string;
+  lastObjectKey?: string;
+  lastBackupAt?: string;
+  ageHours?: number;
+}
+
 export interface BroadcastRow {
   id: string;
   scope: string;
+  status: string;
+  scheduledFor: string | null;
   tenantId: string | null;
   tenantName: string | null;
   senderUserId: string | null;
@@ -166,6 +177,7 @@ export interface SubscriptionView {
   planId: string;
   status: string;
   currentPeriodEnd: string | null;
+  gatewaySubscriptionId: string | null;
 }
 export interface InvoiceView {
   id: string;

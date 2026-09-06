@@ -18,10 +18,12 @@ export function Broadcasts() {
   const [tenantId, setTenantId] = useState("");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [scheduledFor, setScheduledFor] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const needsTenant = scope === "COMMUNITY";
   const canSend = title.trim().length > 0 && body.trim().length > 0 && (!needsTenant || !!tenantId);
@@ -40,15 +42,34 @@ export function Broadcasts() {
         tenantId: needsTenant ? tenantId : undefined,
         title: title.trim(),
         body: body.trim(),
+        scheduledFor: scheduledFor ? new Date(scheduledFor).toISOString() : undefined,
       });
-      setSent(`Sent to ${b.recipientCount} recipient${b.recipientCount === 1 ? "" : "s"}.`);
+      setSent(
+        b.status === "PENDING"
+          ? `Scheduled for ${new Date(b.scheduledFor!).toLocaleString()}.`
+          : `Sent to ${b.recipientCount} recipient${b.recipientCount === 1 ? "" : "s"}.`,
+      );
       setTitle("");
       setBody("");
+      setScheduledFor("");
       history.reload();
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setSending(false);
+    }
+  }
+
+  async function cancel(id: string) {
+    setBusyId(id);
+    setError(null);
+    try {
+      await api.del("/superadmin/broadcasts/" + id);
+      history.reload();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -84,6 +105,12 @@ export function Broadcasts() {
           </div>
           <Field label="Title" value={title} maxLength={160} onChange={(e) => setTitle(e.target.value)} />
           <TextArea label="Message" value={body} maxLength={2000} onChange={(e) => setBody(e.target.value)} />
+          <Field
+            label="Send at (optional — leave blank to send now)"
+            type="datetime-local"
+            value={scheduledFor}
+            onChange={(e) => setScheduledFor(e.target.value)}
+          />
           {error && <p className="error">{error}</p>}
           {sent && <p className="ok">{sent}</p>}
           <div>
@@ -107,13 +134,29 @@ export function Broadcasts() {
               { head: "Community", cell: (r) => r.tenantName ?? "—" },
               { head: "Sender", cell: (r) => `${r.senderName ?? "—"}${r.senderRole ? ` (${r.senderRole})` : ""}` },
               { head: "Title", cell: (r) => <strong>{r.title}</strong> },
-              { head: "Recipients", cell: (r) => r.recipientCount },
+              { head: "Recipients", cell: (r) => (r.status === "PENDING" ? "—" : r.recipientCount) },
+              {
+                head: "Status",
+                cell: (r) => (
+                  <Pill
+                    text={r.status === "PENDING" && r.scheduledFor ? `Sends ${new Date(r.scheduledFor).toLocaleString()}` : r.status}
+                    tone={r.status === "SENT" ? "success" : r.status === "CANCELLED" ? "muted" : "warning"}
+                  />
+                ),
+              },
               {
                 head: "",
                 cell: (r) => (
-                  <button className="btn link" onClick={() => setOpenId(openId === r.id ? null : r.id)}>
-                    {openId === r.id ? "Hide" : "Read"}
-                  </button>
+                  <span style={{ display: "inline-flex", gap: 8 }}>
+                    <button className="btn link" onClick={() => setOpenId(openId === r.id ? null : r.id)}>
+                      {openId === r.id ? "Hide" : "Read"}
+                    </button>
+                    {r.status === "PENDING" && (
+                      <button className="btn link" disabled={busyId === r.id} onClick={() => cancel(r.id)}>
+                        {busyId === r.id ? "Cancelling…" : "Cancel"}
+                      </button>
+                    )}
+                  </span>
                 ),
               },
             ]}

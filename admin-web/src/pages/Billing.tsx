@@ -258,7 +258,15 @@ export function Billing() {
             empty="No subscriptions."
             cols={[
               { head: "Subject", cell: (s) => `${s.subjectType} · ${s.subjectId.slice(0, 8)}` },
-              { head: "Status", cell: (s) => <Pill text={s.status} tone={s.status === "ACTIVE" || s.status === "COMPED" ? "success" : s.status === "EXPIRED" || s.status === "CANCELLED" ? "danger" : "warning"} /> },
+              {
+                head: "Status",
+                cell: (s) => (
+                  <>
+                    <Pill text={s.status} tone={s.status === "ACTIVE" || s.status === "COMPED" ? "success" : s.status === "EXPIRED" || s.status === "CANCELLED" ? "danger" : "warning"} />{" "}
+                    {s.gatewaySubscriptionId && <Pill text="recurring" tone="accent" />}
+                  </>
+                ),
+              },
               { head: "Period end", cell: (s) => (s.currentPeriodEnd ? new Date(s.currentPeriodEnd).toLocaleDateString() : "—") },
               {
                 head: "",

@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { useAsync } from "../hooks";
-import type { AnalyticsView, CommunityRequest, Page, TenantHealth } from "../types";
+import type { AnalyticsView, BackupStatus, CommunityRequest, Page, TenantHealth } from "../types";
 import { BarChart } from "../ui/Chart";
-import { Card, Stat } from "../ui";
+import { Card, Pill, Stat } from "../ui";
 
 function weekLabel(iso: string): string {
   const d = new Date(iso);
@@ -17,6 +17,7 @@ export function Dashboard() {
     () => api.get<Page<CommunityRequest>>("/superadmin/community-requests", { query: { size: 1 } }),
     []
   );
+  const backup = useAsync(() => api.get<BackupStatus>("/superadmin/backup-status"), []);
 
   const t = a.data?.totals;
   const series = a.data?.series ?? [];
@@ -58,13 +59,49 @@ export function Dashboard() {
         </Card>
       </div>
 
-      <Card title="Communities" actions={<Link to="/communities">All →</Link>}>
-        {health.loading ? (
-          <p className="faint">Loading…</p>
-        ) : (
-          <p className="faint">{(health.data ?? []).length} active communities.</p>
-        )}
-      </Card>
+      <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
+        <Card title="Communities" actions={<Link to="/communities">All →</Link>}>
+          {health.loading ? (
+            <p className="faint">Loading…</p>
+          ) : (
+            <p className="faint">{(health.data ?? []).length} active communities.</p>
+          )}
+        </Card>
+
+        <Card title="Database backups">
+          {backup.loading ? (
+            <p className="faint">Loading…</p>
+          ) : backup.error ? (
+            <p className="error">{backup.error.message}</p>
+          ) : !backup.data?.enabled ? (
+            <p className="faint">
+              <Pill text="Disabled" tone="muted" /> Automated <code>pg_dump</code> → S3 is off in this environment.
+            </p>
+          ) : (
+            <div className="stack">
+              <p>
+                {backup.data.lastBackupAt ? (
+                  <Pill
+                    text={`${Math.round(backup.data.ageHours ?? 0)}h ago`}
+                    tone={(backup.data.ageHours ?? 999) <= 26 ? "success" : "warning"}
+                  />
+                ) : (
+                  <Pill text="No backup yet" tone="warning" />
+                )}
+              </p>
+              {backup.data.lastBackupAt && (
+                <p className="faint">
+                  Last: {new Date(backup.data.lastBackupAt).toLocaleString()}
+                  {backup.data.lastObjectKey ? ` · ${backup.data.lastObjectKey}` : ""}
+                </p>
+              )}
+              <p className="faint">
+                Bucket {backup.data.bucket ?? "—"} · retention {backup.data.retentionDays} days
+              </p>
+            </div>
+          )}
+        </Card>
+      </div>
     </>
   );
 }
