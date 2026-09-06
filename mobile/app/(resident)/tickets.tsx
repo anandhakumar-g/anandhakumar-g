@@ -2,7 +2,7 @@ import { useFocusEffect } from "expo-router";
 import React, { useCallback } from "react";
 import { catalog, tickets } from "@/api/endpoints";
 import { EmptyState } from "@/components/Bits";
-import { Loading, Screen } from "@/components/Themed";
+import { Screen } from "@/components/Themed";
 import { TicketRow } from "@/components/TicketRow";
 import { useAsync } from "@/hooks/useAsync";
 
@@ -19,7 +19,7 @@ export default function ResidentTickets() {
 
   const catName = (id: string) => cats.data?.find((c) => c.id === id)?.name;
 
-  if (list.loading) return <Loading />;
+  if (list.loading) return <Screen loading />;
   const items = list.data?.content ?? [];
 
   return (

@@ -4,7 +4,7 @@ import { Alert, View } from "react-native";
 import { me as meApi } from "@/api/endpoints";
 import { Divider, Pill } from "@/components/Bits";
 import { Button } from "@/components/Button";
-import { AppText, Card, Loading, Screen } from "@/components/Themed";
+import { AppText, Card, Screen } from "@/components/Themed";
 import { useAsync } from "@/hooks/useAsync";
 import { useSession } from "@/store/SessionProvider";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -57,7 +57,7 @@ export default function Household() {
     ]);
   }
 
-  if (roster.loading) return <Loading />;
+  if (roster.loading) return <Screen loading />;
 
   return (
     <Screen onRefresh={roster.refresh} refreshing={roster.refreshing}>

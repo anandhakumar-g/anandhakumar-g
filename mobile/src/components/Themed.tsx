@@ -2,7 +2,7 @@ import React from "react";
 import {
   ActivityIndicator, RefreshControl, ScrollView, StyleProp, Text, TextProps, View, ViewStyle,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/theme/ThemeProvider";
 
 type TextTone = "default" | "muted" | "faint" | "primary" | "danger" | "success";
@@ -84,32 +84,84 @@ export function Card({
   );
 }
 
+/**
+ * The standard screen frame. Handles safe-area padding (status bar / notch at the top, the
+ * tab bar at the bottom) so no screen hand-rolls insets, and carries optional {@code loading}
+ * / {@code error} / {@code empty} slots so a screen renders its waiting states *inside* the
+ * frame instead of returning a bare {@code <Loading/>} that loses the safe area.
+ */
 export function Screen({
   children,
   scroll = true,
   onRefresh,
   refreshing = false,
   contentStyle,
+  loading = false,
+  error,
+  empty,
 }: {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   scroll?: boolean;
   onRefresh?: () => void;
   refreshing?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
+  loading?: boolean;
+  error?: string | null;
+  empty?: { title: string; body?: string } | null;
 }) {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const pad = { padding: theme.space(4), gap: theme.space(3) as number };
+
+  let slot: React.ReactNode = null;
+  if (loading) {
+    slot = <ActivityIndicator color={theme.color.primary} size="large" />;
+  } else if (error) {
+    slot = (
+      <AppText tone="danger" weight="600" style={{ textAlign: "center" }}>
+        {error}
+      </AppText>
+    );
+  } else if (empty) {
+    slot = (
+      <>
+        <AppText size="lg" weight="700">
+          {empty.title}
+        </AppText>
+        {empty.body ? (
+          <AppText tone="muted" style={{ textAlign: "center", maxWidth: 320 }}>
+            {empty.body}
+          </AppText>
+        ) : null}
+      </>
+    );
+  }
+
+  const centered = slot != null;
+  const body = centered ? (
+    <View style={{ flex: 1, minHeight: 260, alignItems: "center", justifyContent: "center", gap: theme.space(3) }}>
+      {slot}
+    </View>
+  ) : (
+    children
+  );
+
   if (!scroll) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.color.bg }} edges={["top", "bottom"]}>
-        <View style={[{ flex: 1 }, pad, contentStyle]}>{children}</View>
+        <View style={[{ flex: 1 }, pad, contentStyle]}>{body}</View>
       </SafeAreaView>
     );
   }
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.color.bg }} edges={["top"]}>
       <ScrollView
-        contentContainerStyle={[pad, { paddingBottom: theme.space(12) }, contentStyle]}
+        contentContainerStyle={[
+          pad,
+          { paddingBottom: theme.space(12) + insets.bottom },
+          centered ? { flexGrow: 1 } : null,
+          contentStyle,
+        ]}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           onRefresh ? (
@@ -117,7 +169,7 @@ export function Screen({
           ) : undefined
         }
       >
-        {children}
+        {body}
       </ScrollView>
     </SafeAreaView>
   );

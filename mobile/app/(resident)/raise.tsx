@@ -9,7 +9,7 @@ import { Button } from "@/components/Button";
 import { Divider, Segmented } from "@/components/Bits";
 import { DirectProviderPicker } from "@/components/DirectProviderPicker";
 import { Field } from "@/components/Field";
-import { AppText, Card, Loading, Screen } from "@/components/Themed";
+import { AppText, Card, Screen } from "@/components/Themed";
 import { useAsync } from "@/hooks/useAsync";
 import { useSession } from "@/store/SessionProvider";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -110,7 +110,7 @@ export default function Raise() {
     }
   }
 
-  if (cats.loading) return <Loading label="Loading categories…" />;
+  if (cats.loading) return <Screen loading />;
 
   return (
     <Screen>

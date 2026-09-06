@@ -2,7 +2,7 @@ import { useFocusEffect } from "expo-router";
 import React, { useCallback, useMemo } from "react";
 import { View } from "react-native";
 import { catalog, tickets } from "@/api/endpoints";
-import { AppText, Loading, Screen } from "@/components/Themed";
+import { AppText, Screen } from "@/components/Themed";
 import { EmptyState } from "@/components/Bits";
 import { DashboardSummary } from "@/components/DashboardSummary";
 import { TicketRow } from "@/components/TicketRow";
@@ -29,7 +29,7 @@ export default function ProviderJobs() {
     return { active, done };
   }, [items]);
 
-  if (list.loading) return <Loading />;
+  if (list.loading) return <Screen loading />;
 
   return (
     <Screen onRefresh={list.refresh} refreshing={list.refreshing}>

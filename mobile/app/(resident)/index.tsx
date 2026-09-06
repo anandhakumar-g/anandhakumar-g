@@ -5,6 +5,7 @@ import { catalog, onboarding, tickets } from "@/api/endpoints";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/Bits";
 import { DashboardSummary } from "@/components/DashboardSummary";
+import { Icon } from "@/components/Icon";
 import { AppText, Card, Loading, Screen } from "@/components/Themed";
 import { TicketRow } from "@/components/TicketRow";
 import { useAsync } from "@/hooks/useAsync";
@@ -75,7 +76,11 @@ export default function ResidentHome() {
           </View>
         </Card>
       ) : (
-        <Button label="＋  Raise a ticket" onPress={() => router.push("/(resident)/raise")} />
+        <Button
+          label="Raise a ticket"
+          left={<Icon name="add" style={{ color: theme.color.primaryText }} />}
+          onPress={() => router.push("/(resident)/raise")}
+        />
       )}
 
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: theme.space(2) }}>

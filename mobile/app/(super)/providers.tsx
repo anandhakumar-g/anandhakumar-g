@@ -168,7 +168,7 @@ function KycPanel({ providerId }: { providerId: string }) {
     }
   }
 
-  if (q.loading) return <Loading />;
+  if (q.loading) return <Screen loading />;
   if ((q.data?.length ?? 0) === 0) {
     return <AppText size="xs" tone="faint">No documents uploaded yet.</AppText>;
   }

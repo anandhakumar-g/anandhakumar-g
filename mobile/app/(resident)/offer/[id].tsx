@@ -6,7 +6,7 @@ import { discountLabel } from "@/api/types";
 import { Field } from "@/components/Field";
 import { KeyValue } from "@/components/Bits";
 import { Button } from "@/components/Button";
-import { AppText, Card, Loading, Screen } from "@/components/Themed";
+import { AppText, Card, Screen } from "@/components/Themed";
 import { useAsync } from "@/hooks/useAsync";
 import { useTheme } from "@/theme/ThemeProvider";
 
@@ -22,7 +22,7 @@ export default function OfferDetail() {
   const [comment, setComment] = useState("");
   const [rated, setRated] = useState(false);
 
-  if (q.loading) return <Loading />;
+  if (q.loading) return <Screen loading />;
   if (!q.data) return <Screen><AppText tone="danger">Offer not found.</AppText></Screen>;
   const o = q.data;
 
