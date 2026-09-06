@@ -63,6 +63,41 @@ export interface TicketCategoryRow {
   active: boolean;
 }
 
+export interface AuditLogRow {
+  id: string;
+  at: string;
+  actorUserId: string | null;
+  actorName: string | null;
+  actorPhoneMasked: string | null;
+  actorRole: string | null;
+  tenantId: string | null;
+  tenantName: string | null;
+  action: string;
+  entityType: string | null;
+  entityId: string | null;
+  httpMethod: string | null;
+  endpoint: string | null;
+  requestId: string | null;
+  success: boolean;
+  errorCode: string | null;
+  durationMs: number | null;
+  detail: string | null;
+}
+
+export interface BroadcastRow {
+  id: string;
+  scope: string;
+  tenantId: string | null;
+  tenantName: string | null;
+  senderUserId: string | null;
+  senderName: string | null;
+  senderRole: string | null;
+  title: string;
+  body: string;
+  recipientCount: number;
+  at: string;
+}
+
 export interface CommunityRequest {
   tenantId: string;
   name: string;

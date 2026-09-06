@@ -91,10 +91,11 @@ h2 { font-size: 17px; }
 
 .field { display: flex; flex-direction: column; gap: 5px; }
 .field label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
-.field input, .field select {
+.field input, .field select, .field textarea {
   font: inherit; padding: 9px 11px; border: 1px solid var(--border);
   border-radius: var(--radius-sm); background: var(--surface); color: var(--text);
 }
+.field textarea { resize: vertical; min-height: 72px; }
 
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }

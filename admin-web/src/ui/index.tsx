@@ -1,4 +1,10 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+import type {
+  ButtonHTMLAttributes,
+  InputHTMLAttributes,
+  ReactNode,
+  SelectHTMLAttributes,
+  TextareaHTMLAttributes,
+} from "react";
 
 export function Button({
   variant = "primary",
@@ -35,6 +41,18 @@ export function Field({
     <div className="field">
       <label>{label}</label>
       <input {...rest} />
+    </div>
+  );
+}
+
+export function TextArea({
+  label,
+  ...rest
+}: TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string }) {
+  return (
+    <div className="field">
+      <label>{label}</label>
+      <textarea rows={4} {...rest} />
     </div>
   );
 }
