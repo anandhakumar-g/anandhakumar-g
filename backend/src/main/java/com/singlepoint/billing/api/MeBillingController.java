@@ -127,7 +127,7 @@ public class MeBillingController {
         if (ref.type() == SubjectType.RESIDENT) {
             throw new AppException(ErrorCode.VALIDATION_FAILED, "No resident plans are available yet");
         }
-        Subscription s = billing.assignPlan(ref.type(), ref.id(), body.planCode(), false, p.getUserId());
+        Subscription s = billing.changePlan(ref.type(), ref.id(), body.planCode(), p.getUserId());
         return ResponseEntity.ok(BillingDtos.SubscriptionView.of(s, billing.planById(s.getPlanId())));
     }
 

@@ -39,6 +39,7 @@ public class BillingService implements WebhookFallback {
     private final com.singlepoint.tenant.AdminDirectory adminDirectory;
     private final int graceDays;
     private final String currency;
+    private final java.util.Set<Integer> dunningOffsets;
 
     public BillingService(SubscriptionPlanRepository plans, SubscriptionRepository subscriptions,
                           SubscriptionInvoiceRepository invoices, PaymentGateway gateway,
@@ -48,7 +49,11 @@ public class BillingService implements WebhookFallback {
                           ServiceProviderRepository providers,
                           com.singlepoint.tenant.AdminDirectory adminDirectory,
                           @Value("${sp.billing.grace-days:7}") int graceDays,
-                          @Value("${sp.billing.currency:INR}") String currency) {
+                          @Value("${sp.billing.currency:INR}") String currency,
+                          @Value("${sp.billing.dunning-day-offsets:1,3,6}") String dunningOffsetsCsv) {
+        this.dunningOffsets = java.util.Arrays.stream(dunningOffsetsCsv.split(","))
+                .map(String::trim).filter(s -> !s.isEmpty()).map(Integer::parseInt)
+                .collect(java.util.stream.Collectors.toSet());
         this.plans = plans;
         this.subscriptions = subscriptions;
         this.invoices = invoices;
@@ -256,6 +261,46 @@ public class BillingService implements WebhookFallback {
         return sub;
     }
 
+    /**
+     * MVP-13 (A3): switch plans with mid-period proration. Paid → paid credits the unused days
+     * of the old plan against the new plan's first invoice (net-zero → activate immediately).
+     * Paid → free / first-ever paid have nothing to prorate and fall through to {@link #assignPlan}.
+     */
+    @Transactional
+    public Subscription changePlan(SubjectType type, UUID subjectId, String newPlanCode, UUID payingUserId) {
+        Subscription current = activeSubscription(type, subjectId).orElse(null);
+        SubscriptionPlan oldPlan = current == null ? null : plans.findById(current.getPlanId()).orElse(null);
+        SubscriptionPlan newPlan = requirePlan(newPlanCode);
+
+        java.math.BigDecimal credit = java.math.BigDecimal.ZERO;
+        if (current != null && oldPlan != null && !oldPlan.isFree() && !newPlan.isFree()
+                && current.getStatus().planActive() && current.getCurrentPeriodEnd() != null) {
+            long periodDays = Math.max(1, java.time.Duration.between(
+                    current.getCurrentPeriodStart(), current.getCurrentPeriodEnd()).toDays());
+            long remainingDays = Math.max(0, java.time.Duration.between(
+                    Instant.now(), current.getCurrentPeriodEnd()).toDays());
+            credit = oldPlan.getPriceAmount()
+                    .multiply(java.math.BigDecimal.valueOf(remainingDays))
+                    .divide(java.math.BigDecimal.valueOf(periodDays), 2, java.math.RoundingMode.HALF_UP);
+        }
+
+        if (current != null) voidDueInvoices(current); // no stacked invoices across a mid-period switch
+        Subscription sub = assignPlan(type, subjectId, newPlanCode, false, payingUserId);
+        if (credit.signum() > 0) {
+            SubscriptionInvoice inv = invoices.findFirstBySubscriptionIdAndStatusOrderByPeriodStartAsc(
+                    sub.getId(), SubscriptionInvoice.Status.DUE).orElse(null);
+            if (inv != null) {
+                if (credit.compareTo(inv.getAmount()) >= 0) {
+                    activate(inv); // the credit covers the whole period
+                } else {
+                    inv.setAmount(inv.getAmount().subtract(credit));
+                    invoices.save(inv);
+                }
+            }
+        }
+        return sub;
+    }
+
     @Transactional
     public Subscription comp(UUID subscriptionId) {
         Subscription s = requireSubscription(subscriptionId);
@@ -433,6 +478,24 @@ public class BillingService implements WebhookFallback {
                     s.getSubjectType() == SubjectType.TENANT ? s.getSubjectId() : null,
                     recipientsFor(s.getSubjectType(), s.getSubjectId()), "Subscription expired",
                     "Your plan has lapsed — the account is read-only until it's renewed.",
+                    Map.of("subscriptionId", s.getId().toString(), "type", "billing"));
+            changed++;
+        }
+        // MVP-13 (A3): dunning — one reminder per configured day into the grace window.
+        for (Subscription s : subscriptions.findByStatusAndGraceUntilAfter(Subscription.Status.PAST_DUE, now)) {
+            if (s.getGraceUntil() == null) continue;
+            Instant graceStart = s.getGraceUntil().minusSeconds(graceDays * 86400L);
+            long daysIn = java.time.Duration.between(graceStart, now).toDays();
+            if (!dunningOffsets.contains((int) daysIn)) continue;
+            SubscriptionInvoice due = invoices.findFirstBySubscriptionIdAndStatusOrderByPeriodStartAsc(
+                    s.getId(), SubscriptionInvoice.Status.DUE).orElse(null);
+            long left = Math.max(0, java.time.Duration.between(now, s.getGraceUntil()).toDays());
+            events.publish("SUBSCRIPTION_DUE_REMINDER", "subscription", s.getId(),
+                    s.getSubjectType() == SubjectType.TENANT ? s.getSubjectId() : null,
+                    recipientsFor(s.getSubjectType(), s.getSubjectId()), "Payment reminder",
+                    "Your plan lapses in " + left + " day(s)."
+                            + (due != null && due.getGatewayPaymentLink() != null
+                               ? " Pay now: " + due.getGatewayPaymentLink() : ""),
                     Map.of("subscriptionId", s.getId().toString(), "type", "billing"));
             changed++;
         }
