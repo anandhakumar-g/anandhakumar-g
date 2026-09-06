@@ -98,9 +98,9 @@ public class BootstrapService implements ApplicationRunner {
         AppUser superAdmin = createUser(Role.SUPER_ADMIN, "Platform Owner", "+919000000000", null);
 
         Tenant green = tenantService.create("Green Meadows", "Bengaluru", "Whitefield",
-                "12 Whitefield Main Rd", "560066", null, "light", "#2E7D32", 72);
+                "12 Whitefield Main Rd", "560066", null, "light", null, 72);
         Tenant lake = tenantService.create("Lakeview Residency", "Bengaluru", "Hebbal",
-                "5 Outer Ring Rd", "560024", null, "dark", "#1565C0", 48);
+                "5 Outer Ring Rd", "560024", null, "dark", "#0E7490", 48);
         // let the Green Meadows admin enrol verified providers in dev
         tenantService.update(green.getId(), null, null, null, null, null, null, null, null,
                 null, null, null, null, true, null);

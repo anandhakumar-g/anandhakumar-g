@@ -9,4 +9,5 @@
 *.p12 binary
 *.docx binary
 *.xlsx binary
+*.pptx binary
 *.pdf binary
