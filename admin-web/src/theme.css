@@ -1,39 +1,59 @@
-/* Single Point console — token palette echoing mobile/src/theme/tokens.ts (light + dark). */
+/* Single Point console — design system v2. Token contract shared with mobile/src/theme/tokens.ts. */
 :root {
-  --bg: #f6f7f9;
+  --bg: #f5f6f8;
   --surface: #ffffff;
-  --surface-alt: #eef1f5;
-  --text: #12161c;
-  --text-muted: #55606e;
-  --text-faint: #8b95a3;
-  --border: #dfe3e9;
-  --primary: #2e7d32;
+  --surface-alt: #eef0f4;
+  --text: #171a20;
+  --text-muted: #4a515e;
+  --text-faint: #8a92a2;
+  --border: #e3e6ec;
+  --hair-strong: #d2d7e0;
+  --primary: #4f46e5;
+  --primary-press: #4338ca;
+  --primary-tint: #ececfe;
   --primary-text: #ffffff;
-  --accent: #1565c0;
-  --danger: #b3261e;
-  --success: #1e7d34;
-  --warning: #a65b00;
-  --radius: 12px;
+  --accent: #4f46e5;
+  --danger: #b42318;
+  --danger-tint: #fbe9e7;
+  --success: #15803d;
+  --success-tint: #e4f2e8;
+  --warning: #b45309;
+  --warning-tint: #f8ecda;
+  --info: #0e7490;
+  --info-tint: #e0f0f3;
+  --radius: 10px;
   --radius-sm: 8px;
+  --radius-lg: 16px;
   --space: 4px;
-  --shadow: 0 1px 2px rgba(20, 30, 45, 0.06), 0 8px 24px -18px rgba(20, 30, 45, 0.3);
+  --shadow: 0 1px 2px rgba(20, 25, 35, 0.06), 0 12px 28px -16px rgba(20, 25, 35, 0.28);
+  --font-display: "Bricolage Grotesque", "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-body: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0f1419;
-    --surface: #171d25;
-    --surface-alt: #1f2731;
-    --text: #e6eaf0;
-    --text-muted: #9aa5b1;
-    --text-faint: #6b7683;
-    --border: #2a323d;
-    --primary: #5db962;
-    --primary-text: #0f1419;
-    --accent: #6fb0ec;
-    --danger: #e0736b;
-    --success: #63c17a;
-    --warning: #d99a54;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 30px -20px rgba(0, 0, 0, 0.7);
+    --bg: #0e1017;
+    --surface: #171a22;
+    --surface-alt: #20242f;
+    --text: #eceef3;
+    --text-muted: #a7aebd;
+    --text-faint: #6b7382;
+    --border: #282d39;
+    --hair-strong: #333a48;
+    --primary: #8b84ff;
+    --primary-press: #a9a3ff;
+    --primary-tint: #211f3a;
+    --primary-text: #12101f;
+    --accent: #8b84ff;
+    --danger: #e5796e;
+    --danger-tint: #2c1815;
+    --success: #56c878;
+    --success-tint: #16281d;
+    --warning: #e0a44c;
+    --warning-tint: #2c2114;
+    --info: #4fc5db;
+    --info-tint: #10262b;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 34px -18px rgba(0, 0, 0, 0.75);
   }
 }
 
