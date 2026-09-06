@@ -81,7 +81,8 @@ public abstract class IntegrationTestBase {
               ('TENANT',  'TENANT_STANDARD', 'Community Standard', 'MONTHLY', 2999, '{"TICKETS_PER_MONTH":-1,"ADMIN_SEATS":15,"OFFERS_PER_MONTH":40,"WHATSAPP_NOTIFICATIONS":-1}', false, 20),
               ('TENANT',  'TENANT_PLUS',     'Community Plus',     'MONTHLY', 5999, '{"TICKETS_PER_MONTH":-1,"ADMIN_SEATS":-1,"OFFERS_PER_MONTH":-1,"WHATSAPP_NOTIFICATIONS":-1}', false, 30),
               ('PROVIDER','PROVIDER_FREE',   'Vendor Free',        'MONTHLY',    0, '{"DIRECTORY_LISTING":1,"OFFERS_PER_MONTH":8}',   true,  10),
-              ('PROVIDER','PROVIDER_LISTING','Vendor Listing',     'MONTHLY',  499, '{"DIRECTORY_LISTING":1,"OFFERS_PER_MONTH":40}',  false, 20);
+              ('PROVIDER','PROVIDER_LISTING','Vendor Listing',     'MONTHLY',  499, '{"DIRECTORY_LISTING":1,"OFFERS_PER_MONTH":40}',  false, 20),
+              ('RESIDENT','RESIDENT_FREE',   'Resident Free',      'MONTHLY',    0, '{}', true, 10);
             """;
 
     @Autowired protected TestRestTemplate rest;

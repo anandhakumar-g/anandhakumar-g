@@ -26,10 +26,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-/** The signed-in admin's community plan, or the signed-in provider's listing plan. */
+/** The signed-in admin's community plan, the provider's listing plan, or a resident's plan. */
 @RestController
 @RequestMapping("/api/v1/me/billing")
-@PreAuthorize("hasAnyRole('ADMIN','PROVIDER')")
+@PreAuthorize("hasAnyRole('ADMIN','PROVIDER','RESIDENT')")
 @Tag(name = "Me — Billing", description = "Your plan, usage against limits, and any due invoices")
 public class MeBillingController {
 
@@ -56,6 +56,10 @@ public class MeBillingController {
         if (p.getRole() == Role.ADMIN) {
             if (p.getTenantId() == null) throw new AppException(ErrorCode.FORBIDDEN, "No active community");
             return new SubjectRef(SubjectType.TENANT, p.getTenantId());
+        }
+        if (p.getRole() == Role.RESIDENT) {
+            // MVP-13 (A1): resident plans are infrastructure only — RESIDENT_FREE for everyone.
+            return new SubjectRef(SubjectType.RESIDENT, p.getUserId());
         }
         UUID providerId = providers.findByUserId(p.getUserId())
                 .orElseThrow(() -> AppException.notFound("Service provider")).getId();
@@ -108,6 +112,9 @@ public class MeBillingController {
     public ResponseEntity<BillingDtos.SubscriptionView> selfUpgrade(@AuthenticationPrincipal AppPrincipal p,
             @Valid @RequestBody BillingDtos.SelfPlanRequest body) {
         SubjectRef ref = subjectFor(p);
+        if (ref.type() == SubjectType.RESIDENT) {
+            throw new AppException(ErrorCode.VALIDATION_FAILED, "No resident plans are available yet");
+        }
         Subscription s = billing.assignPlan(ref.type(), ref.id(), body.planCode(), false);
         return ResponseEntity.ok(BillingDtos.SubscriptionView.of(s, billing.planById(s.getPlanId())));
     }
