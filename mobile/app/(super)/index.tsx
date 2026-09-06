@@ -5,6 +5,7 @@ import { analytics, me as meApi, superadmin } from "@/api/endpoints";
 import { Button } from "@/components/Button";
 import { Divider, EmptyState, KeyValue, Pill } from "@/components/Bits";
 import { DashboardSummary } from "@/components/DashboardSummary";
+import { ExportCsvCard } from "@/components/ExportCsvCard";
 import { Field } from "@/components/Field";
 import { AppText, Card, Loading, Screen } from "@/components/Themed";
 import { useAsync } from "@/hooks/useAsync";
@@ -77,6 +78,14 @@ export default function SuperHome() {
       </View>
 
       <DashboardSummary />
+
+      <ExportCsvCard
+        items={[
+          { label: "Tickets", path: "/superadmin/exports/tickets.csv" },
+          { label: "Offers", path: "/superadmin/exports/offers.csv" },
+          { label: "Communities", path: "/superadmin/exports/communities.csv" },
+        ]}
+      />
 
       {trends.data ? (
         <Card style={{ gap: theme.space(1.5) }}>

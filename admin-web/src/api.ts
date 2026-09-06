@@ -37,8 +37,7 @@ interface Opts {
   query?: Record<string, string | number | boolean | undefined | null>;
 }
 
-async function request<T>(method: string, path: string, body?: unknown, opts: Opts = {}): Promise<T> {
-  const { auth = true, query } = opts;
+function buildUrl(path: string, query?: Opts["query"]): string {
   let url = `${BASE}${path}`;
   if (query) {
     const qs = Object.entries(query)
@@ -47,6 +46,48 @@ async function request<T>(method: string, path: string, body?: unknown, opts: Op
       .join("&");
     if (qs) url += `?${qs}`;
   }
+  return url;
+}
+
+/**
+ * Fetch a `text/csv` attachment and hand it to the browser as a download. `<a download>`
+ * can't carry the bearer token, so we fetch → blob → object URL → synthetic click.
+ */
+export async function downloadCsv(path: string, query?: Opts["query"]): Promise<void> {
+  const t = getToken();
+  let res: Response;
+  try {
+    res = await fetch(buildUrl(path, query), { headers: t ? { Authorization: `Bearer ${t}` } : {} });
+  } catch (e) {
+    throw new ApiError(0, "NETWORK", `Cannot reach the API at ${BASE}. ${(e as Error)?.message ?? ""}`.trim());
+  }
+  if (!res.ok) {
+    if (res.status === 401) onUnauthorized();
+    const body = await res.text().catch(() => "");
+    let msg = `Download failed (${res.status})`;
+    try {
+      msg = JSON.parse(body)?.message ?? msg;
+    } catch {
+      /* not JSON — keep the generic message */
+    }
+    throw new ApiError(res.status, "ERROR", msg);
+  }
+  const blob = await res.blob();
+  const cd = res.headers.get("Content-Disposition") ?? "";
+  const name = /filename="?([^"]+)"?/.exec(cd)?.[1] ?? path.split("/").pop() ?? "export.csv";
+  const objUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objUrl;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
+}
+
+async function request<T>(method: string, path: string, body?: unknown, opts: Opts = {}): Promise<T> {
+  const { auth = true, query } = opts;
+  const url = buildUrl(path, query);
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (auth) {
     const t = getToken();

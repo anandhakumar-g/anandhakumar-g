@@ -8,6 +8,7 @@ import { CommunityRequests } from "./pages/CommunityRequests";
 import { Providers } from "./pages/Providers";
 import { Offers } from "./pages/Offers";
 import { Billing } from "./pages/Billing";
+import { Reports } from "./pages/Reports";
 
 const NAV = [
   { to: "/", label: "Dashboard", end: true },
@@ -16,6 +17,7 @@ const NAV = [
   { to: "/providers", label: "Providers" },
   { to: "/offers", label: "Offers" },
   { to: "/billing", label: "Billing" },
+  { to: "/reports", label: "Reports" },
 ];
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -58,6 +60,7 @@ export function App() {
         <Route path="/providers" element={<Providers />} />
         <Route path="/offers" element={<Offers />} />
         <Route path="/billing" element={<Billing />} />
+        <Route path="/reports" element={<Reports />} />
         <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -5,6 +5,7 @@ import { admin, adminCategories } from "@/api/endpoints";
 import { FlatView, InviteView, JoinRequestView, LocationView, MemberView, RemovalCheck, TicketCategory } from "@/api/types";
 import { Button } from "@/components/Button";
 import { Divider, EmptyState, Pill, Segmented } from "@/components/Bits";
+import { ExportCsvCard } from "@/components/ExportCsvCard";
 import { Field } from "@/components/Field";
 import { AppText, Card, Loading, Screen } from "@/components/Themed";
 import { useAsync } from "@/hooks/useAsync";
@@ -139,6 +140,14 @@ export default function Community() {
           {err}
         </AppText>
       ) : null}
+
+      <ExportCsvCard
+        items={[
+          { label: "Tickets", path: "/admin/exports/tickets.csv" },
+          { label: "Payments", path: "/admin/exports/payments.csv" },
+          { label: "Members", path: "/admin/exports/members.csv" },
+        ]}
+      />
 
       {tab === "requests" &&
         (requests.loading ? (
