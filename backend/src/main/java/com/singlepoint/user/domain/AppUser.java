@@ -69,4 +69,8 @@ public class AppUser extends BaseEntity {
     /** Self-reported: the user is away until this instant. Informational only. */
     @Column(name = "away_until")
     private java.time.Instant awayUntil;
+
+    /** MVP-13 (C2): set when the user closes their account — PII is scrubbed, tokens are rejected. */
+    @Column(name = "deleted_at")
+    private java.time.Instant deletedAt;
 }

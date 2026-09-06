@@ -24,10 +24,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final ObjectMapper objectMapper;
+    private final com.singlepoint.user.AppUserRepository users;
 
-    public JwtAuthFilter(JwtService jwtService, ObjectMapper objectMapper) {
+    public JwtAuthFilter(JwtService jwtService, ObjectMapper objectMapper,
+                         com.singlepoint.user.AppUserRepository users) {
         this.jwtService = jwtService;
         this.objectMapper = objectMapper;
+        this.users = users;
     }
 
     @Override
@@ -51,6 +54,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             if (principal.getDeviceId() != null
                     && !principal.getDeviceId().equals(request.getHeader("X-Device-Id"))) {
                 writeError(response, new AppException(ErrorCode.DEVICE_MISMATCH, null));
+                return;
+            }
+
+            // MVP-13 (C2): a closed account's tokens are dead immediately, not at expiry.
+            if (users.existsByIdAndDeletedAtIsNotNull(principal.getUserId())) {
+                writeError(response, new AppException(ErrorCode.UNAUTHENTICATED, "This account has been closed"));
                 return;
             }
 

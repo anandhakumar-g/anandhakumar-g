@@ -24,4 +24,7 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
     long countByRoleAndCurrentTenantId(Role role, UUID currentTenantId);
 
     boolean existsByRole(Role role);
+
+    /** MVP-13 (C2): a closed account — JwtAuthFilter turns its tokens into 401s. */
+    boolean existsByIdAndDeletedAtIsNotNull(UUID id);
 }

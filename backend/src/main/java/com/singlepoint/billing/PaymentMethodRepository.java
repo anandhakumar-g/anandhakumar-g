@@ -12,4 +12,6 @@ public interface PaymentMethodRepository extends JpaRepository<PaymentMethod, UU
     List<PaymentMethod> findByUserIdAndStatusOrderByCreatedAtDesc(UUID userId, PaymentMethod.Status status);
 
     Optional<PaymentMethod> findFirstByUserIdAndStatusOrderByCreatedAtDesc(UUID userId, PaymentMethod.Status status);
+
+    void deleteByUserId(UUID userId);
 }
