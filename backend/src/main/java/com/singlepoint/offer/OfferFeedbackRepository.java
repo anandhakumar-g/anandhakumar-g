@@ -14,6 +14,8 @@ public interface OfferFeedbackRepository extends JpaRepository<OfferFeedback, UU
 
     List<OfferFeedback> findByOfferIdOrderByCreatedAtDesc(UUID offerId);
 
+    List<OfferFeedback> findByUserIdOrderByCreatedAtDesc(UUID userId);
+
     @Query("select avg(f.rating), count(f.rating) from OfferFeedback f where f.offerId = :offerId")
     List<Object[]> ratingAggregate(UUID offerId);
 }
