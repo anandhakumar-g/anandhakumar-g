@@ -45,16 +45,19 @@ public class MeController {
     private final AdminTenantRepository adminTenantRepository;
     private final DeviceTokenRepository deviceTokenRepository;
     private final AuthService authService;
+    private final com.singlepoint.notification.NotificationRepository notifications;
 
     public MeController(UserService userService, MembershipService membershipService,
                         TenantRepository tenantRepository, AdminTenantRepository adminTenantRepository,
-                        DeviceTokenRepository deviceTokenRepository, AuthService authService) {
+                        DeviceTokenRepository deviceTokenRepository, AuthService authService,
+                        com.singlepoint.notification.NotificationRepository notifications) {
         this.userService = userService;
         this.membershipService = membershipService;
         this.tenantRepository = tenantRepository;
         this.adminTenantRepository = adminTenantRepository;
         this.deviceTokenRepository = deviceTokenRepository;
         this.authService = authService;
+        this.notifications = notifications;
     }
 
     @GetMapping
@@ -106,9 +109,11 @@ public class MeController {
                     "ACTIVE", "ADMIN", null, null, "ADMIN"));
         }
 
+        long unread = notifications.countByUserIdAndChannelAndReadAtIsNull(
+                u.getId(), com.singlepoint.notification.domain.Notification.Channel.PUSH);
         return ResponseEntity.ok(new MeDtos.MeResponse(u.getId(), u.getRole().name(), u.getName(),
                 PhoneNumbers.mask(u.getPhone()), u.getEmail(), u.isProfileCompleted(), u.getPreferredTheme(),
-                activeTenant, branding, views, u.getAwayUntil(), directServiceEnabled));
+                activeTenant, branding, views, u.getAwayUntil(), directServiceEnabled, unread));
     }
 
     @PostMapping("/active-community")

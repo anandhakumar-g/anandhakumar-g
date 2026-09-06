@@ -54,4 +54,8 @@ public class Notification extends CreatedOnlyEntity {
 
     @Column(name = "sent_at")
     private Instant sentAt;
+
+    /** MVP-13 (B1): set when the user opens it in the in-app inbox. */
+    @Column(name = "read_at")
+    private Instant readAt;
 }

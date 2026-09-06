@@ -17,7 +17,7 @@ public final class MeDtos {
     public record MeResponse(UUID userId, String role, String name, String phoneMasked, String email,
                              boolean profileCompleted, String preferredTheme, UUID activeTenantId,
                              TenantBranding activeTenantBranding, List<MembershipView> memberships,
-                             java.time.Instant awayUntil, boolean directServiceEnabled) { }
+                             java.time.Instant awayUntil, boolean directServiceEnabled, long unreadNotifications) { }
 
     public record ThemeRequest(@NotBlank String theme) { }
 

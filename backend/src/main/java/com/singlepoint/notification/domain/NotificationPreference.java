@@ -56,6 +56,10 @@ public class NotificationPreference extends BaseEntity {
     @Column(name = "broadcast_enabled", nullable = false)
     private boolean broadcastEnabled = true;
 
+    /** MVP-13 (B2): opt-IN to receiving offer promos over WhatsApp (default off). */
+    @Column(name = "promo_whatsapp_enabled", nullable = false)
+    private boolean promoWhatsappEnabled = false;
+
     public Set<String> subscribedCategorySet() {
         if (subscribedVendorCategoryIds == null || subscribedVendorCategoryIds.isBlank()) return Set.of();
         return Arrays.stream(subscribedVendorCategoryIds.split(","))

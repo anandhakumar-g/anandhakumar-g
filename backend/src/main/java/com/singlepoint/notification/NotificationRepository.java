@@ -13,6 +13,21 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
 
     Page<Notification> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
 
+    Page<Notification> findByUserIdAndChannelOrderByCreatedAtDesc(
+            UUID userId, Notification.Channel channel, Pageable pageable);
+
+    Page<Notification> findByUserIdAndChannelAndReadAtIsNullOrderByCreatedAtDesc(
+            UUID userId, Notification.Channel channel, Pageable pageable);
+
+    long countByUserIdAndChannelAndReadAtIsNull(UUID userId, Notification.Channel channel);
+
+    java.util.Optional<Notification> findByIdAndUserId(UUID id, UUID userId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query(
+        "update Notification n set n.readAt = :at where n.userId = :userId and n.readAt is null")
+    int markAllRead(UUID userId, java.time.Instant at);
+
     long countByUserIdAndTemplateStartingWithAndStatusAndCreatedAtAfter(
             UUID userId, String templatePrefix, Notification.Status status, Instant after);
 
