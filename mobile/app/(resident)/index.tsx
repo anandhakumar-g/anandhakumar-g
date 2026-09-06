@@ -78,7 +78,7 @@ export default function ResidentHome() {
       ) : (
         <Button
           label="Raise a ticket"
-          left={<Icon name="add" style={{ color: theme.color.primaryText }} />}
+          left={<Icon name="add" size="sm" color={theme.color.primaryText} />}
           onPress={() => router.push("/(resident)/raise")}
         />
       )}

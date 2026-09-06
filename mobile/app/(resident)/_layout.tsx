@@ -1,7 +1,14 @@
 import { Tabs } from "expo-router";
 import React from "react";
+import type { ColorValue } from "react-native";
+import { Icon, type IconName } from "@/components/Icon";
 import { useSession } from "@/store/SessionProvider";
 import { useTheme } from "@/theme/ThemeProvider";
+
+const tabIcon =
+  (name: IconName) =>
+  ({ color }: { color: ColorValue }) =>
+    <Icon name={name} color={color as string} size={22} />;
 
 export default function ResidentLayout() {
   const { theme } = useTheme();
@@ -17,14 +24,18 @@ export default function ResidentLayout() {
         tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: "Home" }} />
-      <Tabs.Screen name="tickets" options={{ title: "Tickets" }} />
-      <Tabs.Screen name="deals" options={{ title: "Deals" }} />
+      <Tabs.Screen name="index" options={{ title: "Home", tabBarIcon: tabIcon("home") }} />
+      <Tabs.Screen name="tickets" options={{ title: "Tickets", tabBarIcon: tabIcon("ticket") }} />
+      <Tabs.Screen name="deals" options={{ title: "Deals", tabBarIcon: tabIcon("tag") }} />
       <Tabs.Screen
         name="notifications"
-        options={{ title: "Alerts", tabBarBadge: unread > 0 ? (unread > 99 ? "99+" : unread) : undefined }}
+        options={{
+          title: "Alerts",
+          tabBarIcon: tabIcon("bell"),
+          tabBarBadge: unread > 0 ? (unread > 99 ? "99+" : unread) : undefined,
+        }}
       />
-      <Tabs.Screen name="settings" options={{ title: "Settings" }} />
+      <Tabs.Screen name="settings" options={{ title: "Settings", tabBarIcon: tabIcon("settings") }} />
       <Tabs.Screen name="raise" options={{ href: null }} />
       <Tabs.Screen name="ticket/[id]" options={{ href: null }} />
       <Tabs.Screen name="offer/[id]" options={{ href: null }} />
