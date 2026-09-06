@@ -37,7 +37,8 @@ public final class TenantDtos {
 
     public record CreateAdminRequest(@NotBlank String phone, @NotBlank @Size(max = 160) String name) { }
 
-    public record TenantHealth(UUID id, String name, String city, long openTickets, long totalTickets) { }
+    public record TenantHealth(UUID id, String name, String city, String status,
+                               long openTickets, long totalTickets) { }
 
     /** Sparse update — any null field is left unchanged. Super Admin only. */
     public record UpdateTenantRequest(@Size(max = 160) String name, String city, String locality,

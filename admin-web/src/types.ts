@@ -32,6 +32,7 @@ export interface TenantHealth {
   id: string;
   name: string;
   city: string | null;
+  status: string;
   openTickets: number;
   totalTickets: number;
 }
@@ -149,10 +150,14 @@ export interface PlanView {
   target: "TENANT" | "PROVIDER";
   code: string;
   name: string;
+  description: string | null;
   billingCycle: string;
-  priceAmount: number;
+  price: number;
+  currency: string;
   entitlements: Record<string, number>;
+  active: boolean;
   isDefault: boolean;
+  sortOrder: number;
 }
 export interface SubscriptionView {
   id: string;

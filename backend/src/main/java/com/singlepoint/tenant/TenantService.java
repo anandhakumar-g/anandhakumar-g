@@ -23,8 +23,14 @@ public class TenantService {
 
     @Transactional(readOnly = true)
     public Page<Tenant> search(String query, Pageable pageable) {
+        return search(query, TenantStatus.ACTIVE, pageable);
+    }
+
+    /** MVP-12 (B): the console lists communities in any lifecycle status, not just ACTIVE. */
+    @Transactional(readOnly = true)
+    public Page<Tenant> search(String query, TenantStatus status, Pageable pageable) {
         String q = (query == null || query.isBlank()) ? null : query.trim();
-        return repository.search(q, TenantStatus.ACTIVE, pageable);
+        return repository.search(q, status == null ? TenantStatus.ACTIVE : status, pageable);
     }
 
     @Transactional(readOnly = true)

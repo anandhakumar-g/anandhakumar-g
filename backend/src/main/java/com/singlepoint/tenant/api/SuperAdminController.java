@@ -220,13 +220,24 @@ public class SuperAdminController {
     }
 
     @GetMapping("/tenants")
-    @Operation(summary = "Cross-tenant health counts (aggregates only, never ticket content)")
+    @Operation(summary = "Cross-tenant health counts (aggregates only, never ticket content). "
+            + "Defaults to ACTIVE; pass ?status= for SUSPENDED / ARCHIVED / PENDING_REVIEW.")
     @Transactional(readOnly = true)
     public ResponseEntity<List<TenantDtos.TenantHealth>> tenantHealth(
-            @AuthenticationPrincipal AppPrincipal principal) {
-        List<TenantDtos.TenantHealth> out = tenantService.search(null,
-                        org.springframework.data.domain.PageRequest.of(0, 50)).getContent().stream()
-                .map(t -> new TenantDtos.TenantHealth(t.getId(), t.getName(), t.getCity(),
+            @AuthenticationPrincipal AppPrincipal principal,
+            @RequestParam(required = false) String status) {
+        com.singlepoint.tenant.domain.TenantStatus filter = null;
+        if (status != null && !status.isBlank()) {
+            try {
+                filter = com.singlepoint.tenant.domain.TenantStatus.valueOf(status.trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new com.singlepoint.common.error.AppException(
+                        com.singlepoint.common.error.ErrorCode.VALIDATION_FAILED, "Unknown status: " + status);
+            }
+        }
+        List<TenantDtos.TenantHealth> out = tenantService.search(null, filter,
+                        org.springframework.data.domain.PageRequest.of(0, 100)).getContent().stream()
+                .map(t -> new TenantDtos.TenantHealth(t.getId(), t.getName(), t.getCity(), t.getStatus().name(),
                         ticketRepository.countByTenantIdAndStatusNot(t.getId(), TicketStatus.CLOSED),
                         ticketRepository.countByTenantId(t.getId())))
                 .toList();
