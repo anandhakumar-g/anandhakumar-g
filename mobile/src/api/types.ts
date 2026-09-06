@@ -77,6 +77,26 @@ export interface MeResponse {
   memberships: MembershipView[];
   awayUntil: string | null;
   directServiceEnabled: boolean;
+  unreadNotifications: number;
+}
+
+export interface NotificationView {
+  id: string;
+  template: string;
+  title: string | null;
+  body: string | null;
+  data: string | null;
+  createdAt: string;
+  readAt: string | null;
+}
+
+export interface DeviceSession {
+  id: string;
+  label: string | null;
+  platform: string | null;
+  lastSeenAt: string;
+  current: boolean;
+  revoked: boolean;
 }
 
 export type Availability = "AVAILABLE" | "BUSY" | "AWAY";
@@ -349,6 +369,7 @@ export interface NotificationPreferences {
   promoNotificationsEnabled: boolean;
   whatsappEnabled: boolean;
   broadcastEnabled: boolean;
+  promoWhatsappEnabled: boolean;
 }
 
 export type BroadcastScope = "COMMUNITY" | "ALL_ADMINS" | "ALL_USERS";

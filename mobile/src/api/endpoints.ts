@@ -3,7 +3,7 @@ import {
   AdminAssignment, AdminVendorCategory, AnalyticsView, AttachmentView, AuditLogView, BroadcastScope, BroadcastView,
   Category, CommunitySettings, DashboardView, FlatView, InvoiceView, MyCommunityRequest,
   InviteView, JoinRequestView, KycDocView, LocationView, MeResponse, MemberView, MyBillingView,
-  NotificationPreferences, OfferFeedbackList, OfferFeedbackView, OfferStatus, OfferView, HouseholdMember,
+  NotificationPreferences, NotificationView, DeviceSession, OfferFeedbackList, OfferFeedbackView, OfferStatus, OfferView, HouseholdMember,
   MyFlat, Page, PaymentView, PlanView,
   ProviderProfile, ProviderTier, ProviderView, PublicProviderView, ReceiptView, RedemptionView, RemovalCheck,
   SessionResponse, SubscriptionStatus, SubscriptionView, SubjectType, SuperProviderView, TenantCard,
@@ -44,6 +44,19 @@ export const me = {
       { flatId, maxUses, validDays }),
   removeHouseholdMember: (flatId: string, userId: string) =>
     api.post<HouseholdMember[]>(`/me/household/${flatId}/members/${userId}/remove`, {}),
+
+  // MVP-13: in-app notification inbox
+  notifications: (unreadOnly = false, page = 0) =>
+    api.get<Page<NotificationView>>("/me/notifications", { query: { unreadOnly, page, size: 30 } }),
+  unreadNotificationCount: () => api.get<{ count: number }>("/me/notifications/unread-count"),
+  markNotificationRead: (id: string) => api.post<void>(`/me/notifications/${id}/read`, {}),
+  markAllNotificationsRead: () => api.post<void>("/me/notifications/read-all", {}),
+
+  // MVP-13: account self-service
+  devices: () => api.get<DeviceSession[]>("/me/devices"),
+  revokeDevice: (id: string) => api.post<void>(`/me/devices/${id}/revoke`, {}),
+  revokeOtherDevices: () => api.post<void>("/me/devices/revoke-others", {}),
+  deleteAccount: () => api.del<void>("/me"),
 };
 
 export const providers = {

@@ -2,13 +2,14 @@ import Constants, { ExecutionEnvironment } from "expo-constants";
 import * as Device from "expo-device";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Platform, Pressable, Switch, View } from "react-native";
+import { Alert, Platform, Pressable, Switch, View } from "react-native";
 import { catalog, me as meApi } from "@/api/endpoints";
-import { groupVendorCategories, NotificationPreferences, VendorCategory } from "@/api/types";
+import { DeviceSession, groupVendorCategories, NotificationPreferences, VendorCategory } from "@/api/types";
 import { BillingCard } from "@/components/BillingCard";
 import { Button } from "@/components/Button";
 import { Divider, KeyValue, Segmented } from "@/components/Bits";
 import { AppText, Card, Screen } from "@/components/Themed";
+import { canDownloadCsv, downloadCsv } from "@/lib/download";
 import { useSession } from "@/store/SessionProvider";
 import { useTheme } from "@/theme/ThemeProvider";
 import { THEMES, THEME_LABELS, ThemeName } from "@/theme/tokens";
@@ -141,6 +142,10 @@ export function SettingsScreen({
         ) : null}
       </Card>
 
+      <DevicesCard />
+
+      <DataAndPrivacyCard />
+
       {biometricAvailable ? (
         <Card style={{ gap: theme.space(2) }}>
           <AppText size="sm" weight="700" tone="muted">
@@ -232,6 +237,12 @@ function OfferNotificationPrefs() {
         hint="Deals from vendors you follow"
         value={prefs.promoNotificationsEnabled}
         onValueChange={(v) => patch({ promoNotificationsEnabled: v })}
+      />
+      <Row
+        label="Offers on WhatsApp"
+        hint="Also send those deals to WhatsApp (off by default)"
+        value={prefs.promoWhatsappEnabled}
+        onValueChange={(v) => patch({ promoWhatsappEnabled: v })}
       />
       <Row
         label="Community announcements"
@@ -330,6 +341,127 @@ function Stepper({ value, onChange }: { value: number; onChange: (n: number) => 
       </AppText>
       {btn("+", 1)}
     </View>
+  );
+}
+
+function DevicesCard() {
+  const { theme } = useTheme();
+  const [devices, setDevices] = useState<DeviceSession[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = () => meApi.devices().then(setDevices).catch(() => setDevices([]));
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function run(key: string, fn: () => Promise<unknown>) {
+    setBusy(key);
+    try {
+      await fn();
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (!devices || devices.length === 0) return null;
+  const others = devices.filter((d) => !d.current && !d.revoked);
+
+  return (
+    <Card style={{ gap: theme.space(2) }}>
+      <AppText size="sm" weight="700" tone="muted">
+        Devices
+      </AppText>
+      {devices.map((d) => (
+        <View key={d.id} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: theme.space(2) }}>
+          <View style={{ flexShrink: 1 }}>
+            <AppText size="sm">
+              {d.label ?? "Device"}
+              {d.current ? "  ·  this device" : ""}
+            </AppText>
+            <AppText size="xs" tone="faint">
+              {d.revoked ? "signed out" : `last seen ${new Date(d.lastSeenAt).toLocaleDateString()}`}
+            </AppText>
+          </View>
+          {!d.current && !d.revoked ? (
+            <AppText size="xs" tone="danger" onPress={() => run(d.id, () => meApi.revokeDevice(d.id))}>
+              {busy === d.id ? "…" : "Sign out"}
+            </AppText>
+          ) : null}
+        </View>
+      ))}
+      {others.length > 0 ? (
+        <Button
+          label="Sign out all other devices"
+          variant="secondary"
+          fullWidth={false}
+          loading={busy === "others"}
+          onPress={() => run("others", () => meApi.revokeOtherDevices())}
+        />
+      ) : null}
+    </Card>
+  );
+}
+
+function DataAndPrivacyCard() {
+  const { theme } = useTheme();
+  const { token, signOut } = useSession();
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function exportData() {
+    setMsg(null);
+    if (!canDownloadCsv) {
+      setMsg("Open the app in a web browser to download your data.");
+      return;
+    }
+    try {
+      await downloadCsv("/me/export", token);
+    } catch (e: any) {
+      setMsg(e?.message ?? "Could not download");
+    }
+  }
+
+  function confirmDelete() {
+    Alert.alert(
+      "Delete your account?",
+      "Your name, email and phone are scrubbed and you're removed from every community. "
+        + "This can't be undone. Open requests or unpaid bills will block it.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setBusy(true);
+            setMsg(null);
+            try {
+              await meApi.deleteAccount();
+              await signOut();
+            } catch (e: any) {
+              setMsg(e?.message ?? "Could not delete the account");
+            } finally {
+              setBusy(false);
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  return (
+    <Card style={{ gap: theme.space(2) }}>
+      <AppText size="sm" weight="700" tone="muted">
+        Your data
+      </AppText>
+      <Button label="Download my data" variant="secondary" onPress={exportData} />
+      <Button label="Delete my account" variant="danger" loading={busy} onPress={confirmDelete} />
+      {msg ? (
+        <AppText size="xs" tone="danger">
+          {msg}
+        </AppText>
+      ) : null}
+    </Card>
   );
 }
 
