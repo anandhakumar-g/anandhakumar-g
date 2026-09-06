@@ -22,9 +22,19 @@ public class Broadcast extends CreatedOnlyEntity {
 
     public enum Scope { COMMUNITY, ALL_ADMINS, ALL_USERS }
 
+    /** MVP-13 (B3): PENDING = scheduled, waiting for BroadcastDispatchJob; SENT = fanned out; CANCELLED = withdrawn. */
+    public enum Status { PENDING, SENT, CANCELLED }
+
     @Enumerated(EnumType.STRING)
     @Column(name = "scope", nullable = false, length = 16)
     private Scope scope;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 12)
+    private Status status = Status.SENT;
+
+    @Column(name = "scheduled_for")
+    private java.time.Instant scheduledFor;
 
     /** Set for {@link Scope#COMMUNITY}; null for the platform-wide scopes. */
     @Column(name = "tenant_id")

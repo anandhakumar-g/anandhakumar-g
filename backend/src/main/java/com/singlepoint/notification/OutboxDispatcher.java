@@ -100,21 +100,26 @@ public class OutboxDispatcher {
                     ok ? null : "push transport rejected batch", null, Notification.Channel.PUSH);
         }
 
-        // Additive WhatsApp delivery for ticket notifications, when the community is entitled
-        // and the user has opted in. Broadcasts are push + in-app only this MVP.
-        if (!promo && !"broadcast".equals(kind)) maybeSendWhatsApp(row, userId, title, body, data, pref);
+        // Additive WhatsApp delivery when the community is entitled and the user has opted in —
+        // ticket updates (whatsappEnabled) and, since MVP-13, offer promos (promoWhatsappEnabled).
+        // Broadcasts stay push + in-app only.
+        if (!"broadcast".equals(kind)) maybeSendWhatsApp(row, userId, title, body, data, pref, promo);
     }
 
     private void maybeSendWhatsApp(NotificationOutbox row, UUID userId, String title, String body,
-                                   Map<String, Object> data, NotificationPreference pref) throws Exception {
-        if (pref == null || !pref.isWhatsappEnabled()) return;
-        if (row.getTenantId() == null
-                || !entitlements.isEntitled(SubjectType.TENANT, row.getTenantId(), "WHATSAPP_NOTIFICATIONS")) {
+                                   Map<String, Object> data, NotificationPreference pref, boolean promo) throws Exception {
+        if (pref == null) return;
+        if (promo ? !pref.isPromoWhatsappEnabled() : !pref.isWhatsappEnabled()) return;
+        var user = userRepository.findById(userId).orElse(null);
+        if (user == null || user.getPhone() == null || user.getPhone().isBlank()) return;
+        // Ticket outbox rows carry a tenant_id; promo rows don't (an offer can span tenants), so
+        // for a promo the entitlement is resolved against the recipient's own active community.
+        UUID entitlementTenant = promo ? user.getCurrentTenantId() : row.getTenantId();
+        if (entitlementTenant == null
+                || !entitlements.isEntitled(SubjectType.TENANT, entitlementTenant, "WHATSAPP_NOTIFICATIONS")) {
             return;
         }
-        String phone = userRepository.findById(userId).map(u -> u.getPhone()).orElse(null);
-        if (phone == null || phone.isBlank()) return;
-        boolean ok = whatsAppSender.send(phone, title, body, data);
+        boolean ok = whatsAppSender.send(user.getPhone(), title, body, data);
         record(row, userId, title, body, data,
                 ok ? Notification.Status.SENT : Notification.Status.FAILED,
                 ok ? null : "whatsapp transport rejected", null, Notification.Channel.WHATSAPP);

@@ -16,4 +16,6 @@ public interface BroadcastRepository extends JpaRepository<Broadcast, UUID> {
     Page<Broadcast> findByScopeInOrderByCreatedAtDesc(Collection<Broadcast.Scope> scopes, Pageable pageable);
 
     long countBySenderUserIdAndCreatedAtAfter(UUID senderUserId, Instant after);
+
+    java.util.List<Broadcast> findByStatusAndScheduledForLessThanEqual(Broadcast.Status status, Instant cutoff);
 }

@@ -39,12 +39,19 @@ public class AdminBroadcastController {
     }
 
     @PostMapping
-    @Operation(summary = "Announce to every active resident of the acting community")
+    @Operation(summary = "Announce to every active resident of the acting community (optionally scheduled)")
     public ResponseEntity<BroadcastDtos.BroadcastView> send(@AuthenticationPrincipal AppPrincipal principal,
                                                             @Valid @RequestBody BroadcastDtos.SendRequest body) {
         Broadcast b = broadcastService.send(principal, Broadcast.Scope.COMMUNITY, tenant(principal),
-                body.title().trim(), body.body().trim());
+                body.title().trim(), body.body().trim(), body.scheduledFor());
         return ResponseEntity.status(HttpStatus.CREATED).body(broadcastService.toView(b));
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Cancel a scheduled announcement that has not gone out yet")
+    public ResponseEntity<Void> cancel(@AuthenticationPrincipal AppPrincipal principal, @PathVariable UUID id) {
+        broadcastService.cancel(principal, id);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping

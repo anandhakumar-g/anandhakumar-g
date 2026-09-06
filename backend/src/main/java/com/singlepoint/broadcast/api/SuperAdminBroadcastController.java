@@ -40,8 +40,16 @@ public class SuperAdminBroadcastController {
                                                             @Valid @RequestBody BroadcastDtos.SendRequest body) {
         Broadcast.Scope scope = parseScope(body.scope());
         UUID tenantId = scope == Broadcast.Scope.COMMUNITY ? parseTenantId(body.tenantId()) : null;
-        Broadcast b = broadcastService.send(principal, scope, tenantId, body.title().trim(), body.body().trim());
+        Broadcast b = broadcastService.send(principal, scope, tenantId, body.title().trim(), body.body().trim(),
+                body.scheduledFor());
         return ResponseEntity.status(HttpStatus.CREATED).body(broadcastService.toView(b));
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Cancel a scheduled announcement that has not gone out yet")
+    public ResponseEntity<Void> cancel(@AuthenticationPrincipal AppPrincipal principal, @PathVariable UUID id) {
+        broadcastService.cancel(principal, id);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping

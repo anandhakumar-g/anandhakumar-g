@@ -63,13 +63,19 @@ public class BroadcastService {
 
     @Transactional
     public Broadcast send(AppPrincipal sender, Broadcast.Scope scope, UUID tenantId, String title, String body) {
+        return send(sender, scope, tenantId, title, body, null);
+    }
+
+    /**
+     * MVP-13 (B3): {@code scheduledFor} in the future → the row is saved {@code PENDING} and
+     * {@link BroadcastDispatchJob} fans it out later; otherwise it goes out now (unchanged).
+     * The 60s / daily rate guard is checked here, at schedule time.
+     */
+    @Transactional
+    public Broadcast send(AppPrincipal sender, Broadcast.Scope scope, UUID tenantId, String title, String body,
+                          Instant scheduledFor) {
         authorizeScope(sender, scope, tenantId);
         rateGuard(sender.getUserId());
-
-        List<UUID> recipients = resolveRecipients(scope, tenantId).stream()
-                .filter(id -> !id.equals(sender.getUserId()))
-                .distinct()
-                .toList();
 
         Broadcast b = new Broadcast();
         b.setScope(scope);
@@ -78,6 +84,19 @@ public class BroadcastService {
         b.setSenderRole(sender.getRole().name());
         b.setTitle(title);
         b.setBody(body);
+
+        if (scheduledFor != null && scheduledFor.isAfter(Instant.now())) {
+            b.setStatus(Broadcast.Status.PENDING);
+            b.setScheduledFor(scheduledFor);
+            b.setRecipientCount(0);
+            return broadcasts.save(b);
+        }
+
+        List<UUID> recipients = resolveRecipients(scope, tenantId).stream()
+                .filter(id -> !id.equals(sender.getUserId()))
+                .distinct()
+                .toList();
+        b.setStatus(Broadcast.Status.SENT);
         b.setRecipientCount(recipients.size());
         b = broadcasts.save(b);
 
@@ -85,6 +104,42 @@ public class BroadcastService {
                 Map.of("scope", scope.name(), "broadcastId", b.getId().toString()));
         metrics.broadcastSent();
         return b;
+    }
+
+    /** Fan out every scheduled broadcast whose time has come. Called by {@link BroadcastDispatchJob}. */
+    @Transactional
+    public int dispatchDue() {
+        int n = 0;
+        for (Broadcast b : broadcasts.findByStatusAndScheduledForLessThanEqual(
+                Broadcast.Status.PENDING, Instant.now())) {
+            List<UUID> recipients = resolveRecipients(b.getScope(), b.getTenantId()).stream()
+                    .filter(id -> !id.equals(b.getSenderUserId()))
+                    .distinct()
+                    .toList();
+            b.setStatus(Broadcast.Status.SENT);
+            b.setRecipientCount(recipients.size());
+            broadcasts.save(b);
+            events.publishBroadcast(b.getId(), b.getTenantId(), recipients, b.getTitle(), b.getBody(),
+                    Map.of("scope", b.getScope().name(), "broadcastId", b.getId().toString()));
+            metrics.broadcastSent();
+            n++;
+        }
+        return n;
+    }
+
+    /** Withdraw a still-pending scheduled broadcast. */
+    @Transactional
+    public void cancel(AppPrincipal caller, UUID broadcastId) {
+        Broadcast b = broadcasts.findById(broadcastId).orElseThrow(() -> AppException.notFound("Broadcast"));
+        boolean owner = b.getSenderUserId().equals(caller.getUserId());
+        if (!owner && caller.getRole() != Role.SUPER_ADMIN) {
+            throw new AppException(ErrorCode.FORBIDDEN, "Not your announcement");
+        }
+        if (b.getStatus() != Broadcast.Status.PENDING) {
+            throw new AppException(ErrorCode.CONFLICT, "This announcement has already been sent");
+        }
+        b.setStatus(Broadcast.Status.CANCELLED);
+        broadcasts.save(b);
     }
 
     @Transactional(readOnly = true)
