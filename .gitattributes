@@ -7,3 +7,6 @@
 *.jpg binary
 *.keystore binary
 *.p12 binary
+*.docx binary
+*.xlsx binary
+*.pdf binary
