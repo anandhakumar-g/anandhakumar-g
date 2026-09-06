@@ -224,6 +224,12 @@ Sign in as each phone; the app routes to that role's tab bar.
 - **Settings**: notification preferences incl. "Offers on WhatsApp"; **Devices** list +
   "Sign out" another device; **Download my data**; **Delete account** (blocked while an
   open ticket / unpaid bill exists).
+- **Settings ▸ Offer notifications ▸ "Notify me about"**: the category list shows ~6
+  **collapsed** group rows (Home & Maintenance, Food & Dining, …), not a long scroll of
+  toggles. Tapping a header expands its sub‑toggles and rotates the chevron; tapping again
+  collapses. Turn a sub‑category on, collapse the group → a count badge shows on the header.
+  Several groups can be open at once. *(Check this specifically on the installed APK — the
+  expand animation is native‑only.)*
 - Household: invite a family member with a HOUSEHOLD code.
 - Switch between communities; leave a community.
 
