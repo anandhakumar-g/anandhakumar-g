@@ -152,6 +152,95 @@
       "name": "1 \u00b7 Resident onboarding",
       "item": [
         {
+          "name": "Seed \u00b7 admin OTP",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/otp/request",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{adminPhone}}\"\n}"
+            },
+            "description": "Seeds the invite code the resident join below needs."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('devCode', pm.response.json().devCode || '');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seed \u00b7 admin verify",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/otp/verify",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{adminPhone}}\",\n  \"code\": \"{{devCode}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('admin signed in', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('adminToken', pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seed \u00b7 admin issues an invite code",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/admin/invite-codes",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"maxUses\": 20,\n  \"validDays\": 30\n}"
+            },
+            "description": "Community-level code (no flat) \u2014 the redeemer joins ACTIVE."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('code issued', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('inviteCode', pm.response.json().code);"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Request OTP",
           "event": [
             {
@@ -1924,7 +2013,8 @@
               "script": {
                 "exec": [
                   "pm.test('201', () => pm.response.to.have.status(201));",
-                  "pm.collectionVariables.set('planCode', pm.response.json().code);"
+                  "pm.collectionVariables.set('planCode', pm.response.json().code);",
+                  "pm.collectionVariables.set('planId', pm.response.json().id);"
                 ]
               }
             }
@@ -2063,27 +2153,6 @@
           ]
         },
         {
-          "name": "Mark invoice paid",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/superadmin/invoices/{{invoiceId}}/mark-paid",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{superToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            }
-          }
-        },
-        {
           "name": "List providers with tier",
           "request": {
             "method": "GET",
@@ -2139,30 +2208,6 @@
           }
         },
         {
-          "name": "My billing (admin/provider)",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/me/billing",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ]
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const b = pm.response.json();",
-                  "if (b.dueInvoices && b.dueInvoices.length) pm.collectionVariables.set('invoiceId', b.dueInvoices[0].id);"
-                ]
-              }
-            }
-          ]
-        },
-        {
           "name": "Self-upgrade to a paid plan",
           "request": {
             "method": "POST",
@@ -2182,6 +2227,31 @@
               "raw": "{\n  \"planCode\": \"TENANT_STANDARD\"\n}"
             }
           }
+        },
+        {
+          "name": "My billing (admin/provider)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/me/billing",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const b = pm.response.json();",
+                  "if (b.dueInvoices && b.dueInvoices.length) pm.collectionVariables.set('invoiceId', b.dueInvoices[0].id);",
+                  "pm.test('a due invoice is waiting', () => pm.expect(pm.collectionVariables.get('invoiceId')).to.be.ok);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Pay a due invoice (returns link)",
@@ -2215,6 +2285,27 @@
               }
             }
           ]
+        },
+        {
+          "name": "Mark invoice paid",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/superadmin/invoices/{{invoiceId}}/mark-paid",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
         }
       ]
     },
@@ -4736,6 +4827,23 @@
           }
         }
       ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "// Guard: an empty {{var}} in the path renders as '//' and the security",
+          "// firewall returns a misleading 500. Turn that into a readable failure.",
+          "var resolved = pm.variables.replaceIn(pm.request.url.toString());",
+          "var afterHost = resolved.replace(/^https?:\\/\\//, '');",
+          "if (afterHost.indexOf('//') !== -1 || /\\/(undefined|null)(\\/|$)/.test(afterHost)) {",
+          "    throw new Error('A path variable is unset \\u2014 resolved URL: ' + resolved +",
+          "        '. Run the collection top to bottom so earlier requests can capture it.');",
+          "}"
+        ]
+      }
     }
   ]
 }
