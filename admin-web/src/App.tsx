@@ -1,3 +1,16 @@
+import {
+  Building2,
+  CreditCard,
+  FileText,
+  Gauge,
+  Inbox,
+  Layers,
+  type LucideIcon,
+  Megaphone,
+  ScrollText,
+  Tag,
+  Wrench,
+} from "lucide-react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth";
 import { Button } from "./ui";
@@ -13,17 +26,17 @@ import { Taxonomy } from "./pages/Taxonomy";
 import { Audit } from "./pages/Audit";
 import { Broadcasts } from "./pages/Broadcasts";
 
-const NAV = [
-  { to: "/", label: "Dashboard", end: true },
-  { to: "/communities", label: "Communities" },
-  { to: "/communities/requests", label: "Requests" },
-  { to: "/providers", label: "Providers" },
-  { to: "/offers", label: "Offers" },
-  { to: "/taxonomy", label: "Taxonomy" },
-  { to: "/broadcasts", label: "Announcements" },
-  { to: "/audit", label: "Audit" },
-  { to: "/billing", label: "Billing" },
-  { to: "/reports", label: "Reports" },
+const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean }[] = [
+  { to: "/", label: "Dashboard", icon: Gauge, end: true },
+  { to: "/communities", label: "Communities", icon: Building2 },
+  { to: "/communities/requests", label: "Requests", icon: Inbox },
+  { to: "/providers", label: "Providers", icon: Wrench },
+  { to: "/offers", label: "Offers", icon: Tag },
+  { to: "/taxonomy", label: "Taxonomy", icon: Layers },
+  { to: "/broadcasts", label: "Announcements", icon: Megaphone },
+  { to: "/audit", label: "Audit", icon: ScrollText },
+  { to: "/billing", label: "Billing", icon: CreditCard },
+  { to: "/reports", label: "Reports", icon: FileText },
 ];
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -31,9 +44,10 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="layout">
       <nav className="nav">
-        <div className="brand">Single Point · Console</div>
+        <div className="brand">Single Point</div>
         {NAV.map((n) => (
           <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? "active" : "")}>
+            <n.icon size={16} strokeWidth={1.75} aria-hidden />
             {n.label}
           </NavLink>
         ))}

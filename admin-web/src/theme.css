@@ -81,9 +81,11 @@ code, kbd, samp, .mono { font-family: var(--font-mono); }
 .nav .brand { font-family: var(--font-display); font-weight: 700; padding: 8px 12px 16px; letter-spacing: -0.02em; }
 .nav a {
   color: var(--text-muted); padding: 9px 12px; border-radius: var(--radius-sm);
-  font-weight: 500;
+  font-weight: 500; display: flex; align-items: center; gap: 10px;
 }
-.nav a.active { background: var(--surface-alt); color: var(--text); }
+.nav a:hover { background: var(--surface-alt); }
+.nav a.active { background: var(--primary-tint); color: var(--primary); }
+.nav a svg { flex: none; }
 .nav .spacer { flex: 1; }
 .main { padding: 28px 32px 64px; max-width: 1100px; }
 .page-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 18px; gap: 16px; }
@@ -103,9 +105,14 @@ code, kbd, samp, .mono { font-family: var(--font-mono); }
 
 .btn {
   appearance: none; border: 1px solid transparent; border-radius: var(--radius-sm);
-  padding: 8px 14px; font: inherit; font-weight: 600; cursor: pointer;
+  padding: 9px 15px; font: inherit; font-weight: 600; cursor: pointer;
   background: var(--primary); color: var(--primary-text);
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
 }
+.btn svg { flex: none; }
+.btn:not(:disabled):hover { background: var(--primary-press); }
+.btn.secondary:not(:disabled):hover, .btn.danger:not(:disabled):hover { filter: brightness(0.97); }
+.btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--primary-tint); }
 .btn:disabled { opacity: 0.5; cursor: default; }
 .btn.secondary { background: var(--surface-alt); color: var(--text); border-color: var(--border); }
 .btn.danger { background: var(--danger); color: #fff; }

@@ -1,3 +1,4 @@
+import type { LucideIcon } from "lucide-react";
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
@@ -9,12 +10,22 @@ import type {
 export function Button({
   variant = "primary",
   loading,
+  icon: Icon,
   children,
   ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "danger" | "link"; loading?: boolean }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: "primary" | "secondary" | "danger" | "link";
+  loading?: boolean;
+  icon?: LucideIcon;
+}) {
   return (
     <button className={`btn ${variant}`} disabled={rest.disabled || loading} {...rest}>
-      {loading ? "…" : children}
+      {loading ? "…" : (
+        <>
+          {Icon && <Icon size={15} strokeWidth={1.9} aria-hidden />}
+          {children}
+        </>
+      )}
     </button>
   );
 }

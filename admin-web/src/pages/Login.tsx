@@ -1,3 +1,4 @@
+import { ArrowRight, LogIn } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../auth";
 import { Button, Card, Field } from "../ui";
@@ -57,9 +58,9 @@ export function Login() {
             )}
             {err && <p className="error">{err}</p>}
             {sent ? (
-              <Button onClick={verify} loading={busy} disabled={code.trim().length < 4}>Verify</Button>
+              <Button onClick={verify} loading={busy} disabled={code.trim().length < 4} icon={LogIn}>Verify</Button>
             ) : (
-              <Button onClick={send} loading={busy} disabled={phone.trim().length < 8}>Send code</Button>
+              <Button onClick={send} loading={busy} disabled={phone.trim().length < 8} icon={ArrowRight}>Send code</Button>
             )}
           </div>
         </Card>
