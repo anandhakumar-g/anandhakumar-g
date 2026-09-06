@@ -3,10 +3,10 @@
 Operational reference for running the backend in a deployed environment: metrics scraping,
 dashboards, and database backups. Introduced in **MVP-12 (Part C)**.
 
-> Scope note: the **only shipped code** for this track is the Prometheus registry, its
-> configuration, and four domain counters (`com.singlepoint.observability.AppMetrics`).
-> Everything about backups and Grafana below is a documented, deploy-environment procedure —
-> not automation that lives in the repo.
+> Scope note: shipped code for this track — the Prometheus registry + config + four domain
+> counters (`com.singlepoint.observability.AppMetrics`, MVP-12), and **as of MVP-13** the
+> scheduled backup job (`com.singlepoint.ops.BackupJob` + `GET /api/v1/superadmin/backup-status`).
+> Grafana dashboards and the S3 bucket / lifecycle policy remain deploy-environment setup.
 
 ---
 
@@ -90,32 +90,49 @@ scrape_configs:
 PostgreSQL holds all durable state. RLS, encryption-at-rest for PII, and Flyway history are
 all *inside* the database, so a single logical dump is a complete, restorable snapshot.
 
-### Scheduled logical backup
+### Scheduled logical backup — `BackupJob` (MVP-13)
 
-Run on a host with `pg_dump` matching the server major version and network access to the DB:
+`com.singlepoint.ops.BackupJob` runs `pg_dump --format=custom --compress=9` on a cron, uploads
+the file to `s3://<bucket>/pg/single-point-<utcTs>.dump` (`STANDARD_IA`), and prunes objects
+older than the retention window. It is **`cloud` profile only and off by default**.
+
+| Property | Env | Default | Notes |
+|---|---|---|---|
+| `sp.backup.enabled` | `BACKUP_ENABLED` | `false` | the job bean only loads when `true` |
+| `sp.backup.bucket` | `BACKUP_BUCKET` | — | required when enabled |
+| `sp.backup.cron` | `BACKUP_CRON` | `0 30 2 * * *` | daily 02:30; tighten for a shorter RPO |
+| `sp.backup.retention-days` | `BACKUP_RETENTION_DAYS` | `30` | objects older than this are deleted after each run |
+| `sp.aws.region` | `AWS_REGION` | `ap-south-1` | |
+| `sp.aws.s3-endpoint` | `AWS_S3_ENDPOINT` | — | override for MinIO / a test endpoint |
+
+- The container/host **must have a `pg_dump` binary matching the server major version** on
+  `PATH`. DB coordinates come from `spring.datasource.*`; the password is passed via
+  `PGPASSWORD` on the child process only.
+- The DB role used needs read on every table; RLS is bypassed for a superuser or a
+  `BYPASSRLS` role. The app role (`singlepoint_app`) is deliberately *not* one of those —
+  point `spring.datasource.username` at a dedicated backup role for this job's environment,
+  or run the standalone script below instead.
+- `GET /api/v1/superadmin/backup-status` (SUPER_ADMIN) reports `{enabled, bucket,
+  lastObjectKey, lastBackupAt, ageHours, retentionDays}` from a live `ListObjectsV2`; a
+  `sp_backup_last_success_epoch` gauge is on `/actuator/prometheus`.
+
+### Standalone script (cron / k8s CronJob alternative)
+
+If you'd rather not shell out from the app process, the equivalent as a job:
 
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
 TS=$(date -u +%Y%m%dT%H%M%SZ)
-FILE="singlepoint-${TS}.dump"
+FILE="single-point-${TS}.dump"
 
-pg_dump \
-  --host="$PGHOST" --port="$PGPORT" --username="$PGUSER" \
+pg_dump --host="$PGHOST" --port="$PGPORT" --username="$PGUSER" \
   --format=custom --compress=9 --no-owner --no-privileges \
-  --file="/tmp/${FILE}" singlepoint
+  --file="/tmp/${FILE}" "$PGDATABASE"
 
-aws s3 cp "/tmp/${FILE}" "s3://singlepoint-backups/pg/${FILE}" \
-  --storage-class STANDARD_IA
+aws s3 cp "/tmp/${FILE}" "s3://${BACKUP_BUCKET}/pg/${FILE}" --storage-class STANDARD_IA
 rm -f "/tmp/${FILE}"
 ```
-
-- Schedule every 6 hours via cron / a Kubernetes `CronJob` / the managed provider's snapshot
-  scheduler.
-- `--format=custom` so `pg_restore` can do selective / parallel restore.
-- The DB role used for the dump needs read on every table; RLS is bypassed for a superuser or
-  a role with `BYPASSRLS`. The app role (`singlepoint_app`) is deliberately *not* one of
-  those — use a dedicated backup role.
 
 ### S3 lifecycle
 
