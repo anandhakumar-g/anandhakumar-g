@@ -4,6 +4,53 @@ Short ADRs. Newest first.
 
 ---
 
+## ADR-041 — Design system v2: one visual language for mobile + console
+**Decision (post-MVP-13, branch `feature/design-system-v2`):**
+
+The Expo app and the `admin-web/` console had drifted apart — mobile on a blue
+primary (`#2563EB`) with Bricolage Grotesque / Plus Jakarta Sans, the console on a
+green primary (`#2E7D32`) rendered in the OS system font, and mobile icons were
+emoji + ASCII glyphs. v2 unifies them on one token contract with no logic or
+screen-structure changes; delivered as six checkpoints.
+
+- **Colour.** One **indigo brand** — `#4F46E5` light / `#8B84FF` dark — across both
+  apps; **green is now success-only**. Cool-slate neutrals, a four-stop semantic set
+  (info / warning / danger + tints), all theme-aware. `mobile/src/theme/tokens.ts`
+  `light` + `dark` and `admin-web/src/theme.css` `:root` carry identical values;
+  `statusColor()` keeps its shape and resolves through the new tokens. `radius` md
+  12→10, lg 20→16.
+
+- **Typography.** The console adopts the mobile pairing — **Bricolage Grotesque**
+  (headings, `.nav .brand`, `.stat .v`), **Plus Jakarta Sans** (UI text), and a new
+  **IBM Plex Mono** for `<th>`, IDs, money, timestamps and any `.mono` / `.num`
+  column (with `tabular-nums`). Loaded from Google Fonts in `index.html`. Mobile is
+  unchanged here.
+
+- **Icons → Lucide.** `Icon.tsx` swaps its glyph/emoji map for a
+  `lucide-react-native` component map behind the same `<Icon name size tone weight/>`
+  surface (size token → px, tone → theme colour, weight → stroke width); the four
+  role tab bars gain `tabBarIcon`s (they were label-only). The console gets
+  `lucide-react` (tree-shaken) — an icon per nav item and an optional `icon` prop on
+  `Button`. New deps: `react-native-svg` 15.15.4 + `lucide-react-native` (mobile),
+  `lucide-react` (console).
+
+- **Elevation & density.** Three tiers — flat page / hairline card / `.raised` for
+  menus & modals; the console `.card` drops its default shadow. `.pill` (both apps)
+  becomes a tinted chip with a leading 6 px dot. Console inputs are 40 px with a
+  3 px `--primary-tint` focus ring. A `<DensityToggle/>` in the console nav sets
+  `data-density="compact"` on `<html>` (localStorage-persisted) to tighten table
+  and card padding.
+
+- **Skins.** The three optional mobile skins (`ocean`, `sunset`, `forest`) are
+  re-pointed to the same contract and their muted / faint text tuned to clear WCAG
+  AA on each skin's own ground; `sunset` primary `#EA580C`→`#C2410C` so white
+  button text passes.
+
+Gates unchanged: `npm run build` (console), `npx tsc --noEmit` (mobile). No
+migration, no API change, no ADR-040 behaviour touched.
+
+---
+
 ## ADR-040 — Recurring billing, notification centre, account lifecycle, key rotation, backups
 **Decision (MVP-13):**
 
