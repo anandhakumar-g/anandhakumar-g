@@ -1,5 +1,5 @@
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import * as Device from "expo-device";
-import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Platform, Pressable, Switch, View } from "react-native";
@@ -49,6 +49,12 @@ export function SettingsScreen({
     try {
       if (Platform.OS === "web") return setPushMsg("Push is only available in the mobile app.");
       if (!Device.isDevice) return setPushMsg("Push needs a physical device.");
+      // expo-notifications' remote-push API was removed from Expo Go in SDK 53 — importing it
+      // there throws. Load it lazily and only outside Expo Go (a dev / standalone build).
+      if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
+        return setPushMsg("Push needs a development build — it isn't available in Expo Go.");
+      }
+      const Notifications = await import("expo-notifications");
       const { status } = await Notifications.requestPermissionsAsync();
       if (status !== "granted") return setPushMsg("Notification permission denied.");
       const token = (await Notifications.getExpoPushTokenAsync()).data;
