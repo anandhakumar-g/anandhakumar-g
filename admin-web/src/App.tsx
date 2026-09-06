@@ -9,6 +9,7 @@ import { Providers } from "./pages/Providers";
 import { Offers } from "./pages/Offers";
 import { Billing } from "./pages/Billing";
 import { Reports } from "./pages/Reports";
+import { Taxonomy } from "./pages/Taxonomy";
 
 const NAV = [
   { to: "/", label: "Dashboard", end: true },
@@ -16,6 +17,7 @@ const NAV = [
   { to: "/communities/requests", label: "Requests" },
   { to: "/providers", label: "Providers" },
   { to: "/offers", label: "Offers" },
+  { to: "/taxonomy", label: "Taxonomy" },
   { to: "/billing", label: "Billing" },
   { to: "/reports", label: "Reports" },
 ];
@@ -59,6 +61,7 @@ export function App() {
         <Route path="/communities/requests" element={<CommunityRequests />} />
         <Route path="/providers" element={<Providers />} />
         <Route path="/offers" element={<Offers />} />
+        <Route path="/taxonomy" element={<Taxonomy />} />
         <Route path="/billing" element={<Billing />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/login" element={<Navigate to="/" replace />} />

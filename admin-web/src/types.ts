@@ -36,6 +36,33 @@ export interface TenantHealth {
   totalTickets: number;
 }
 
+export interface VendorKind {
+  id: string;
+  code: string;
+  label: string;
+  sortOrder: number;
+  active: boolean;
+}
+export interface VendorCategoryRow {
+  id: string;
+  name: string;
+  kind: string;
+  parentCategoryId: string | null;
+  sortOrder: number;
+  active: boolean;
+}
+export interface TicketCategoryRow {
+  id: string;
+  tenantId: string | null;
+  name: string;
+  requestType: string;
+  parentCategoryId: string | null;
+  slaHours: number | null;
+  defaultProviderKind: string | null;
+  sortOrder: number;
+  active: boolean;
+}
+
 export interface CommunityRequest {
   tenantId: string;
   name: string;
