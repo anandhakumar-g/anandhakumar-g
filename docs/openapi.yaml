@@ -2,7 +2,7 @@ openapi: 3.0.1
 info:
   title: Single Point API
   description: Multi-tenant gated-community ticket management platform.
-  version: MVP-12
+  version: MVP-13
 servers:
 - url: http://localhost:18080
   description: Generated server url
@@ -13,6 +13,8 @@ tags:
   description: Platform metrics over time + now totals
 - name: Me
   description: "Signed-in user profile, theme, memberships, devices"
+- name: Super Admin — Ops
+  description: Backup status
 - name: Super Admin — Announcements
   description: "Broadcast to all admins, all users, or a named community"
 - name: Super Admin — KYC review
@@ -27,6 +29,8 @@ tags:
   description: "Your plan, usage against limits, and any due invoices"
 - name: Admin — Flats & Invites
   description: Community flat register and invite codes
+- name: Me — Payment methods
+  description: Saved gateway tokens for recurring billing
 - name: Me — Household
   description: Flats I belong to and the family members in them
 - name: Admin — Join Requests
@@ -39,12 +43,16 @@ tags:
   description: Validate every offer + assign its audience
 - name: Admin — Community settings
   description: Reopen window and the approval-of-allocation gate
+- name: Me — Notifications
+  description: In-app notification inbox
 - name: Offers
   description: "Vendor/admin authoring, resident deals feed, redemption"
 - name: Admin — Locations
   description: Physical places within a community; flats hang off a location
 - name: Super Admin — Ticket categories
   description: Global catalogue + per-community lists
+- name: Me — Account
+  description: "Data export, account deletion, device sessions"
 - name: Super Admin
   description: Platform-level tenant onboarding (no ticket content access)
 - name: Admin — Members
@@ -621,6 +629,39 @@ paths:
       operationId: settle
       parameters:
       - name: ref
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+  /dev/pay/sub/{sub}/{event}:
+    post:
+      tags:
+      - dev-payment-controller
+      operationId: subEvent
+      parameters:
+      - name: sub
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: event
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+  /dev/pay/sub/{sub}/settle:
+    post:
+      tags:
+      - dev-payment-controller
+      operationId: subSettle
+      parameters:
+      - name: sub
         in: path
         required: true
         schema:
@@ -1645,6 +1686,7 @@ paths:
           enum:
           - TENANT
           - PROVIDER
+          - RESIDENT
       - name: status
         in: query
         required: false
@@ -2417,6 +2459,85 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/SessionResponse'
+  /api/v1/me/payment-methods:
+    get:
+      tags:
+      - Me — Payment methods
+      summary: List your saved payment methods
+      operationId: list_8
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PaymentMethodView'
+    post:
+      tags:
+      - Me — Payment methods
+      summary: Save a gateway token (obtained from the gateway's checkout SDK)
+      operationId: save
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p:
+                  $ref: '#/components/schemas/AppPrincipal'
+                body:
+                  $ref: '#/components/schemas/SavePaymentMethodRequest'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PaymentMethodView'
+  /api/v1/me/notifications/{id}/read:
+    post:
+      tags:
+      - Me — Notifications
+      summary: Mark one notification read
+      operationId: read
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+  /api/v1/me/notifications/read-all:
+    post:
+      tags:
+      - Me — Notifications
+      summary: Mark every notification read
+      operationId: readAll
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
   /api/v1/me/memberships/{tenantId}/leave:
     post:
       tags:
@@ -2501,11 +2622,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/InviteCodeView'
   /api/v1/me/devices:
+    get:
+      tags:
+      - Me — Account
+      summary: The devices signed in to your account
+      operationId: devices
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeviceView'
     post:
       tags:
       - Me
       summary: Register / refresh a push device token
       operationId: registerDevice
+      parameters:
+      - name: X-Device-Id
+        in: header
+        required: false
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -2517,6 +2664,41 @@ paths:
                 body:
                   $ref: '#/components/schemas/DeviceRequest'
         required: true
+      responses:
+        "200":
+          description: OK
+  /api/v1/me/devices/{id}/revoke:
+    post:
+      tags:
+      - Me — Account
+      summary: Sign one device out — its next request is rejected
+      operationId: revokeDevice
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+  /api/v1/me/devices/revoke-others:
+    post:
+      tags:
+      - Me — Account
+      summary: Sign every device out except this one
+      operationId: revokeOtherDevices
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
       responses:
         "200":
           description: OK
@@ -2685,7 +2867,7 @@ paths:
     get:
       tags:
       - Admin — Ticket categories
-      operationId: list_8
+      operationId: list_10
       parameters:
       - name: p
         in: query
@@ -2870,7 +3052,7 @@ paths:
     get:
       tags:
       - Admin — Locations
-      operationId: list_10
+      operationId: list_12
       parameters:
       - name: p
         in: query
@@ -3095,7 +3277,7 @@ paths:
       tags:
       - Admin — Announcements
       summary: Past announcements for the acting community
-      operationId: list_11
+      operationId: list_13
       parameters:
       - name: principal
         in: query
@@ -3126,7 +3308,8 @@ paths:
     post:
       tags:
       - Admin — Announcements
-      summary: Announce to every active resident of the acting community
+      summary: Announce to every active resident of the acting community (optionally
+        scheduled)
       operationId: send_1
       requestBody:
         content:
@@ -3153,6 +3336,24 @@ paths:
       operationId: page
       parameters:
       - name: ref
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            text/html:
+              schema:
+                type: string
+  /dev/pay/sub/{sub}:
+    get:
+      tags:
+      - dev-payment-controller
+      operationId: subPage
+      parameters:
+      - name: sub
         in: path
         required: true
         schema:
@@ -3560,6 +3761,21 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/PageResponseCommunityRequestView'
+  /api/v1/superadmin/backup-status:
+    get:
+      tags:
+      - Super Admin — Ops
+      summary: Age of the most recent database backup in S3
+      operationId: backupStatus
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
   /api/v1/superadmin/audit-logs:
     get:
       tags:
@@ -3771,6 +3987,81 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/MeResponse'
+    delete:
+      tags:
+      - Me — Account
+      summary: "Close your account — soft-delete + anonymize; blocked while you have\
+        \ open requests, unsettled bills, or are the sole admin of a community"
+      operationId: deleteAccount
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+  /api/v1/me/notifications:
+    get:
+      tags:
+      - Me — Notifications
+      summary: "Your notifications, newest first"
+      operationId: list_9
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      - name: unreadOnly
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 30
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PageResponseNotificationView'
+  /api/v1/me/notifications/unread-count:
+    get:
+      tags:
+      - Me — Notifications
+      summary: How many unread notifications you have
+      operationId: unreadCount
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: integer
+                  format: int64
   /api/v1/me/household/{flatId}/members:
     get:
       tags:
@@ -3819,6 +4110,27 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/MyFlat'
+  /api/v1/me/export:
+    get:
+      tags:
+      - Me — Account
+      summary: "Download everything the platform holds about you, as JSON"
+      operationId: export
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
   /api/v1/me/community-request:
     get:
       tags:
@@ -3982,7 +4294,7 @@ paths:
       tags:
       - Admin — Members
       summary: ACTIVE members of this community
-      operationId: list_9
+      operationId: list_11
       parameters:
       - name: p
         in: query
@@ -4165,6 +4477,48 @@ paths:
       responses:
         "200":
           description: OK
+  /api/v1/superadmin/broadcasts/{id}:
+    delete:
+      tags:
+      - Super Admin — Announcements
+      summary: Cancel a scheduled announcement that has not gone out yet
+      operationId: cancel_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+  /api/v1/me/payment-methods/{id}:
+    delete:
+      tags:
+      - Me — Payment methods
+      summary: Remove a saved payment method
+      operationId: remove_2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
   /api/v1/admin/invite-codes/{codeId}:
     delete:
       tags:
@@ -4189,6 +4543,27 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/InviteView'
+  /api/v1/admin/broadcasts/{id}:
+    delete:
+      tags:
+      - Admin — Announcements
+      summary: Cancel a scheduled announcement that has not gone out yet
+      operationId: cancel_2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
 components:
   schemas:
     AppPrincipal:
@@ -4213,9 +4588,9 @@ components:
           type: string
         resident:
           type: boolean
-        admin:
-          type: boolean
         provider:
+          type: boolean
+        admin:
           type: boolean
         superAdmin:
           type: boolean
@@ -4645,6 +5020,8 @@ components:
         whatsappEnabled:
           type: boolean
         broadcastEnabled:
+          type: boolean
+        promoWhatsappEnabled:
           type: boolean
     AwayRequest:
       type: object
@@ -5119,6 +5496,7 @@ components:
           enum:
           - TENANT
           - PROVIDER
+          - RESIDENT
         subjectId:
           type: string
           format: uuid
@@ -5157,6 +5535,10 @@ components:
           format: date-time
         autoRenew:
           type: boolean
+        gatewaySubscriptionId:
+          type: string
+        pendingMandateUrl:
+          type: string
     CreateProviderRequest:
       required:
       - contactPhone
@@ -5236,6 +5618,7 @@ components:
           enum:
           - TENANT
           - PROVIDER
+          - RESIDENT
         code:
           type: string
         name:
@@ -5350,6 +5733,9 @@ components:
           type: string
         tenantId:
           type: string
+        scheduledFor:
+          type: string
+          format: date-time
     BroadcastView:
       type: object
       properties:
@@ -5357,6 +5743,8 @@ components:
           type: string
           format: uuid
         scope:
+          type: string
+        status:
           type: string
         tenantId:
           type: string
@@ -5377,6 +5765,9 @@ components:
         recipientCount:
           type: integer
           format: int32
+        scheduledFor:
+          type: string
+          format: date-time
         at:
           type: string
           format: date-time
@@ -5509,6 +5900,36 @@ components:
         activeTenantId:
           type: string
           format: uuid
+    SavePaymentMethodRequest:
+      required:
+      - gatewayToken
+      type: object
+      properties:
+        gatewayToken:
+          type: string
+        gatewayCustomerId:
+          type: string
+        brand:
+          type: string
+        last4:
+          type: string
+    PaymentMethodView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        gateway:
+          type: string
+        brand:
+          type: string
+        last4:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
     HouseholdMember:
       type: object
       properties:
@@ -6051,6 +6472,9 @@ components:
           format: date-time
         directServiceEnabled:
           type: boolean
+        unreadNotifications:
+          type: integer
+          format: int64
     MembershipView:
       type: object
       properties:
@@ -6084,6 +6508,45 @@ components:
           type: string
         brandPrimaryColor:
           type: string
+    NotificationView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        template:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        data:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        readAt:
+          type: string
+          format: date-time
+    PageResponseNotificationView:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationView'
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
     MyFlat:
       type: object
       properties:
@@ -6094,6 +6557,23 @@ components:
           type: string
         householdRole:
           type: string
+    DeviceView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+        platform:
+          type: string
+        lastSeenAt:
+          type: string
+          format: date-time
+        current:
+          type: boolean
+        revoked:
+          type: boolean
     MyBillingView:
       type: object
       properties:
@@ -6120,6 +6600,13 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PlanView'
+        savedPaymentMethod:
+          $ref: '#/components/schemas/PaymentMethodView'
+        recurring:
+          type: boolean
+        nextChargeAt:
+          type: string
+          format: date-time
     UsageView:
       type: object
       properties:

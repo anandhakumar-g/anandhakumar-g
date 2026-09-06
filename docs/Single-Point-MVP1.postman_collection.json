@@ -125,6 +125,26 @@
     {
       "key": "deviceId",
       "value": "demo-device-1"
+    },
+    {
+      "key": "paymentMethodId",
+      "value": ""
+    },
+    {
+      "key": "gatewaySubId",
+      "value": ""
+    },
+    {
+      "key": "notificationId",
+      "value": ""
+    },
+    {
+      "key": "broadcastId",
+      "value": ""
+    },
+    {
+      "key": "deviceRowId",
+      "value": ""
     }
   ],
   "item": [
@@ -4300,6 +4320,419 @@
             ],
             "url": "http://localhost:18081/actuator/prometheus",
             "description": "On the management port (18081), no app JWT. Carries http_server_requests_seconds, hikaricp_*, jvm_*, and sp_tickets_raised_total / sp_offers_redeemed_total / sp_broadcasts_sent_total / sp_communities_self_onboarded_total, all tagged application=\"single-point\"."
+          }
+        }
+      ]
+    },
+    {
+      "name": "18 \u00b7 Billing, notifications & account (MVP-13)",
+      "item": [
+        {
+          "name": "Me \u00b7 save a payment method",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/me/payment-methods",
+            "description": "Store a gateway payment token the client obtained from Razorpay Checkout. The stub gateway accepts any string. brand/last4 are display-only.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"stub_tok_visa\",\n  \"brand\": \"visa\",\n  \"last4\": \"4242\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Me \u00b7 list payment methods",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/me/payment-methods",
+            "description": "The caller's own saved methods, newest first; REMOVED ones are excluded."
+          }
+        },
+        {
+          "name": "Me \u00b7 remove a payment method",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/me/payment-methods/{{paymentMethodId}}",
+            "description": "Soft-removes the method (status REMOVED). A live gateway subscription keeps charging until the plan is cancelled."
+          }
+        },
+        {
+          "name": "Me \u00b7 billing (recurring fields)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/me/billing",
+            "description": "effectivePlan + subscription. With a saved payment method on a paid plan the view carries savedPaymentMethod, recurring=true and nextChargeAt; RESIDENT subjects resolve to RESIDENT_FREE."
+          }
+        },
+        {
+          "name": "Me \u00b7 change / upgrade plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/me/billing/plan",
+            "description": "Assign or switch plan for the caller's subject (TENANT admin / PROVIDER / RESIDENT). Paid->paid mid-period computes an unused-days proration credit against the next invoice. With a saved payment method the gateway subscription drives activation; without one it falls back to a pay link. RESIDENT self-upgrade is 400 SP-400-VALIDATION until a paid resident plan exists.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planCode\": \"TENANT_PRO\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Dev \u00b7 settle a subscription charge",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "http://localhost:18080/dev/pay/sub/{{gatewaySubId}}/settle",
+            "description": "Non-cloud only. Posts a signed synthetic subscription.charged webhook for the gateway subscription id, settling the period invoice and activating the subscription. No app JWT."
+          }
+        },
+        {
+          "name": "Dev \u00b7 post a subscription webhook event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "http://localhost:18080/dev/pay/sub/{{gatewaySubId}}/subscription.halted",
+            "description": "Non-cloud only. Replace the path segment with subscription.charged / subscription.halted / subscription.cancelled to drive the subscription state machine. subscription.halted -> PAST_DUE + grace."
+          }
+        },
+        {
+          "name": "Me \u00b7 notifications (inbox)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/me/notifications?unreadOnly=false&page=0&size=20",
+            "description": "The caller's own PUSH-channel notifications, newest first. unreadOnly=true filters to unread. Each row: id, template, title, body, data, createdAt, readAt."
+          }
+        },
+        {
+          "name": "Me \u00b7 unread count",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/me/notifications/unread-count",
+            "description": "{ count } of unread PUSH notifications. MeResponse.unreadNotifications carries the same number on cold start."
+          }
+        },
+        {
+          "name": "Me \u00b7 mark one read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/me/notifications/{{notificationId}}/read",
+            "description": "Stamps read_at on one of the caller's own notifications. 404 if it isn't theirs. Idempotent."
+          }
+        },
+        {
+          "name": "Me \u00b7 mark all read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/me/notifications/read-all",
+            "description": "Stamps read_at on every unread PUSH notification for the caller; returns the count updated."
+          }
+        },
+        {
+          "name": "Me \u00b7 notification preferences (promo WhatsApp)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/me/notification-preferences",
+            "description": "promoWhatsappEnabled is opt-IN (default false); a promo offer reaches WhatsApp only when it is true AND the community holds WHATSAPP_NOTIFICATIONS AND the weekly promo cap is clear. Other fields unchanged from MVP-6/9.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pushEnabled\": true,\n  \"whatsappEnabled\": true,\n  \"promoNotificationsEnabled\": true,\n  \"promoWhatsappEnabled\": true,\n  \"digestMode\": \"OFF\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Admin \u00b7 schedule a broadcast",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/broadcasts",
+            "description": "Omit scheduledFor (or set it in the past) to send now. A future scheduledFor persists the row PENDING with recipientCount 0 and no outbox fan-out; BroadcastDispatchJob sends it when due. The 60s cooldown + 20/day cap are checked at schedule time.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scope\": \"COMMUNITY\",\n  \"title\": \"Water shutdown Saturday\",\n  \"body\": \"Supply is off 10am-2pm for tank cleaning.\",\n  \"scheduledFor\": \"2026-12-31T04:30:00Z\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Admin \u00b7 cancel a pending broadcast",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/broadcasts/{{broadcastId}}",
+            "description": "Cancels a PENDING scheduled broadcast (status CANCELLED). 409 SP-409 if already SENT; 403 if the caller isn't the sender or a Super Admin."
+          }
+        },
+        {
+          "name": "Super Admin \u00b7 schedule a broadcast",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/superadmin/broadcasts",
+            "description": "Same scheduling semantics as the admin route. scope ALL_ADMINS / ALL_USERS / COMMUNITY (tenantId required for COMMUNITY).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scope\": \"ALL_ADMINS\",\n  \"title\": \"Maintenance window\",\n  \"body\": \"Platform upgrade tonight 1am-2am IST.\",\n  \"scheduledFor\": \"2026-12-31T18:30:00Z\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Super Admin \u00b7 cancel a pending broadcast",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/superadmin/broadcasts/{{broadcastId}}",
+            "description": "Cancels a PENDING scheduled broadcast. 409 SP-409 once SENT."
+          }
+        },
+        {
+          "name": "Me \u00b7 export my data (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/me/export",
+            "description": "application/json attachment single-point-export-<date>.json: profile, memberships, ticketsRaised (+ statusHistory, payments, receipts), offerRedemptions, offerFeedback, notifications, devices - the caller's own rows across every community."
+          }
+        },
+        {
+          "name": "Me \u00b7 close my account",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/me",
+            "description": "Soft-delete + anonymize: 204 on success. 409 SP-409 while the caller has open (non-CLOSED) tickets, unsettled ticket payments, or is the sole active admin of a community. On success: EXIT all memberships, scrub name/email/phone(_hash), set deleted_at, drop device_token + payment_method rows. The old JWT then 401s SP-401 and the phone number frees for a fresh signup."
+          }
+        },
+        {
+          "name": "Me \u00b7 list my devices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/me/devices",
+            "description": "Sessions recorded on sign-in, newest last-seen first: id, label, platform, lastSeenAt, current (matches the caller's own deviceId claim), revoked."
+          }
+        },
+        {
+          "name": "Me \u00b7 sign out one device",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/me/devices/{{deviceRowId}}/revoke",
+            "description": "Stamps revoked_at. That device's next request with a deviceId-bearing token gets 401 SP-401-DEVICE \"this device was signed out\"."
+          }
+        },
+        {
+          "name": "Me \u00b7 sign out all other devices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/me/devices/revoke-others",
+            "description": "Revokes every device row except the caller's current one; returns the count revoked."
+          }
+        },
+        {
+          "name": "Super Admin \u00b7 backup status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/superadmin/backup-status",
+            "description": "{ enabled, retentionDays, bucket?, lastObjectKey?, lastBackupAt?, ageHours? } from a live S3 listing. On the local/non-cloud profile returns { enabled: false }."
           }
         }
       ]

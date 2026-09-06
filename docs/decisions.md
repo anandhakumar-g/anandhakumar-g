@@ -4,6 +4,136 @@ Short ADRs. Newest first.
 
 ---
 
+## ADR-040 — Recurring billing, notification centre, account lifecycle, key rotation, backups
+**Decision (MVP-13):**
+
+- **`SubjectType.RESIDENT` — infrastructure only** (`V31`). The billing subject enum and the
+  `subscription_plan.target` / `subscription.subject_type` CHECK constraints gain `RESIDENT`;
+  `V31` seeds one `RESIDENT_FREE` plan (`is_default`, empty entitlements, price 0) and
+  `IntegrationTestBase.SEED_TAXONOMY_SQL` mirrors it. `MeBillingController.subjectFor` maps a
+  caller who is neither tenant-scoped nor a provider to `(RESIDENT, userId)`;
+  `BillingService.effectivePlan` / `defaultPlan` already switch on `SubjectType` so the value
+  flows through untouched. **No sellable resident plan ships** — `selfUpgrade` for a RESIDENT
+  subject is `400 SP-400-VALIDATION` ("No resident plans are available yet"). Adding one
+  later is a `createPlan` call, not a migration.
+
+- **Recurring auto-charge via Razorpay Subscriptions** (`V32`). A second gateway surface,
+  `RecurringGateway` (`createSubscription` → `{gatewaySubscriptionId, gatewayCustomerId,
+  authUrl}`, `cancelSubscription`), sits alongside the one-off `PaymentGateway` — implemented
+  by `StubRecurringGateway` (`@Profile("!cloud")`, synthetic ids + a `/dev/pay/sub/{sub}`
+  page) and `RazorpaySubscriptionGateway` (`@Profile("cloud")`, plain REST against
+  `/v1/plans` + `/v1/subscriptions`, no SDK — same shape as `RazorpayGateway`). `V32` adds a
+  **`payment_method`** table (personal, app-scoped, **no RLS** — like `device_token`) and
+  `subscription.gateway_subscription_id` / `.gateway_customer_id`. `GET/POST/DELETE
+  /api/v1/me/payment-methods` save a gateway token (stub accepts any string). When
+  `assignPlan` is given a paid, non-comped plan **and** the paying user has an active
+  `payment_method` with no live gateway subscription, it calls
+  `recurringGateway.createSubscription`, stores the ids, and lets the gateway's
+  `subscription.charged` webhook drive `activate` — no immediate DUE invoice + grace. With
+  **no** payment method the behaviour is exactly today's (PAST_DUE + DUE invoice + pay link).
+  `verifyAndParse` in both gateways now recognises `subscription.charged` / `.halted` /
+  `.cancelled`, keyed by `gateway_subscription_id`; `PaymentGateway.WebhookResult` gained an
+  `event` string and `WebhookFallback.tryHandle(gatewayRef, paid, event)` routes them —
+  `.charged` → activate the DUE invoice (or set ACTIVE), `.halted` → PAST_DUE + grace,
+  `.cancelled` → CANCELLED. FREE / COMPED assignment calls `releaseGatewaySubscription`.
+  `MyBillingView` carries `savedPaymentMethod`, `recurring`, `nextChargeAt`.
+
+- **Proration + dunning.** `BillingService.changePlan(type, subjectId, newPlanCode,
+  payingUserId)` — on a paid→paid switch mid-period it computes an unused-days credit on the
+  old plan (`price × remainingDays / periodDays`, `HALF_UP`), voids the old DUE invoices,
+  re-assigns, then applies the credit to the first new DUE invoice (activate if it covers the
+  amount, else subtract). Downgrade to FREE just cancels at period end — no refund
+  (documented). `selfUpgrade` calls `changePlan` when already subscribed. **Dunning:**
+  `BillingRenewalJob.runRenewal` gained a loop over `PAST_DUE` subscriptions still in grace;
+  at `sp.billing.dunning-day-offsets` (default `1,3,6`) days in it publishes a
+  `SUBSCRIPTION_DUE_REMINDER` event (→ one outbox row → push + in-app, body carries the pay
+  link). No new job.
+
+- **In-app notification inbox** (`V33`). `notification` gains `read_at`. New
+  `GET /api/v1/me/notifications?unreadOnly=&page=&size=` (the caller's own **PUSH-channel**
+  rows, newest first — one row per notification), `GET /unread-count`, `POST /{id}/read`,
+  `POST /read-all`. `MeResponse.unreadNotifications` carries the count on cold start so the
+  app badges without an extra call. The rows have always been written by `OutboxDispatcher` —
+  this is a read/ack API over them, no producer change.
+
+- **WhatsApp for promo offers** (`V33`, same migration). `notification_preference` gains
+  `promo_whatsapp_enabled` — opt-**in**, default false (unlike the opt-out push promo pref).
+  `OutboxDispatcher.maybeSendWhatsApp` now also fires for a `promo` when that flag is true,
+  the community holds `WHATSAPP_NOTIFICATIONS`, and the weekly promo cap is clear. A promo
+  outbox row has a null `tenant_id` (it's enqueued tenant-less), so the entitlement is
+  resolved against `user.getCurrentTenantId()` rather than `row.getTenantId()`. Broadcasts
+  stay WhatsApp-excluded.
+
+- **Scheduled broadcasts** (`V34`). `broadcast` gains `scheduled_for` + `status`
+  (`PENDING|SENT|CANCELLED`, default `SENT`). `BroadcastService.send(..., Instant
+  scheduledFor)` — a future `scheduledFor` persists the row `PENDING` with `recipientCount 0`
+  and **no** outbox fan-out; `BroadcastDispatchJob` (`@Scheduled fixedDelay 60s`,
+  `tenantScoped.inWildcard`, `runNow()` for tests) fans out due `PENDING` rows and stamps
+  `SENT` + `recipientCount`. The 60s cooldown / 20-per-day guard is checked at **schedule**
+  time. `DELETE /api/v1/{admin,superadmin}/broadcasts/{id}` cancels a `PENDING` one
+  (`409 SP-409` once `SENT`; `403` if not the sender or a Super Admin).
+
+- **Account data export.** `GET /api/v1/me/export` → an `application/json` attachment
+  (`single-point-export-<date>.json`): profile, memberships, `ticketsRaised` (+ per-ticket
+  statusHistory / payments / receipts, assembled under `tenantScoped.inWildcard`),
+  offerRedemptions, offerFeedback, notifications, devices — the caller's own rows across
+  every community, buffered on the request thread (same reason as ADR-039's CSV exports).
+
+- **Account soft-delete + anonymize** (`V35`). `app_user` gains `deleted_at`;
+  `ux_app_user_phone_hash` is recreated **partial** (`WHERE deleted_at IS NULL`) so a
+  scrubbed hash can't collide and the real number can re-register. `DELETE /api/v1/me` —
+  `409 SP-409` while the caller has open (non-CLOSED) tickets, unsettled `ticket_payment`
+  rows, or is the **sole active admin** of a community; on pass it EXITs every membership
+  (`membershipService.removeFromCommunity` per tenant, tenant-scoped), scrubs
+  name/email/emailHash/phone/phoneHash(random sentinel)/currentTenantId, sets `deleted_at`,
+  and deletes `device_token` + `payment_method` rows. Tickets and payments stay (community /
+  financial record) with the `app_user` PII gone; shredding the encrypted free-text is a
+  later compliance pass. `JwtAuthFilter` gained a `existsByIdAndDeletedAtIsNotNull` check →
+  `401 SP-401` "This account has been closed"; every pre-existing token belongs to a live
+  user so it's backward-compatible.
+
+- **Device / session management** (`V36`). `device_token` gains `device_id` (the MVP-10 JWT
+  claim), `revoked_at`, `label`; `token` / `platform` become nullable and a partial unique
+  index covers `(user_id, device_id)`. `AuthService.buildSession` (the single
+  `JwtService.issue` call site) upserts a `device_token` row by `(userId, deviceId)` on every
+  sign-in — `last_seen_at`, a default label, `revoked_at` cleared. `JwtAuthFilter` adds one
+  indexed `existsByUserIdAndDeviceIdAndRevokedAtIsNotNull` lookup **only for tokens that
+  carry a `deviceId` claim** → `401 SP-401-DEVICE` "This device was signed out"; a claimless
+  token is never checked. `GET /api/v1/me/devices` (list, `current` matches the caller's
+  own `deviceId`), `POST /me/devices/{id}/revoke`, `POST /me/devices/revoke-others`.
+
+- **Encryption key rotation — keyring, no migration** (extends ADR-004 / ADR-025). The
+  `CryptoService` wire format already carried a version byte (pinned to `1`). `CryptoService`
+  now holds a `Map<Byte,SecretKeySpec>` built `for v in 1..currentVersion`; `encrypt` stamps
+  `currentVersion()` and `decrypt` picks the key by the wire byte (unknown → error).
+  `CryptoKeyProvider` gained `aesKey(byte version)` + `currentVersion()`; `LocalKeyProvider`
+  reads `sp.crypto.aes-key-2` + `sp.crypto.key-version` (default 1), `AwsSecretsKeyProvider`
+  the analogous second secret. `crypto/ReEncryptJob`
+  (`@ConditionalOnProperty("sp.crypto.rewrap.enabled")`, `ApplicationRunner`, wildcard,
+  batched, idempotent — the `PiiBackfillRunner` shape) walks every
+  `@Convert(EncryptedStringConverter)` column and rewraps rows whose ciphertext byte is
+  `< currentVersion()`. Run once per environment after a key roll, then flag off.
+
+- **Automated `pg_dump` → S3 backup.** `ops/BackupJob` (`@Component @Profile("cloud")
+  @ConditionalOnProperty("sp.backup.enabled")`, `@Scheduled(cron = "${sp.backup.cron:0 30 2
+  * * *}")`) shells out to `pg_dump --format=custom --compress=9` (parsing
+  `spring.datasource.url`, `PGPASSWORD` in the env), `putObject`s to
+  `s3://<bucket>/pg/single-point-<utcTs>.dump` (`STANDARD_IA`), then prunes objects older
+  than `sp.backup.retention-days`. A `config/AwsConfig` `S3Client` `@Bean` (`@Profile("cloud")`,
+  region + optional endpoint from `sp.aws.*`) and a `sp.backup.last_success_epoch` gauge.
+  `GET /api/v1/superadmin/backup-status` returns `{enabled, retentionDays, ...}` from a live
+  `listObjectsV2` (or `{enabled:false}` off `cloud`). `docs/ops-runbook.md`'s backup section
+  is rebuilt around the job's config keys; the standalone `pg_dump` script stays as the
+  documented alternative + the restore drill. **This retires the ADR-039 "documentation, not
+  automation" caveat and the actor-model X3 line.**
+
+- **Local vs cloud, unchanged.** The Razorpay Subscriptions REST calls and the backup job's
+  S3 writes run on `cloud` only; `StubRecurringGateway` + synthetic `subscription.*` webhooks
+  exercise the whole recurring state machine in ITs, and `sp.backup.enabled` / the crypto v2
+  keys default off so local + test are untouched.
+
+---
+
 ## ADR-039 — Reporting exports, console parity, ops observability, mobile Screen contract
 **Decision (MVP-12):**
 
