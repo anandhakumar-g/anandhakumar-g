@@ -2,12 +2,13 @@ import Constants, { ExecutionEnvironment } from "expo-constants";
 import * as Device from "expo-device";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Alert, Platform, Pressable, Switch, View } from "react-native";
+import { Alert, LayoutAnimation, Platform, Pressable, Switch, View } from "react-native";
 import { catalog, me as meApi } from "@/api/endpoints";
 import { DeviceSession, groupVendorCategories, NotificationPreferences, VendorCategory } from "@/api/types";
 import { BillingCard } from "@/components/BillingCard";
 import { Button } from "@/components/Button";
 import { Divider, KeyValue, Segmented } from "@/components/Bits";
+import { Icon } from "@/components/Icon";
 import { AppText, Card, Screen } from "@/components/Themed";
 import { canDownloadCsv, downloadCsv } from "@/lib/download";
 import { useSession } from "@/store/SessionProvider";
@@ -181,6 +182,7 @@ function OfferNotificationPrefs() {
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
   const [cats, setCats] = useState<VendorCategory[]>([]);
   const [saving, setSaving] = useState(false);
+  const [openKinds, setOpenKinds] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     meApi.notificationPreferences().then(setPrefs).catch(() => {});
@@ -209,6 +211,15 @@ function OfferNotificationPrefs() {
     const nextSet = new Set(subscribed);
     nextSet.has(id) ? nextSet.delete(id) : nextSet.add(id);
     patch({ subscribedVendorCategoryIds: [...nextSet] });
+  }
+
+  function toggleGroup(kind: string) {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setOpenKinds((prev) => {
+      const next = new Set(prev);
+      next.has(kind) ? next.delete(kind) : next.add(kind);
+      return next;
+    });
   }
 
   return (
@@ -256,19 +267,22 @@ function OfferNotificationPrefs() {
           NOTIFY ME ABOUT
         </AppText>
         <AppText size="xs" tone="faint">
-          You start subscribed to nothing — pick the categories you care about.
+          You start subscribed to nothing — tap a group to pick the categories you care about.
         </AppText>
       </View>
-      {groupVendorCategories(cats).map((g) => (
-        <View key={g.kind} style={{ gap: theme.space(1.5) }}>
-          <AppText size="xs" weight="700" tone="muted">
-            {g.kindLabel}
-          </AppText>
-          {g.items.map((c) => (
-            <Row key={c.id} label={c.name} value={subscribed.has(c.id)} onValueChange={() => toggleCat(c.id)} compact />
-          ))}
-        </View>
-      ))}
+      <View>
+        {groupVendorCategories(cats).map((g) => {
+          const open = openKinds.has(g.kind);
+          const count = g.items.reduce((n, c) => n + (subscribed.has(c.id) ? 1 : 0), 0);
+          return (
+            <CategoryGroup key={g.kind} label={g.kindLabel} count={count} open={open} onToggle={() => toggleGroup(g.kind)}>
+              {g.items.map((c) => (
+                <Row key={c.id} label={c.name} value={subscribed.has(c.id)} onValueChange={() => toggleCat(c.id)} compact />
+              ))}
+            </CategoryGroup>
+          );
+        })}
+      </View>
 
       <View style={{ gap: theme.space(1.5) }}>
         <AppText size="xs" weight="700" tone="faint" style={{ letterSpacing: 0.6 }}>
@@ -316,6 +330,46 @@ function Row({
         ) : null}
       </View>
       <Switch value={value} onValueChange={onValueChange} trackColor={{ true: theme.color.primary }} />
+    </View>
+  );
+}
+
+/** An expand-on-tap group of category toggles — the header shows how many inside are on. */
+function CategoryGroup({
+  label, count, open, onToggle, children,
+}: {
+  label: string; count: number; open: boolean; onToggle: () => void; children: React.ReactNode;
+}) {
+  const { theme } = useTheme();
+  return (
+    <View style={{ borderTopWidth: 1, borderTopColor: theme.color.border }}>
+      <Pressable
+        onPress={onToggle}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        style={{
+          flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+          gap: theme.space(3), paddingVertical: theme.space(3),
+        }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", gap: theme.space(2), flexShrink: 1 }}>
+          <AppText size="sm" weight="700">{label}</AppText>
+          {count > 0 ? (
+            <View
+              style={{
+                minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9,
+                backgroundColor: theme.color.primary + "22", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              <AppText size="xs" weight="700" style={{ color: theme.color.primary }}>{count}</AppText>
+            </View>
+          ) : null}
+        </View>
+        <View style={{ transform: [{ rotate: open ? "90deg" : "0deg" }] }}>
+          <Icon name="forward" size="sm" tone="faint" />
+        </View>
+      </Pressable>
+      {open ? <View style={{ gap: theme.space(2.5), paddingBottom: theme.space(3) }}>{children}</View> : null}
     </View>
   );
 }
