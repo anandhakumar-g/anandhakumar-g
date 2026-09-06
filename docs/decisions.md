@@ -4,6 +4,72 @@ Short ADRs. Newest first.
 
 ---
 
+## ADR-039 — Reporting exports, console parity, ops observability, mobile Screen contract
+**Decision (MVP-12):**
+
+- **CSV exports** (`com.singlepoint.export`). A hand-rolled `CsvWriter` (RFC-4180: `\r\n`,
+  a UTF-8 BOM so Excel reads accents, a field quoted only when it holds `, " CR LF`, inner
+  `"` doubled) and an `ExportService` with one `@Transactional(readOnly)` method per dataset.
+  `GET /api/v1/admin/exports/{tickets,payments,members}.csv` (ADMIN / SUPER_ADMIN, scoped to
+  `principal.getTenantId()`, 403 `SP-403` "No active community" when acting tenant-less) and
+  `GET /api/v1/superadmin/exports/{tickets,offers,communities}.csv` (SUPER_ADMIN,
+  platform-wide, tickets also `?tenantId=`). Filters are **date range + status only**
+  (`?from=&to=&status=`) — `from`/`to` are ISO-8601 instants bound to the row's created time,
+  `status` an exact enum-name match. Responses are `text/csv; charset=utf-8` +
+  `Content-Disposition: attachment; filename="<name>-<date>.csv"`. **Buffered, not streamed:**
+  `Csv.download` builds the body on the request thread into a `byte[]` rather than returning a
+  `StreamingResponseBody`, because the export queries hit RLS-forced tables and depend on the
+  `TenantContext` / `UserContext` ThreadLocals `JwtAuthFilter` sets per request — a streaming
+  body runs on a separate async thread where that context is absent and every row fails
+  closed. Fine at demo scale; `?from=&to=` is the size valve. No migration, no new RLS policy
+  (admin exports run under the admin's tenant GUC, Super Admin exports under the wildcard).
+
+- **`<a download>` can't carry a bearer token**, so both the console and Expo-web downloads
+  do `fetch(url, {headers})` → `blob` → `URL.createObjectURL` → click a synthetic link
+  (`admin-web/src/api.ts` `downloadCsv`, `mobile/src/lib/download.ts`). Native Expo has no
+  download path — the row is hidden (`canDownloadCsv = Platform.OS === "web"`); an
+  `expo-file-system` + share-sheet follow-up is noted, not built.
+
+- **Console parity** (`admin-web/`). The Super Admin console gains the surfaces ADR-038
+  deferred: `/taxonomy` (vendor verticals, vendor categories, global ticket categories —
+  list / create / rename / de-reactivate over the existing `/superadmin/vendor-category-kinds`
+  · `/vendor-categories` · `/ticket-categories`), `/audit` (filterable paged viewer over
+  `/superadmin/audit-logs[/actions]` with a row-detail card), `/broadcasts` (compose
+  ALL_ADMINS / ALL_USERS / one community + history over `/superadmin/broadcasts`), `/billing`
+  plan create + edit forms (entitlements as key→number rows) over `POST`/`PUT
+  /superadmin/plans`, and `/reports` (the exports above). Gate stays `npm run build`.
+
+- **Tenant lifecycle from the console.** `PUT /api/v1/superadmin/tenants/{id}` body gains
+  `status` — `TenantService.update` maps it via `TenantStatus.valueOf` and **rejects
+  `PENDING_REVIEW`** (400 `SP-400`; that transition is the onboarding flow's alone).
+  `GET /api/v1/superadmin/tenants` gains `?status=` (defaults to `ACTIVE`, unchanged when
+  omitted) via a `TenantService.search(query, status, pageable)` overload, and `TenantHealth`
+  now carries `status`, so `/communities` can list and reactivate SUSPENDED / ARCHIVED rows.
+  No migration — `V30` already widened the `tenant.status` CHECK.
+
+- **Ops observability** (`com.singlepoint.observability`). `micrometer-registry-prometheus`
+  (runtime) + `/actuator/prometheus` exposed on the management port (18081), tagged
+  `application="single-point"`. Boot's `@ConditionalOnEnabledMetricsExport` default wasn't
+  resolving in this build, so `management.metrics.export.prometheus.enabled=true` /
+  `management.endpoint.prometheus.enabled=true` are set explicitly. `AppMetrics` registers
+  four domain counters — `sp.tickets.raised`, `sp.offers.redeemed`, `sp.broadcasts.sent`,
+  `sp.communities.self_onboarded` — incremented in `TicketService.raise`, `OfferService.redeem`,
+  `BroadcastService.send`, `OnboardingService.approve`. `docs/ops-runbook.md` documents the
+  Prometheus scrape config, a starter Grafana panel + alert list, and the scheduled
+  `pg_dump` → S3 lifecycle + restore-drill procedure — **documentation, not automation**; the
+  only shipped code is the registry, the config, and the four counters.
+
+- **Mobile `Screen` contract** (`Themed.Screen`). `Screen` now owns safe-area padding — the
+  tab-bar / home-indicator inset is added to the scroll content's bottom padding (top was
+  already handled by `SafeAreaView edges`) — and takes optional `loading` / `error` / `empty`
+  props that render a centered slot **inside** the frame. Screens that returned a bare
+  `<Loading/>` before `<Screen>` (losing the safe area — the pattern in `(provider)/index`)
+  now `return <Screen loading />`. New `src/components/Icon.tsx` maps the ~dozen text glyphs
+  in use behind one `<Icon name>` so call sites don't change when a real icon font lands;
+  adoption is incremental (Home's "Raise a ticket" CTA first). Gate stays `tsc --noEmit`.
+
+---
+
 ## ADR-038 — Community self-onboarding, platform analytics, a Super Admin console
 **Decision (MVP-11):**
 

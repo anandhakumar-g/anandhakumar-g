@@ -2,7 +2,7 @@ openapi: 3.0.1
 info:
   title: Single Point API
   description: Multi-tenant gated-community ticket management platform.
-  version: MVP-11
+  version: MVP-12
 servers:
 - url: http://localhost:18080
   description: Generated server url
@@ -31,6 +31,8 @@ tags:
   description: Flats I belong to and the family members in them
 - name: Admin — Join Requests
   description: Approve or reject residents joining the community
+- name: Super Admin — Exports
+  description: Platform-wide CSV downloads
 - name: Dashboard
   description: "One at-a-glance summary, shaped by the caller's role"
 - name: Super Admin — Offer approval
@@ -55,6 +57,8 @@ tags:
   description: Provider self-service (name/phone stay admin-only)
 - name: Super Admin — Community requests
   description: Review self-onboarded communities
+- name: Admin — Exports
+  description: CSV downloads for the acting community
 - name: Tickets
   description: "Raise, triage, resolve — role-aware"
 - name: Admin — Providers
@@ -1434,7 +1438,8 @@ paths:
     get:
       tags:
       - Super Admin
-      summary: "Cross-tenant health counts (aggregates only, never ticket content)"
+      summary: "Cross-tenant health counts (aggregates only, never ticket content).\
+        \ Defaults to ACTIVE; pass ?status= for SUSPENDED / ARCHIVED / PENDING_REVIEW."
       operationId: tenantHealth
       parameters:
       - name: principal
@@ -1442,6 +1447,11 @@ paths:
         required: true
         schema:
           $ref: '#/components/schemas/AppPrincipal'
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
       responses:
         "200":
           description: OK
@@ -3426,6 +3436,96 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/InvoiceView'
+  /api/v1/superadmin/exports/tickets.csv:
+    get:
+      tags:
+      - Super Admin — Exports
+      summary: Tickets across the platform (from / to / status / tenantId)
+      operationId: tickets
+      parameters:
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: tenantId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  type: string
+                  format: byte
+  /api/v1/superadmin/exports/offers.csv:
+    get:
+      tags:
+      - Super Admin — Exports
+      summary: Offers across the platform (from / to / status)
+      operationId: offers
+      parameters:
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  type: string
+                  format: byte
+  /api/v1/superadmin/exports/communities.csv:
+    get:
+      tags:
+      - Super Admin — Exports
+      summary: Every community + its ticket counts
+      operationId: communities
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  type: string
+                  format: byte
   /api/v1/superadmin/community-requests:
     get:
       tags:
@@ -3943,6 +4043,106 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/JoinRequestView'
+  /api/v1/admin/exports/tickets.csv:
+    get:
+      tags:
+      - Admin — Exports
+      summary: Tickets in this community (from / to / status)
+      operationId: tickets_1
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  type: string
+                  format: byte
+  /api/v1/admin/exports/payments.csv:
+    get:
+      tags:
+      - Admin — Exports
+      summary: Service payments in this community (from / to / status)
+      operationId: payments
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  type: string
+                  format: byte
+  /api/v1/admin/exports/members.csv:
+    get:
+      tags:
+      - Admin — Exports
+      summary: Active members of this community
+      operationId: members_1
+      parameters:
+      - name: p
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppPrincipal'
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  type: string
+                  format: byte
   /api/v1/superadmin/tenants/{tenantId}/invite-codes/{codeId}:
     delete:
       tags:
@@ -4011,11 +4211,11 @@ components:
           type: string
         deviceId:
           type: string
+        resident:
+          type: boolean
         admin:
           type: boolean
         provider:
-          type: boolean
-        resident:
           type: boolean
         superAdmin:
           type: boolean
@@ -4146,6 +4346,8 @@ components:
           type: boolean
         providerOnboardingAllowed:
           type: boolean
+        status:
+          type: string
     TenantSettingsView:
       type: object
       properties:
@@ -4173,6 +4375,8 @@ components:
           type: boolean
         providerOnboardingAllowed:
           type: boolean
+        status:
+          type: string
     UpdateProviderRequest:
       type: object
       properties:
@@ -5578,6 +5782,8 @@ components:
         name:
           type: string
         city:
+          type: string
+        status:
           type: string
         openTickets:
           type: integer
