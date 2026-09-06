@@ -43,14 +43,17 @@ public class SecurityConfig {
     private final JwtService jwtService;
     private final ObjectMapper objectMapper;
     private final com.singlepoint.user.AppUserRepository users;
+    private final com.singlepoint.notification.DeviceTokenRepository devices;
     private final String allowedOrigins;
 
     public SecurityConfig(JwtService jwtService, ObjectMapper objectMapper,
                           com.singlepoint.user.AppUserRepository users,
+                          com.singlepoint.notification.DeviceTokenRepository devices,
                           @Value("${sp.cors.allowed-origins:*}") String allowedOrigins) {
         this.jwtService = jwtService;
         this.objectMapper = objectMapper;
         this.users = users;
+        this.devices = devices;
         this.allowedOrigins = allowedOrigins;
     }
 
@@ -69,7 +72,7 @@ public class SecurityConfig {
                 .authenticationEntryPoint((req, res, ex) -> writeJson(res, 401, ErrorCode.UNAUTHENTICATED))
                 .accessDeniedHandler((req, res, ex) -> writeJson(res, 403, ErrorCode.FORBIDDEN))
             .and()
-            .addFilterBefore(new JwtAuthFilter(jwtService, objectMapper, users),
+            .addFilterBefore(new JwtAuthFilter(jwtService, objectMapper, users, devices),
                              UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

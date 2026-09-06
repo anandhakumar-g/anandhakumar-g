@@ -25,12 +25,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final ObjectMapper objectMapper;
     private final com.singlepoint.user.AppUserRepository users;
+    private final com.singlepoint.notification.DeviceTokenRepository devices;
 
     public JwtAuthFilter(JwtService jwtService, ObjectMapper objectMapper,
-                         com.singlepoint.user.AppUserRepository users) {
+                         com.singlepoint.user.AppUserRepository users,
+                         com.singlepoint.notification.DeviceTokenRepository devices) {
         this.jwtService = jwtService;
         this.objectMapper = objectMapper;
         this.users = users;
+        this.devices = devices;
     }
 
     @Override
@@ -54,6 +57,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             if (principal.getDeviceId() != null
                     && !principal.getDeviceId().equals(request.getHeader("X-Device-Id"))) {
                 writeError(response, new AppException(ErrorCode.DEVICE_MISMATCH, null));
+                return;
+            }
+
+            // MVP-13 (C3): the user signed this device out from another one.
+            if (principal.getDeviceId() != null
+                    && devices.existsByUserIdAndDeviceIdAndRevokedAtIsNotNull(
+                            principal.getUserId(), principal.getDeviceId())) {
+                writeError(response, new AppException(ErrorCode.DEVICE_MISMATCH, "This device was signed out"));
                 return;
             }
 

@@ -188,13 +188,20 @@ public class MeController {
     @Operation(summary = "Register / refresh a push device token")
     @Transactional
     public ResponseEntity<Void> registerDevice(@AuthenticationPrincipal AppPrincipal principal,
+                                               @org.springframework.web.bind.annotation.RequestHeader(
+                                                       value = "X-Device-Id", required = false) String deviceId,
                                                @Valid @RequestBody MeDtos.DeviceRequest body) {
-        DeviceToken dt = deviceTokenRepository.findByToken(body.token()).orElseGet(DeviceToken::new);
+        // Prefer the row already keyed by this device (session), else by push token, else new.
+        DeviceToken dt = (deviceId != null
+                ? deviceTokenRepository.findByUserIdAndDeviceId(principal.getUserId(), deviceId) : java.util.Optional.<DeviceToken>empty())
+                .or(() -> deviceTokenRepository.findByToken(body.token()))
+                .orElseGet(DeviceToken::new);
         dt.setUserId(principal.getUserId());
         dt.setToken(body.token());
         dt.setPlatform(DeviceToken.Platform.valueOf(body.platform().toUpperCase()));
         dt.setProvider(body.provider() != null
                 ? DeviceToken.Provider.valueOf(body.provider().toUpperCase()) : DeviceToken.Provider.EXPO);
+        if (deviceId != null && !deviceId.isBlank()) dt.setDeviceId(deviceId);
         dt.setLastSeenAt(Instant.now());
         deviceTokenRepository.save(dt);
         return ResponseEntity.noContent().build();

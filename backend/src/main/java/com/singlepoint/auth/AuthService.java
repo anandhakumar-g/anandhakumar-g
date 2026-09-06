@@ -36,13 +36,16 @@ public class AuthService {
     private final AdminTenantRepository adminTenantRepository;
     private final JwtService jwtService;
     private final CryptoService crypto;
+    private final com.singlepoint.notification.DeviceTokenRepository deviceTokens;
 
     public AuthService(OtpService otpService, UserService userService,
                        ServiceProviderRepository providerRepository,
                        TenantServiceProviderRepository tenantProviderRepository,
                        UserTenantMembershipRepository membershipRepository,
                        AdminTenantRepository adminTenantRepository,
-                       JwtService jwtService, CryptoService crypto) {
+                       JwtService jwtService, CryptoService crypto,
+                       com.singlepoint.notification.DeviceTokenRepository deviceTokens) {
+        this.deviceTokens = deviceTokens;
         this.otpService = otpService;
         this.userService = userService;
         this.providerRepository = providerRepository;
@@ -81,7 +84,23 @@ public class AuthService {
         UUID activeTenant = resolveActiveTenant(user);
         OnboardingState state = onboardingState(user, activeTenant);
         String token = jwtService.issue(user.getId(), user.getRole(), activeTenant, user.getName(), deviceId);
+        recordDevice(user.getId(), deviceId);
         return new Session(token, jwtService.getTtlSeconds(), state, user, activeTenant);
+    }
+
+    /** MVP-13 (C3): one device_token row per (user, device) — a fresh OTP sign-in also un-revokes it. */
+    private void recordDevice(UUID userId, String deviceId) {
+        if (deviceId == null || deviceId.isBlank()) return;
+        var d = deviceTokens.findByUserIdAndDeviceId(userId, deviceId)
+                .orElseGet(com.singlepoint.notification.domain.DeviceToken::new);
+        d.setUserId(userId);
+        d.setDeviceId(deviceId);
+        d.setLastSeenAt(java.time.Instant.now());
+        d.setRevokedAt(null);
+        if (d.getLabel() == null) {
+            d.setLabel("Device " + deviceId.substring(0, Math.min(6, deviceId.length())));
+        }
+        deviceTokens.save(d);
     }
 
     /**
