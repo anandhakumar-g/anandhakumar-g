@@ -45,18 +45,18 @@ export function Button({
       style={({ pressed }) => [
         {
           backgroundColor: bg,
-          borderRadius: theme.radius.md,
-          paddingVertical: theme.space(3.5),
-          paddingHorizontal: theme.space(5),
+          borderRadius: theme.radius.sm,
+          paddingVertical: theme.space(3),
+          paddingHorizontal: theme.space(4),
           alignItems: "center",
           justifyContent: "center",
           flexDirection: "row",
           gap: theme.space(2),
           alignSelf: fullWidth ? "stretch" : "flex-start",
-          borderWidth: variant === "secondary" || variant === "ghost" ? 1 : 0,
+          borderWidth: variant === "secondary" ? 1 : 0,
           borderColor: theme.color.border,
           opacity: isDisabled ? 0.5 : pressed ? 0.85 : 1,
-          minHeight: 48,
+          minHeight: 44,
         },
         style,
       ]}

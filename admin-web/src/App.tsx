@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth";
-import { Button } from "./ui";
+import { Button, DensityToggle } from "./ui";
 import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
 import { Communities } from "./pages/Communities";
@@ -52,6 +52,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           </NavLink>
         ))}
         <div className="spacer" />
+        <DensityToggle />
         <div className="faint" style={{ padding: "0 12px 8px", fontSize: 12 }}>{me?.name ?? "Super Admin"}</div>
         <Button variant="secondary" onClick={signOut}>Sign out</Button>
       </nav>

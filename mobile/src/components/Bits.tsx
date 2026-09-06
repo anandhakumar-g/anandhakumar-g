@@ -4,26 +4,34 @@ import { useTheme } from "@/theme/ThemeProvider";
 import { statusColor } from "@/theme/tokens";
 import { AppText } from "./Themed";
 
-export function StatusBadge({ status }: { status: string }) {
+/** A tinted chip with a leading dot — background is the semantic colour at low alpha. */
+function Chip({ label, color, tint }: { label: string; color: string; tint: string }) {
   const { theme } = useTheme();
-  const c = statusColor(theme, status);
   return (
     <View
       style={{
         alignSelf: "flex-start",
-        backgroundColor: c + "22",
-        borderColor: c,
-        borderWidth: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: theme.space(1.5),
+        backgroundColor: tint,
         borderRadius: theme.radius.pill,
         paddingHorizontal: theme.space(2.5),
         paddingVertical: theme.space(1),
       }}
     >
-      <AppText size="xs" weight="700" style={{ color: c, letterSpacing: 0.4 }}>
-        {status.replace(/_/g, " ")}
+      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }} />
+      <AppText size="xs" weight="600" style={{ color, letterSpacing: 0.2 }}>
+        {label}
       </AppText>
     </View>
   );
+}
+
+export function StatusBadge({ status }: { status: string }) {
+  const { theme } = useTheme();
+  const c = statusColor(theme, status);
+  return <Chip label={status.replace(/_/g, " ")} color={c} tint={c + "1F"} />;
 }
 
 export function Pill({ text, tone = "muted" }: { text: string; tone?: "muted" | "primary" | "success" | "danger" }) {
@@ -33,21 +41,8 @@ export function Pill({ text, tone = "muted" }: { text: string; tone?: "muted" | 
     : tone === "success" ? theme.color.success
     : tone === "danger" ? theme.color.danger
     : theme.color.textMuted;
-  return (
-    <View
-      style={{
-        alignSelf: "flex-start",
-        backgroundColor: theme.color.surfaceAlt,
-        borderRadius: theme.radius.pill,
-        paddingHorizontal: theme.space(2.5),
-        paddingVertical: theme.space(1),
-      }}
-    >
-      <AppText size="xs" weight="600" style={{ color: c }}>
-        {text}
-      </AppText>
-    </View>
-  );
+  const tint = tone === "muted" ? theme.color.surfaceAlt : c + "1F";
+  return <Chip label={text} color={c} tint={tint} />;
 }
 
 export function EmptyState({ title, body, action }: { title: string; body?: string; action?: React.ReactNode }) {

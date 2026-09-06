@@ -1,10 +1,12 @@
 import type { LucideIcon } from "lucide-react";
-import type {
-  ButtonHTMLAttributes,
-  InputHTMLAttributes,
-  ReactNode,
-  SelectHTMLAttributes,
-  TextareaHTMLAttributes,
+import {
+  type ButtonHTMLAttributes,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type SelectHTMLAttributes,
+  type TextareaHTMLAttributes,
+  useEffect,
+  useState,
 } from "react";
 
 export function Button({
@@ -81,8 +83,43 @@ export function Select({
   );
 }
 
-export function Pill({ text, tone = "muted" }: { text: string; tone?: "muted" | "success" | "danger" | "warning" | "accent" }) {
+export function Pill({
+  text,
+  tone = "muted",
+}: {
+  text: string;
+  tone?: "muted" | "success" | "danger" | "warning" | "info" | "accent";
+}) {
   return <span className={`pill ${tone}`}>{text}</span>;
+}
+
+export function DensityToggle() {
+  const get = () => {
+    try {
+      return localStorage.getItem("sp.console.density") === "compact" ? "compact" : "comfortable";
+    } catch {
+      return "comfortable";
+    }
+  };
+  const [d, setD] = useState<"comfortable" | "compact">(get());
+  useEffect(() => {
+    document.documentElement.dataset.density = d === "compact" ? "compact" : "";
+    try {
+      localStorage.setItem("sp.console.density", d);
+    } catch {
+      /* private mode */
+    }
+  }, [d]);
+  return (
+    <div className="density-toggle" role="group" aria-label="Table density">
+      <button type="button" aria-pressed={d === "comfortable"} onClick={() => setD("comfortable")}>
+        Comfortable
+      </button>
+      <button type="button" aria-pressed={d === "compact"} onClick={() => setD("compact")}>
+        Compact
+      </button>
+    </div>
+  );
 }
 
 export function Stat({ k, v }: { k: string; v: ReactNode }) {

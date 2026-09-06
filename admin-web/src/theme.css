@@ -99,9 +99,10 @@ code, kbd, samp, .mono { font-family: var(--font-mono); }
 
 .card {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px;
+  border-radius: var(--radius); padding: 16px;
 }
 .card h2 { margin-bottom: 12px; }
+.raised { box-shadow: var(--shadow); }
 
 .btn {
   appearance: none; border: 1px solid transparent; border-radius: var(--radius-sm);
@@ -118,13 +119,16 @@ code, kbd, samp, .mono { font-family: var(--font-mono); }
 .btn.danger { background: var(--danger); color: #fff; }
 .btn.link { background: none; color: var(--accent); padding: 4px 6px; }
 
-.field { display: flex; flex-direction: column; gap: 5px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
 .field label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
 .field input, .field select, .field textarea {
-  font: inherit; padding: 9px 11px; border: 1px solid var(--border);
+  font: inherit; padding: 0 12px; height: 40px; border: 1px solid var(--hair-strong);
   border-radius: var(--radius-sm); background: var(--surface); color: var(--text);
 }
-.field textarea { resize: vertical; min-height: 72px; }
+.field input:focus, .field select:focus, .field textarea:focus {
+  outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-tint);
+}
+.field textarea { resize: vertical; min-height: 76px; height: auto; padding: 10px 12px; }
 
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
@@ -134,13 +138,16 @@ tr:last-child td { border-bottom: 0; }
 .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 
 .pill {
-  display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px;
-  border-radius: 999px; background: var(--surface-alt); color: var(--text-muted);
+  display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600;
+  padding: 3px 9px 3px 7px; border-radius: 999px;
+  background: var(--surface-alt); color: var(--text-muted);
 }
-.pill.success { background: color-mix(in srgb, var(--success) 18%, transparent); color: var(--success); }
-.pill.danger { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
-.pill.warning { background: color-mix(in srgb, var(--warning) 18%, transparent); color: var(--warning); }
-.pill.accent { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+.pill::before { content: ""; width: 6px; height: 6px; border-radius: 999px; background: currentColor; flex: none; }
+.pill.success { background: var(--success-tint); color: var(--success); }
+.pill.danger  { background: var(--danger-tint);  color: var(--danger); }
+.pill.warning { background: var(--warning-tint); color: var(--warning); }
+.pill.info    { background: var(--info-tint);    color: var(--info); }
+.pill.accent  { background: var(--primary-tint); color: var(--primary); }
 
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
 .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
@@ -149,4 +156,21 @@ tr:last-child td { border-bottom: 0; }
 .stat .k { font-size: 11px; color: var(--text-faint); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.05em; }
 
 .login-wrap { min-height: 100%; display: grid; place-items: center; padding: 24px; }
-.login-card { width: 100%; max-width: 380px; }
+.login-card { width: 100%; max-width: 380px; box-shadow: var(--shadow); }
+
+/* Density — set data-density="compact" on <html> to tighten tables and cards. */
+:root[data-density="compact"] th,
+:root[data-density="compact"] td { padding: 5px 10px; }
+:root[data-density="compact"] .card { padding: 12px; }
+:root[data-density="compact"] table { font-size: 12.5px; }
+
+.density-toggle {
+  display: flex; gap: 2px; margin: 0 12px 8px; padding: 3px;
+  background: var(--surface-alt); border-radius: var(--radius-sm);
+}
+.density-toggle button {
+  flex: 1; appearance: none; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: 11px; font-weight: 600; color: var(--text-faint);
+  padding: 5px 6px; border-radius: 6px;
+}
+.density-toggle button[aria-pressed="true"] { background: var(--surface); color: var(--text); }
